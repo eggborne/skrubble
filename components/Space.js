@@ -26,21 +26,28 @@ export default function Space(props) {
             </div>
           </>
         }
+        <div className='special-label'>{props.label}</div>
         {props.contents}
       </div>
       <style jsx>{`
         .space {
           --caret-size: calc(var(--board-size) / 100);
           position: relative;
-          font-family: 'interstate-bold', sans-serif;
+          width: 90%;
+          height: 90%;
           background-color: ${props.backgroundColor};
-          border: calc(var(--board-outline-size) / 2) solid white;
           display: flex;
           align-items: center;
           justify-content: center;
           text-align: center;
           color: black;
           font-size: calc(var(--board-size) / 90);
+        }
+        .special-label {
+          position: absolute;
+          top: 50%;
+          left: 50%;
+          translate: -50% -50%;
         }
         .caret-trio {
           position: absolute;

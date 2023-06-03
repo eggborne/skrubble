@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import Space from "./Space";
 import Tile from "./Tile";
 
@@ -21,17 +22,30 @@ const specialSpaceData = {
 
 export default function GameBoard(props) {
   const lowerHalf = [...boardData.slice(0, -1)].reverse();
+  const [revealed, setRevealed] = useState(false);
+
+  useEffect(() => {
+    console.log('GameBoard effect!');
+    if (!revealed) {
+      setRevealed(true);
+    }
+  }, [revealed]);
 
   return (
     <>
-      <div className='game-board'>
+      <div className='game-board' style={{
+        opacity: revealed ? '1' : '0',
+        scale: revealed ? '1' : '0.25',
+        rotate: revealed ? '0deg' : '-180deg',
+      }}>
         {[boardData, lowerHalf].map((half, h) =>
           half.map((row, r) =>
             row.map((space, s) =>
               <Space
+                key={(r+1) * (s+1)}
                 spaceData={space}
                 backgroundColor={space.length ? specialSpaceData[space[0]].color : 'var(--board-color)'}
-                contents={
+                label={
                   h === 0 && r === 7 && space[0] === 'dw' ?
                     <div className='star'></div>
                     :
@@ -40,6 +54,9 @@ export default function GameBoard(props) {
                     :
                     ''
                 }
+                // contents={
+                //   <Tile letter='M' />
+                // }
               />
             )
           )
@@ -49,29 +66,37 @@ export default function GameBoard(props) {
         .game-board {
           width: var(--board-size);
           height: var(--board-size);
-          background-color: var(--board-color);
-          border: calc(var(--board-outline-size) * 1.5) solid white;
-
+          background-color: #eee;
+          border: calc(var(--board-outline-size) * 2) solid #eee;          
           display: grid;
           grid-template-columns: repeat(15, 1fr);
           grid-template-rows: repeat(15, 1fr);
+          justify-items: center;
+          align-items: center;
+          // overflow: hidden;
+
+          transition: all 1000ms ease-out;
+        }
+        .game-board::after {
+          content: '';
+          position: absolute;
+          width: calc(var(--board-size) * 0.9875);
+          height: calc(var(--board-size) * 0.9875);
+          border: calc(var(--board-outline-size) / 2) solid #333;
         }
         h1 {
           font-size: calc(var(--header-height) / 2);
         }
         .star {
           --star-size: calc(var(--board-size) / 40);
-          position: absolute;
-          top: 55%;
-          transform: translateY(-150%);
+          font-size: var(--star-size);
+          position: relative;
+          transform: translateY(-100%);
           
           border-right:  .3em solid transparent;
           border-bottom: .7em solid #333;
           border-left:   .3em solid transparent;
         
-          /* Controlls the size of the stars. */
-          font-size: var(--star-size);
-          
           &:before, &:after {
             content: '';
             

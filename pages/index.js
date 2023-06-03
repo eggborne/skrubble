@@ -58,13 +58,15 @@ export default function Home() {
       <style jsx global>{`
         :root {
           --actual-height: 100vh;
-          --board-size: calc(100vw - 2rem);
-          --board-outline-size: calc(var(--board-size) / 180);
+          --board-size: calc(100vw - 1.5rem);
+          --board-outline-size: calc(var(--board-size) / 160);
           --header-height: 3rem;
           --footer-height: 3rem;
-          --button-height: 3rem;
+          --button-height: 4rem;
           --main-bg-color: #555;
           --secondary-bg-color: #333;
+          --main-text-color: #aba;
+          --secondary-text-color: #ccc;
           --board-color: #ccc2a1;
           --tile-color: #ffddd0;
         }
@@ -72,11 +74,12 @@ export default function Home() {
         body {
           padding: 0;
           margin: 0;
-          font-family: -apple-system, BlinkMacSystemFont, Segoe UI, Roboto,
-            Oxygen, Ubuntu, Cantarell, Fira Sans, Droid Sans, Helvetica Neue,
-            sans-serif;
+          // font-family: -apple-system, BlinkMacSystemFont, Segoe UI, Roboto,
+          //   Oxygen, Ubuntu, Cantarell, Fira Sans, Droid Sans, Helvetica Neue,
+          //   sans-serif;
+          font-family: 'interstate-bold', sans-serif;
           background-color: black;
-          color: #aba;
+          color: var(--main-text-color);
         }
         * {
           box-sizing: border-box;

@@ -7,6 +7,9 @@ export default function Button(props) {
           padding: 0 2rem;
           height: var(--button-height);
           background-color: var(--secondary-bg-color);
+          color: var(--secondary-text-color);
+          font-family: inherit;
+          font-size: calc(var(--button-height) / 2);
           border-radius: 0.5rem;
         }
       `}</style>
