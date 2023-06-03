@@ -1,9 +1,9 @@
-import Head from 'next/head';
-import Footer from './Footer';
 import { useEffect, useState } from 'react';
-import Header from './Header';
-import Button from './Button';
-import GameBoard from './GameBoard';
+import Head from 'next/head';
+import Footer from '../components/Footer';
+import Header from '../components/Header';
+import Button from '../components/Button';
+import GameBoard from '../components/GameBoard';
 
 export default function Home() {
   const [loaded, setLoaded] = useState(false);

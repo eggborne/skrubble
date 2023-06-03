@@ -66,7 +66,7 @@ export default function GameBoard(props) {
           transform: translateY(-150%);
           
           border-right:  .3em solid transparent;
-          border-bottom: .7em solid #000000;
+          border-bottom: .7em solid #333;
           border-left:   .3em solid transparent;
         
           /* Controlls the size of the stars. */
@@ -84,7 +84,7 @@ export default function GameBoard(props) {
             left: -1em;
           
             border-right:  1em solid transparent;
-            border-bottom: .7em  solid #000000;
+            border-bottom: .7em  solid #333;
             border-left:   1em solid transparent;
           
             transform: rotate(-35deg);
