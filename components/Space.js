@@ -44,6 +44,7 @@ export default function Space(props) {
           font-size: calc(var(--board-size) / 90);
         }
         .special-label {
+          color: black;
           position: absolute;
           top: 50%;
           left: 50%;

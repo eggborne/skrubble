@@ -4,10 +4,42 @@ import Footer from '../components/Footer';
 import Header from '../components/Header';
 import Button from '../components/Button';
 import GameBoard from '../components/GameBoard';
+import { tileData } from '../scripts/scrabbledata';
+import { randomInt } from '../scripts/util';
+import Rack from '../components/Rack';
 
 export default function Home() {
   const [loaded, setLoaded] = useState(false);
   const [gameStarted, setGameStarted] = useState(false);
+  const [bag, setBag] = useState([]);
+  const [playerRack, setPlayerRack] = useState([]);
+  const [opponentRack, setOpponentRack] = useState([]);
+
+  function createBag() {
+    const nextBag = [];
+    for (const letter in tileData) {
+      let tileQuantity = tileData[letter].quantity;
+      for (let i = 0; i < tileQuantity; i++) {
+        nextBag.push({
+          letter: letter.toUpperCase(),
+          value: tileData[letter].value,
+          id: crypto.randomUUID() || `${letter}-${i}`,
+        });
+      }
+    }
+    console.warn('created bag!', nextBag)
+    setBag(nextBag);
+    return nextBag;
+  }
+
+  function getRandomLetters(nextBag, amount) {
+    const letterArray = [];
+    for (let i = 0; i < amount; i++) {
+      letterArray.push(nextBag.splice(randomInt(0, nextBag.length - 1), 1)[0]);
+    }
+    setBag(nextBag);
+    return letterArray;
+  }
 
   useEffect(() => {
     if (!loaded) {
@@ -16,24 +48,39 @@ export default function Home() {
     }
   }, [loaded]);
 
+  function startGame() {
+    setGameStarted(true);
+    const nextBag = createBag();
+    const playerOpeningLetters = getRandomLetters(nextBag, 7);
+    const opponentOpeningLetters = getRandomLetters(nextBag, 7);
+    console.log('player opening letters:', playerOpeningLetters);
+    console.log('opponent opening letters:', opponentOpeningLetters);
+    setPlayerRack(playerOpeningLetters);
+    setOpponentRack(opponentOpeningLetters);
+  }
+
   return (
     <div>
       <Head>
         <title>Phoenetic Scrabble</title>
         <link rel="icon" href="/favicon.ico" />
-        <link href="https://www.dafontfree.net/embed/aW50ZXJzdGF0ZS1ib2xkJmRhdGEvMjUvaS8xMjk5NjUvSW50ZXJzdGF0ZS1Cb2xkLnR0Zg" rel="stylesheet" type="text/css"/>
       </Head>
 
       <main>
         <Header />
         <div id='home-body'>
           {gameStarted ?
-            <GameBoard />
+            <>
+              
+              <Rack tiles={opponentRack} />
+              <GameBoard />
+              <Rack tiles={playerRack} />
+            </>
             :
-            <Button label='START' clickAction={() => setGameStarted(true)} />
+            <Button label='START' clickAction={startGame} />
           }
         </div>
-        <Footer />
+        <Footer bag />
       </main>
 
       <style jsx>{`
@@ -51,7 +98,7 @@ export default function Home() {
           display: flex;
           flex-direction: column;
           align-items: center;
-          justify-content: center;
+          justify-content: space-evenly;
         }
       `}</style>
 
@@ -74,9 +121,6 @@ export default function Home() {
         body {
           padding: 0;
           margin: 0;
-          // font-family: -apple-system, BlinkMacSystemFont, Segoe UI, Roboto,
-          //   Oxygen, Ubuntu, Cantarell, Fira Sans, Droid Sans, Helvetica Neue,
-          //   sans-serif;
           font-family: 'interstate-bold', sans-serif;
           background-color: black;
           color: var(--main-text-color);
