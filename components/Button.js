@@ -9,7 +9,7 @@ export default function Button(props) {
           background-color: var(--secondary-bg-color);
           color: var(--secondary-text-color);
           font-family: inherit;
-          font-size: calc(var(--button-height) / 2);
+          font-size: calc(var(--button-height) / 3);
           border-radius: 0.5rem;
         }
       `}</style>

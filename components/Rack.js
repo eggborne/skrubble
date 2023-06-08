@@ -6,15 +6,26 @@ export default function Rack(props) {
     <>
       <div className='rack'>
         {props.tiles.map(tile =>
-          <Tile letter={tile.letter} size={'calc(var(--board-size) / 10)'} value={tile.value} key={tile.id} />
+          <Tile 
+            letter={tile.letter} size={'calc(var(--board-size) / 10)'} 
+            value={tile.value} 
+            key={tile.id}
+            id={tile.id}
+            selected={props.selectedTile && props.selectedTile.id === tile.id}
+            onPointerDown={props.handleTilePointerDown}
+            onPointerMove={props.handleTilePointerMove}
+          />
         )}
       </div>
       <style jsx>{`
         .rack {
           position: relative;
-          display: flex;
-          align-items: center;
-          justify-content: center;
+          // display: flex;
+          // align-items: center;
+          // justify-content: center;
+          display: grid;
+          grid-template-rows: 1fr;
+          grid-template-columns: repeat(7, 1fr);
           gap: calc(var(--board-size) / 100);
           background-color: #cccc99;
           width: 90%;
@@ -38,7 +49,6 @@ export default function Rack(props) {
           background-color: inherit;
           border: 1px solid black;
           z-index: 3;
-          
         }
       `}</style>
     </>
