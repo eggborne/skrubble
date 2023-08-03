@@ -2,7 +2,7 @@ export default function Header(props) {
   return (
     <header>
       <h1>
-        Phoenetic Scrabble
+        Phonetic Scrabble
       </h1>
       <style jsx>{`
         header {

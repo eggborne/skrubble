@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { db, auth, provider } from '../scripts/firebase';
-import { getAuth, signInWithPopup, GoogleAuthProvider } from "firebase/auth";
+import { getAuth, signInWithPopup, GoogleAuthProvider, setPersistence, inMemoryPersistence } from "firebase/auth";
 import Head from 'next/head';
 import Footer from '../components/Footer';
 import Header from '../components/Header';
@@ -21,8 +21,13 @@ export default function Home() {
   const [opponentRack, setOpponentRack] = useState([]);
   const [selectedTile, setSelectedTile] = useState(null);
 
+  useEffect(() => {
+
+  });
+
   function callGooglePopup() {
     console.log("BLARGH")
+    // signInWithPopup(auth, provider)
     signInWithPopup(auth, provider)
     .then((result) => {
       console.log('clicked sign in?', result)
@@ -78,6 +83,19 @@ export default function Home() {
   useEffect(() => {
     if (!loaded) {
       document.documentElement.style.setProperty('--actual-height', window.innerHeight + 'px');
+      setPersistence(auth, inMemoryPersistence)
+      .then(() => {
+      // In memory persistence will be applied to the signed in Google user
+      // even though the persistence was set to 'none' and a page redirect
+      // occurred.
+      // return signInWithPopup(auth, provider);
+      return callGooglePopup();
+    })
+  .catch((error) => {
+    // Handle Errors here.
+    const errorCode = error.code;
+    const errorMessage = error.message;
+  });
       setLoaded(true);
     }
   }, [loaded]);
@@ -101,7 +119,8 @@ export default function Home() {
     setSelectedTile(tile);
   }
 
-  function handleTilePointerMove(cursorPosition) {
+  function handleTilePointerMove(e) {
+    const cursorPosition = { x: e.pageX, y: e.pageY };
     const tileElement = document.getElementById(selectedTile.id);
 
     console.log('new position: ' + cursorPosition.x, cursorPosition.y);
@@ -112,26 +131,39 @@ export default function Home() {
   return (
     <div>
       <Head>
-        <title>Phoenetic Scrabble</title>
+        <title>Phonetic Scrabble</title>
         <link rel="icon" href="/favicon.ico" />
       </Head>
 
       <main>
         <Header />
-        <div id='home-body'>
+        <div 
+          id='home-container'
+          // onPointerMove={handleTilePointerMove}
+        >
           {gameStarted ?
             <>
-              <Rack
-                tiles={opponentRack}
-                handleClickTile={() => null}
-              />
+            <div className='player-area'>
+              <div className='player-info'></div>
+              <div className='rack-area'>
+                <Rack
+                  tiles={opponentRack}
+                  handleClickTile={() => null}
+                />
+              </div>
+            </div>
               <GameBoard />
-              <Rack
-                tiles={playerRack}
-                selectedTile={selectedTile}
-                handleTilePointerDown={handleTilePointerDown}
-                handleTilePointerMove={handleTilePointerMove}
-              />
+              <div className='player-area'>
+                <div className='rack-area'>
+                  <Rack
+                    tiles={playerRack}
+                    selectedTile={selectedTile}
+                    // handleTilePointerDown={handleTilePointerDown}
+                    // handleTilePointerMove={handleTilePointerMove}
+                  />
+                </div>
+                <div className='player-info'></div>
+              </div>
             </>
             :
             user ?
@@ -158,18 +190,46 @@ export default function Home() {
         main {
           background-color: var(--main-bg-color);
           height: var(--actual-height);
+          max-height: var(--actual-height);
           flex: 1;
           display: flex;
           flex-direction: column;
           justify-content: space-between;
           align-items: center;
         }
-        #home-body {
+        #home-container {
           flex-grow: 1;
-          display: flex;
-          flex-direction: column;
-          align-items: center;
-          justify-content: space-evenly;
+          display: grid;
+          grid-template-columns: 1fr;
+          grid-template-rows: 1fr min-content 1fr;
+          // overflow: hidden;
+
+          & > .player-area {
+            display: grid;
+            grid-template-columns: 1fr;
+            grid-template-rows: 0.8fr 0.8fr;
+            justify-items: center;
+            align-items: center;
+
+            & > .player-info {
+              height: 100%;
+              width: 100%;
+            }
+
+            & > .rack-area {
+              width: 100%;
+              height: 100%;
+              display: flex;
+              align-items: center;
+              justify-content: center;
+            }
+
+            &:last-of-type {
+              grid-template-rows: 0.8fr 0.8fr;
+              align-content: flex-end;
+            }
+
+          }
         }
 
         .logged-in-user-info {
@@ -183,13 +243,18 @@ export default function Home() {
           font-weight: bold;
           font-size: 2rem;
         }
+
+        .logged-in-user-info > img {
+          border-radius: 50%;
+        }
       `}</style>
 
       <style jsx global>{`
         :root {
           --actual-height: 100vh;
           --main-width: 100vw;
-          --board-size: calc(100vw - 1.5rem);
+          --board-size: calc(100vw - 1.25rem);
+          --rack-height: calc(var(--board-size) / 10);
           --board-outline-size: calc(var(--board-size) / 160);
           --header-height: 3rem;
           --footer-height: 3rem;
@@ -216,6 +281,22 @@ export default function Home() {
         }
         * {
           box-sizing: border-box;
+        }
+
+        @media screen and (orientation: landscape) {
+          :root {
+            --rack-height: 3rem;
+            --board-size: calc(100vh - (var(--rack-height) * 5.2));
+          }
+
+          .player-area {
+            
+            grid-template-rows: 1fr !important;
+
+            & > .player-info {
+              position: fixed;
+            }
+          }
         }
       `}</style>
     </div>

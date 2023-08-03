@@ -18,7 +18,7 @@ export default function GameBoard(props) {
       <div className='game-board' style={{
         opacity: revealed ? '1' : '0',
         scale: revealed ? '1' : '0.25',
-        rotate: revealed ? '0deg' : '-180deg',
+        // rotate: revealed ? '0deg' : '-180deg',
       }}>
         {fullBoard.map((row, r) =>
           row.map((space, s) =>

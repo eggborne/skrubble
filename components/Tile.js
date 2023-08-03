@@ -28,7 +28,7 @@ export default function Tile(props) {
       <div
         id={props.id}
         onPointerDown={handlePointerDown}
-        onPointerMove={handlePointerMove}
+        // onPointerMove={handlePointerMove}
         className={tileClass}
       >
         {props.letter}
@@ -63,9 +63,9 @@ export default function Tile(props) {
         .tile:after {
           content: '${props.value}';
           position: absolute;
-          bottom: 0;
+          bottom: 5%;
           right: 10%;
-          font-size: calc(${props.size} / 3);
+          font-size: calc(${props.size} / 4);
         }
 
         .tile.revealed {
