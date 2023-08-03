@@ -83,6 +83,9 @@ export default function Home() {
   useEffect(() => {
     if (!loaded) {
       document.documentElement.style.setProperty('--actual-height', window.innerHeight + 'px');
+      window.addEventListener('resize', () => {
+        document.documentElement.style.setProperty('--actual-height', window.innerHeight + 'px');
+      })
       setPersistence(auth, inMemoryPersistence)
       .then(() => {
       // In memory persistence will be applied to the signed in Google user

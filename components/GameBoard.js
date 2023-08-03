@@ -58,7 +58,7 @@ export default function GameBoard(props) {
           
           // overflow: hidden;
 
-          transition: all 1000ms ease-out;
+          transition: scale 1000ms ease-out;
         }
         .game-board::after {
           content: '';
