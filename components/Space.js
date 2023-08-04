@@ -1,7 +1,7 @@
 export default function Space(props) {
   return (
     <>
-      <div className='space'>
+      <div className='space dropzone'>
         {props.spaceData.length > 0 &&
           <>
             <div className='caret-trio top'>

@@ -2,24 +2,28 @@ import { useEffect, useState } from "react";
 
 export default function Tile(props) {
   const [revealed, setRevealed] = useState(false);
+  const [originalRackPosition, setOriginalRackPosition]  = useState({});
 
   useEffect(() => {
     if (!revealed) {
       setRevealed(true);
+      const rackPosition = { 
+        x: document.getElementById(props.id).getBoundingClientRect().x, 
+        y: document.getElementById(props.id).getBoundingClientRect().y 
+      };
+      setOriginalRackPosition(rackPosition);
     }
   }, [revealed]);
 
   function handlePointerDown(e) {
-    props.onPointerDown({
+    const tileObject = {
       letter: props.letter,
       value: props.value,
       key: props.id,
       id: props.id,
-    }, { x: e.pageX, y: e.pageY });
-  }
-
-  function handlePointerMove(e) {
-    props.onPointerMove({ x: e.pageX, y: e.pageY });
+      originalPosition: originalRackPosition,
+    };
+    props.onPointerDown(tileObject, { x: e.pageX, y: e.pageY });
   }
 
   const tileClass = `tile${revealed ? ' revealed' : ''}${props.selected ? ' selected' : ''}`
@@ -28,7 +32,6 @@ export default function Tile(props) {
       <div
         id={props.id}
         onPointerDown={handlePointerDown}
-        // onPointerMove={handlePointerMove}
         className={tileClass}
       >
         {props.letter}
@@ -53,7 +56,9 @@ export default function Tile(props) {
           opacity: 0.5;
           translate: 0 -1rem;
           z-index: 3;
-          transition: opacity 500ms ease, translate 500ms ease;
+          // transition: opacity 500ms ease, translate 500ms ease;
+          transition: all 500ms ease;
+          cursor: grab;
         }
 
         .tile * {
@@ -75,10 +80,13 @@ export default function Tile(props) {
         }
         
         .tile.selected {
-          position: fixed;
+          // position: fixed;
+          transform-origin: 0 0;
+          // scale: 0.525;
           outline: 0.1rem solid lightgreen;
-          translate: -50% -50%;
-          transition: none;
+          transition: none !important;
+          cursor: grabbing;
+          z-index: 999;
         }
       `}</style>
     </>

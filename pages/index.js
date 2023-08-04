@@ -11,6 +11,8 @@ import { tileData } from '../scripts/scrabbledata';
 import { pause, randomInt } from '../scripts/util';
 import LoginModal from '../components/LoginModal';
 
+let SELECTED_TILE = null;
+
 export default function Home() {
   const [loaded, setLoaded] = useState(false);
   const [userLoggedIn, setUserLoggedIn] = useState(false);
@@ -20,10 +22,7 @@ export default function Home() {
   const [playerRack, setPlayerRack] = useState([]);
   const [opponentRack, setOpponentRack] = useState([]);
   const [selectedTile, setSelectedTile] = useState(null);
-
-  useEffect(() => {
-
-  });
+  const [pointerPosition, setPointerPosition] = useState({ x: undefined, y: undefined });
 
   function callGooglePopup() {
     console.log("BLARGH")
@@ -85,7 +84,8 @@ export default function Home() {
       document.documentElement.style.setProperty('--actual-height', window.innerHeight + 'px');
       window.addEventListener('resize', () => {
         document.documentElement.style.setProperty('--actual-height', window.innerHeight + 'px');
-      })
+      });
+      window.addEventListener('pointerup', handleTilePointerUp);
       setPersistence(auth, inMemoryPersistence)
       .then(() => {
       // In memory persistence will be applied to the signed in Google user
@@ -116,23 +116,47 @@ export default function Home() {
 
   function handleTilePointerDown(tile, cursorPosition) {
     const tileElement = document.getElementById(tile.id);
-    console.log(Math.round(cursorPosition.x), Math.round(cursorPosition.y));
-    tileElement.style.top = cursorPosition.y + 'px';
-    tileElement.style.left = cursorPosition.x + 'px';
     setSelectedTile(tile);
+    SELECTED_TILE = tile;
+    // setPointerPosition(cursorPosition);
   }
 
   function handleTilePointerMove(e) {
-    const cursorPosition = { x: e.pageX, y: e.pageY };
-    const tileElement = document.getElementById(selectedTile.id);
+    if (SELECTED_TILE) {
+      const tileElement = document.getElementById(SELECTED_TILE.id);
+      const cursorPosition = { 
+        x: e.pageX - SELECTED_TILE.originalPosition.x - (tileElement.getBoundingClientRect().width / 2), 
+        y: e.pageY - SELECTED_TILE.originalPosition.y - (tileElement.getBoundingClientRect().height / 1.25)
+      };
+      setPointerPosition(cursorPosition);
+      tileElement.style.top = cursorPosition.y + 'px';
+      tileElement.style.left = cursorPosition.x + 'px';
+    }
+  }
 
-    console.log('new position: ' + cursorPosition.x, cursorPosition.y);
-    tileElement.style.top = cursorPosition.y + 'px';
-    tileElement.style.left = cursorPosition.x + 'px';
+  function handleTilePointerUp(e) {
+    console.log('up, selectedTile', selectedTile);
+    if (SELECTED_TILE) {
+      console.log('SELECTED_TILE', SELECTED_TILE);
+      const tileElement = document.getElementById(SELECTED_TILE.id);
+      tileElement.style.transition = 'all 200ms ease';
+
+      tileElement.style.top = '0';
+      tileElement.style.left = '0';
+      setSelectedTile(null);
+      SELECTED_TILE = null;
+    }
+  }
+
+  function findTargetedSpace() {
+
   }
 
   return (
     <div>
+      <div className='debug'>
+        {Math.round(pointerPosition.x)}, {Math.round(pointerPosition.y)}
+      </div>
       <Head>
         <title>Phonetic Scrabble</title>
         <link rel="icon" href="/favicon.ico" />
@@ -142,7 +166,7 @@ export default function Home() {
         <Header />
         <div 
           id='home-container'
-          // onPointerMove={handleTilePointerMove}
+          onPointerMove={handleTilePointerMove}
         >
           {gameStarted ?
             <>
@@ -161,7 +185,7 @@ export default function Home() {
                   <Rack
                     tiles={playerRack}
                     selectedTile={selectedTile}
-                    // handleTilePointerDown={handleTilePointerDown}
+                    handleTilePointerDown={handleTilePointerDown}
                     // handleTilePointerMove={handleTilePointerMove}
                   />
                 </div>
@@ -257,6 +281,7 @@ export default function Home() {
           --actual-height: 100vh;
           --main-width: 100vw;
           --board-size: calc(100vw - 1.25rem);
+          --played-tile-size: calc(var(--board-size) / 15);
           --rack-height: calc(var(--board-size) / 10);
           --board-outline-size: calc(var(--board-size) / 160);
           --header-height: 3rem;
@@ -284,6 +309,16 @@ export default function Home() {
         }
         * {
           box-sizing: border-box;
+        }
+
+        .debug {
+          position: fixed;
+          top: 0;
+          right: 0;
+          padding: 2rem;
+          background: gray;
+          color: black;
+
         }
 
         @media screen and (orientation: landscape) {
