@@ -22,35 +22,53 @@ export default function Home() {
   const [playerRack, setPlayerRack] = useState([]);
   const [opponentRack, setOpponentRack] = useState([]);
   const [selectedTile, setSelectedTile] = useState(null);
+  const [targetedSpaceId, setTargetedSpaceId] = useState(null);
   const [pointerPosition, setPointerPosition] = useState({ x: undefined, y: undefined });
+  const [letterMatrix, setLetterMatrix] = useState([
+    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+  ]);
 
   function callGooglePopup() {
-    console.log("BLARGH")
+    console.log("BLARGH");
     // signInWithPopup(auth, provider)
     signInWithPopup(auth, provider)
-    .then((result) => {
-      console.log('clicked sign in?', result)
-      setUser(result.user);
-      // This gives you a Google Access Token. You can use it to access the Google API.
-      const credential = GoogleAuthProvider.credentialFromResult(result);
-      const token = credential.accessToken;
-      // The signed-in user info.
-      const user = result.user;
-      // IdP data available using getAdditionalUserInfo(result)
-      // ...
-    }).catch((error) => {
-      // Handle Errors here.
-      const errorCode = error.code;
-      const errorMessage = error.message;
-      console.log(errorCode)
-      console.log(errorMessage)
-      // The email of the user's account used.
-      const email = error.customData.email;
-      // The AuthCredential type that was used.
-      const credential = GoogleAuthProvider.credentialFromError(error);
-      console.error(errorCode, errorMessage, email, credential)
-      // ...
-    });
+      .then((result) => {
+        console.log('clicked sign in?', result);
+        setUser(result.user);
+        // This gives you a Google Access Token. You can use it to access the Google API.
+        const credential = GoogleAuthProvider.credentialFromResult(result);
+        const token = credential.accessToken;
+        // The signed-in user info.
+        const user = result.user;
+        // IdP data available using getAdditionalUserInfo(result)
+        // ...
+      }).catch((error) => {
+        // Handle Errors here.
+        const errorCode = error.code;
+        const errorMessage = error.message;
+        console.log(errorCode);
+        console.log(errorMessage);
+        // The email of the user's account used.
+        const email = error.customData.email;
+        // The AuthCredential type that was used.
+        const credential = GoogleAuthProvider.credentialFromError(error);
+        console.error(errorCode, errorMessage, email, credential);
+        // ...
+      });
   }
 
   function createBag() {
@@ -87,18 +105,18 @@ export default function Home() {
       });
       window.addEventListener('pointerup', handleTilePointerUp);
       setPersistence(auth, inMemoryPersistence)
-      .then(() => {
-      // In memory persistence will be applied to the signed in Google user
-      // even though the persistence was set to 'none' and a page redirect
-      // occurred.
-      // return signInWithPopup(auth, provider);
-      return callGooglePopup();
-    })
-  .catch((error) => {
-    // Handle Errors here.
-    const errorCode = error.code;
-    const errorMessage = error.message;
-  });
+        .then(() => {
+          // In memory persistence will be applied to the signed in Google user
+          // even though the persistence was set to 'none' and a page redirect
+          // occurred.
+          // return signInWithPopup(auth, provider);
+          return callGooglePopup();
+        })
+        .catch((error) => {
+          // Handle Errors here.
+          const errorCode = error.code;
+          const errorMessage = error.message;
+        });
       setLoaded(true);
     }
   }, [loaded]);
@@ -124,13 +142,23 @@ export default function Home() {
   function handleTilePointerMove(e) {
     if (SELECTED_TILE) {
       const tileElement = document.getElementById(SELECTED_TILE.id);
-      const cursorPosition = { 
-        x: e.pageX - SELECTED_TILE.originalPosition.x - (tileElement.getBoundingClientRect().width / 2), 
+      const cursorPosition = {
+        x: e.pageX - SELECTED_TILE.originalPosition.x - (tileElement.getBoundingClientRect().width / 2),
         y: e.pageY - SELECTED_TILE.originalPosition.y - (tileElement.getBoundingClientRect().height / 1.25)
       };
       setPointerPosition(cursorPosition);
       tileElement.style.top = cursorPosition.y + 'px';
       tileElement.style.left = cursorPosition.x + 'px';
+      const newTargetedSpaceId = findTargetedSpaceId(tileElement, { x: e.pageX, y: e.pageY });
+      if (e.pageY < document.getElementById('game-board').getBoundingClientRect().bottom) {
+        tileElement.classList.add('over-board');
+        if (newTargetedSpaceId) {
+          console.log('target space', newTargetedSpaceId);
+          setTargetedSpaceId(newTargetedSpaceId);
+        }
+      } else {
+        tileElement.classList.remove('over-board');
+      }
     }
   }
 
@@ -144,12 +172,25 @@ export default function Home() {
       tileElement.style.top = '0';
       tileElement.style.left = '0';
       setSelectedTile(null);
+      setTargetedSpaceId(null);
       SELECTED_TILE = null;
     }
   }
 
-  function findTargetedSpace() {
+  function findTargetedSpaceId(tileElement, cursorPosition) {
+    let result;
+    [...document.getElementsByClassName('dropzone')].forEach((spaceElement) => {
+      if (spaceElement) {
+        const targetedX = cursorPosition.x > spaceElement.getBoundingClientRect().x && cursorPosition.x < (spaceElement.getBoundingClientRect().x + spaceElement.getBoundingClientRect().width);
+        const targetedY = cursorPosition.y > spaceElement.getBoundingClientRect().y && cursorPosition.y < (spaceElement.getBoundingClientRect().y + spaceElement.getBoundingClientRect().height);
 
+        if (targetedX && targetedY) {
+          result = spaceElement.id;
+        }
+      }
+    });
+    console.log('returning result', result);
+    return result;
   }
 
   return (
@@ -164,29 +205,32 @@ export default function Home() {
 
       <main>
         <Header />
-        <div 
+        <div
           id='home-container'
           onPointerMove={handleTilePointerMove}
         >
           {gameStarted ?
             <>
-            <div className='player-area'>
-              <div className='player-info'></div>
-              <div className='rack-area'>
-                <Rack
-                  tiles={opponentRack}
-                  handleClickTile={() => null}
-                />
+              <div className='player-area'>
+                <div className='player-info'></div>
+                <div className='rack-area'>
+                  <Rack
+                    tiles={opponentRack}
+                    handleClickTile={() => null}
+                  />
+                </div>
               </div>
-            </div>
-              <GameBoard />
+              <GameBoard
+                letterMatrix={letterMatrix}
+                targetedSpaceId={targetedSpaceId}
+              />
               <div className='player-area'>
                 <div className='rack-area'>
                   <Rack
                     tiles={playerRack}
                     selectedTile={selectedTile}
                     handleTilePointerDown={handleTilePointerDown}
-                    // handleTilePointerMove={handleTilePointerMove}
+                  // handleTilePointerMove={handleTilePointerMove}
                   />
                 </div>
                 <div className='player-info'></div>
@@ -194,20 +238,20 @@ export default function Home() {
             </>
             :
             user ?
-            <>
-            <div className='logged-in-user-info'>
-              <p>Signed in as</p>
-              <img src={user.photoURL}></img>
-              <p className='user-name'>{user.displayName}</p>
-              <p>{user.email}</p>
-            </div>
-              <Button
-                label='START'
-                clickAction={startGame}
-              />
-            </>
-            :
-            <LoginModal callGooglePopup={callGooglePopup} />
+              <>
+                <div className='logged-in-user-info'>
+                  <p>Signed in as</p>
+                  <img src={user.photoURL}></img>
+                  <p className='user-name'>{user.displayName}</p>
+                  <p>{user.email}</p>
+                </div>
+                <Button
+                  label='START'
+                  clickAction={startGame}
+                />
+              </>
+              :
+              <LoginModal callGooglePopup={callGooglePopup} />
           }
         </div>
         <Footer bag={bag} />
@@ -264,6 +308,7 @@ export default function Home() {
           flex-direction: column;
           align-items: center;
           gap: 0.5rem;
+          padding-top: 2rem;
         }
 
         .logged-in-user-info > .user-name {

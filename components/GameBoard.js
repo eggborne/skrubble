@@ -13,9 +13,11 @@ export default function GameBoard(props) {
     }
   }, [revealed]);
 
+  console.log('letterMat', props.letterMatrix)
+
   return (
     <>
-      <div className='game-board' style={{
+      <div className='game-board' id='game-board' style={{
         opacity: revealed ? '1' : '0',
         scale: revealed ? '1' : '0.25',
         // rotate: revealed ? '0deg' : '-180deg',
@@ -24,6 +26,8 @@ export default function GameBoard(props) {
           row.map((space, s) =>
             <Space
               key={`${(r+1)}-${(s+1)}`}
+              id={`${(r+1)}-${(s+1)}`}
+              targeted={props.targetedSpaceId === `${(r+1)}-${(s+1)}`}
               spaceData={space}
               backgroundColor={space.length ? specialSpaceData[space[0]].color : 'var(--board-color)'}
               label={
@@ -36,7 +40,7 @@ export default function GameBoard(props) {
                   ''
               }
               contents={
-                // <Tile letter='M' size='100%' />
+                // props.letterMatrix[r][s] || ''
                 null
               }
             />

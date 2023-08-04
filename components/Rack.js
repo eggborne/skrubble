@@ -8,6 +8,7 @@ export default function Rack(props) {
         <div className='tile-container'>
           {props.tiles.map(tile =>
             <Tile 
+              draggable={true}
               letter={tile.letter} 
               // size={'calc(var(--board-size) / 9.5)'} 
               size={'calc(var(--rack-height) * 1.05)'} 

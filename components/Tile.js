@@ -7,11 +7,13 @@ export default function Tile(props) {
   useEffect(() => {
     if (!revealed) {
       setRevealed(true);
-      const rackPosition = { 
-        x: document.getElementById(props.id).getBoundingClientRect().x, 
-        y: document.getElementById(props.id).getBoundingClientRect().y 
-      };
-      setOriginalRackPosition(rackPosition);
+      if (props.draggable) {
+        const rackPosition = { 
+          x: document.getElementById(props.id).getBoundingClientRect().x, 
+          y: document.getElementById(props.id).getBoundingClientRect().y 
+        };
+        setOriginalRackPosition(rackPosition);
+      }
     }
   }, [revealed]);
 
@@ -31,7 +33,7 @@ export default function Tile(props) {
     <>
       <div
         id={props.id}
-        onPointerDown={handlePointerDown}
+        onPointerDown={props.draggable ? handlePointerDown : () => null}
         className={tileClass}
       >
         {props.letter}
@@ -80,13 +82,15 @@ export default function Tile(props) {
         }
         
         .tile.selected {
-          // position: fixed;
-          transform-origin: 0 0;
-          // scale: 0.525;
+          transform-origin: 0 -25%;
           outline: 0.1rem solid lightgreen;
-          transition: none !important;
+          transition: scale 100ms ease !important;
           cursor: grabbing;
           z-index: 999;
+        }
+        
+        .tile.selected.over-board {
+          scale: 0.525;
         }
       `}</style>
     </>

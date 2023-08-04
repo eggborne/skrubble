@@ -1,7 +1,7 @@
 export default function Space(props) {
   return (
     <>
-      <div className='space dropzone'>
+      <div className={`space dropzone${props.targeted ? ' targeted' : ''}`} id={props.id}>
         {props.spaceData.length > 0 &&
           <>
             <div className='caret-trio top'>
@@ -42,6 +42,17 @@ export default function Space(props) {
           text-align: center;
           color: black;
           font-size: calc(var(--board-size) / 90);
+
+          &.targeted {
+            outline: 3px solid #99ff99;
+          }
+
+          &.targeted:after {
+            content: '';
+            width: 100%;
+            height: 100%;
+            background-color: #00ff0044;
+          }
         }
         .special-label {
           color: black;
