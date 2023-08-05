@@ -384,7 +384,7 @@ export default function Home() {
           --header-height: 3rem;
           --footer-height: 3rem;
           --button-height: 4rem;
-          --main-bg-color: #353;
+          --main-bg-color: #335533;
           --secondary-bg-color: #443330;
           --main-text-color: #cdc;
           --secondary-text-color: #ccc;
