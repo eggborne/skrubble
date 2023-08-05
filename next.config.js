@@ -7,7 +7,7 @@ const nextConfig = {
   // trailingSlash: true,
   // Optional: Change the output directory `out` -> `dist`
   distDir: 'build',
-  basePath: '/scrabble',
+  // basePath: '/scrabble',
   images: { unoptimized: true },
 };
  

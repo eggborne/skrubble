@@ -10,8 +10,10 @@ import Rack from '../components/Rack';
 import { tileData } from '../scripts/scrabbledata';
 import { pause, randomInt } from '../scripts/util';
 import LoginModal from '../components/LoginModal';
+import Tile from '../components/Tile';
 
 let SELECTED_TILE = null;
+let TARGETED_SPACE_ID = null;
 
 export default function Home() {
   const [loaded, setLoaded] = useState(false);
@@ -23,7 +25,7 @@ export default function Home() {
   const [opponentRack, setOpponentRack] = useState([]);
   const [selectedTile, setSelectedTile] = useState(null);
   const [targetedSpaceId, setTargetedSpaceId] = useState(null);
-  const [pointerPosition, setPointerPosition] = useState({ x: undefined, y: undefined });
+  const [pointerPosition, setPointerPosition] = useState({ x: null, y: null });
   const [letterMatrix, setLetterMatrix] = useState([
     [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
     [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
@@ -97,12 +99,29 @@ export default function Home() {
     return letterArray;
   }
 
+  function placeLetter(letter, spacePosition) {
+    const letterValue = tileData[letter].value;
+    const tileComponent = <Tile 
+      letter={letter.toUpperCase()}
+      // size={'calc(var(--board-size) / 17.5)'} 
+      size={'calc(var(--rack-height) * 1.05)'} 
+      value={letterValue} 
+      key={`qwrwrwr`}
+      id={`qwrwrwr`}
+      placed={true}
+      onPointerDown={() => null}
+    />;
+    const newLetterMatrix = [...letterMatrix];
+    newLetterMatrix[spacePosition.x][spacePosition.y] = tileComponent;
+    setLetterMatrix(newLetterMatrix)
+  }
+
   useEffect(() => {
     if (!loaded) {
-      document.documentElement.style.setProperty('--actual-height', window.innerHeight + 'px');
-      window.addEventListener('resize', () => {
-        document.documentElement.style.setProperty('--actual-height', window.innerHeight + 'px');
-      });
+      // document.documentElement.style.setProperty('--actual-height', '100dvh');
+      // window.addEventListener('resize', () => {
+      //   document.documentElement.style.setProperty('--actual-height', window.innerHeight + 'px');
+      // });
       window.addEventListener('pointerup', handleTilePointerUp);
       setPersistence(auth, inMemoryPersistence)
         .then(() => {
@@ -126,9 +145,9 @@ export default function Home() {
     const nextBag = createBag();
     const playerOpeningLetters = getRandomLetters(nextBag, 7);
     const opponentOpeningLetters = getRandomLetters(nextBag, 7);
-    await pause(1500);
+    await pause(750);
     setPlayerRack(playerOpeningLetters);
-    await pause(1000);
+    await pause(500);
     setOpponentRack(opponentOpeningLetters);
   }
 
@@ -136,7 +155,6 @@ export default function Home() {
     const tileElement = document.getElementById(tile.id);
     setSelectedTile(tile);
     SELECTED_TILE = tile;
-    // setPointerPosition(cursorPosition);
   }
 
   function handleTilePointerMove(e) {
@@ -152,10 +170,11 @@ export default function Home() {
       const newTargetedSpaceId = findTargetedSpaceId(tileElement, { x: e.pageX, y: e.pageY });
       if (e.pageY < document.getElementById('game-board').getBoundingClientRect().bottom) {
         tileElement.classList.add('over-board');
-        if (newTargetedSpaceId) {
-          console.log('target space', newTargetedSpaceId);
-          setTargetedSpaceId(newTargetedSpaceId);
-        }
+        // if (newTargetedSpaceId) {
+        console.log('target space', newTargetedSpaceId);
+        setTargetedSpaceId(newTargetedSpaceId);
+        TARGETED_SPACE_ID = newTargetedSpaceId;
+        // }
       } else {
         tileElement.classList.remove('over-board');
       }
@@ -163,18 +182,33 @@ export default function Home() {
   }
 
   function handleTilePointerUp(e) {
-    console.log('up, selectedTile', selectedTile);
     if (SELECTED_TILE) {
-      console.log('SELECTED_TILE', SELECTED_TILE);
-      const tileElement = document.getElementById(SELECTED_TILE.id);
-      tileElement.style.transition = 'all 200ms ease';
+      if (TARGETED_SPACE_ID) {
+        const tileElement = document.getElementById(SELECTED_TILE.id);
+        tileElement.style.opacity = '0';
+        const targetCoords = {
+          x: parseInt(TARGETED_SPACE_ID.split('-')[0] - 1),
+          y: parseInt(TARGETED_SPACE_ID.split('-')[1] - 1)
+        }
+        console.warn('dropping on', targetCoords);
+        placeLetter(SELECTED_TILE.letter.toLowerCase(), targetCoords);
+        setTargetedSpaceId(null);
+        TARGETED_SPACE_ID = null;
 
-      tileElement.style.top = '0';
-      tileElement.style.left = '0';
+      } else {
+        replaceTile(SELECTED_TILE.id);
+      }
       setSelectedTile(null);
-      setTargetedSpaceId(null);
       SELECTED_TILE = null;
+      setPointerPosition({ x: null, y: null });
     }
+  }
+
+  function replaceTile(tileId) {
+    const tileElement = document.getElementById(tileId);
+    tileElement.style.transition = 'all 200ms ease';
+    tileElement.style.top = '0';
+    tileElement.style.left = '0';
   }
 
   function findTargetedSpaceId(tileElement, cursorPosition) {
@@ -196,10 +230,27 @@ export default function Home() {
   return (
     <div>
       <div className='debug'>
-        {Math.round(pointerPosition.x)}, {Math.round(pointerPosition.y)}
+        <div>
+          <div>Selected tile:</div>
+          <div>Targeted space:</div>
+          
+
+        </div>
+        <div>
+        <div>
+          {pointerPosition.x ?
+            `${selectedTile.letter}` :
+            ``
+          }
+        </div>
+        {targetedSpaceId ?
+            `${targetedSpaceId}` :
+            ``
+          }
+        </div>
       </div>
       <Head>
-        <title>Phonetic Scrabble</title>
+        <title>Skrubble.io</title>
         <link rel="icon" href="/favicon.ico" />
       </Head>
 
@@ -323,20 +374,22 @@ export default function Home() {
 
       <style jsx global>{`
         :root {
-          --actual-height: 100vh;
+          --actual-height: 100dvh;
           --main-width: 100vw;
-          --board-size: calc(100vw - 1.25rem);
-          --played-tile-size: calc(var(--board-size) / 15);
+          --board-size: 100vw;
+          --racked-tile-size: calc(var(--board-size) / 9.5);
+          --played-tile-size: calc(var(--board-size) / 16.5);
           --rack-height: calc(var(--board-size) / 10);
           --board-outline-size: calc(var(--board-size) / 160);
           --header-height: 3rem;
           --footer-height: 3rem;
           --button-height: 4rem;
-          --main-bg-color: #555;
-          --secondary-bg-color: #333;
-          --main-text-color: #aba;
+          --main-bg-color: #353;
+          --secondary-bg-color: #443330;
+          --main-text-color: #cdc;
           --secondary-text-color: #ccc;
           --board-color: #ccc2a1;
+          --board-bg-color: #ddd;
           --tile-color: #ffddd0;
         }
         html,
@@ -360,10 +413,25 @@ export default function Home() {
           position: fixed;
           top: 0;
           right: 0;
-          padding: 2rem;
+          padding: 0.5rem;
+          width: 12rem;
+          display: grid;
+          grid-template-columns: 1fr 1fr;
           background: gray;
           color: black;
+          z-index: 4;
+          font-size: 0.75rem;
 
+          & > div {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end;
+            gap: 0.25rem;
+
+            &:last-of-type {
+              padding-right: 1rem;
+            }
+          }
         }
 
         @media screen and (orientation: landscape) {

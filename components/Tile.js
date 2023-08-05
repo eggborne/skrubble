@@ -28,7 +28,7 @@ export default function Tile(props) {
     props.onPointerDown(tileObject, { x: e.pageX, y: e.pageY });
   }
 
-  const tileClass = `tile${revealed ? ' revealed' : ''}${props.selected ? ' selected' : ''}`
+  const tileClass = `tile${revealed ? ' revealed' : ''}${props.selected ? ' selected' : ''}${props.placed ? ' placed' : ''}`;
   return (
     <>
       <div
@@ -40,19 +40,25 @@ export default function Tile(props) {
       </div>
       <style jsx>{`
         .tile {
+          --current-size: var(--racked-tile-size);
+          box-sizing: border-box;
           position: relative;
           color: black;
           display: flex;
           align-items: center;
           justify-content: center;
           background-color: #cccc99;
-          width: ${props.size};
-          height: ${props.size};
-          min-width: ${props.size};
-          min-height: ${props.size};
-          border-radius: calc(var(--board-size) / 180);
-          box-shadow: 0 0 calc(var(--board-size) / 100) #000000aa;
-          font-size: calc(${props.size} / 1.5);
+          width: var(--current-size);
+          height: var(--current-size);
+          min-width: var(--current-size);
+          min-height: var(--current-size);
+          border-radius: calc(var(--current-size) / 16);
+          box-shadow: 
+            0 0 calc(var(--current-size) / 24) #00000066,
+            0 0 calc(var(--current-size) / 18) #00000066 inset
+          ;
+          border: calc(var(--current-size) / 64) solid #333;
+          font-size: calc(var(--current-size) / 1.5);
           font-weight: bold;
           font-family: 'interstate-bold', sans-serif;
           opacity: 0.5;
@@ -72,7 +78,8 @@ export default function Tile(props) {
           position: absolute;
           bottom: 5%;
           right: 10%;
-          font-size: calc(${props.size} / 4);
+          // font-size: calc(${props.size} / 4);
+          font-size: 35%;
         }
 
         .tile.revealed {
@@ -83,14 +90,20 @@ export default function Tile(props) {
         
         .tile.selected {
           transform-origin: 0 -25%;
-          outline: 0.1rem solid lightgreen;
+          // outline: 0.1rem solid lightgreen;
           transition: scale 100ms ease !important;
           cursor: grabbing;
           z-index: 999;
+          scale: 1.25;
+          opacity: 0.65;
         }
         
-        .tile.selected.over-board {
-          scale: 0.525;
+        .tile.placed {
+          --current-size: var(--played-tile-size);
+          position: absolute;
+          left: 50%;
+          top: 50%;
+          translate: -50% -50%;
         }
       `}</style>
     </>

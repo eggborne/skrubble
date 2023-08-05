@@ -30,3 +30,6 @@ yarn-error.log*
 .env.test.local
 .env.production.local
 scripts/firebase.js
+pages/lagre-monitor-workspace.code-workspace
+.gitignore
+pages/laptop-screen-workspace.code-workspace

@@ -11,7 +11,7 @@ export default function Rack(props) {
               draggable={true}
               letter={tile.letter} 
               // size={'calc(var(--board-size) / 9.5)'} 
-              size={'calc(var(--rack-height) * 1.05)'} 
+              size={'var(--racked-tile-size)'} 
               value={tile.value} 
               key={tile.id}
               id={tile.id}

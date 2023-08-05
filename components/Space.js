@@ -27,14 +27,16 @@ export default function Space(props) {
           </>
         }
         <div className='special-label'>{props.label}</div>
-        {props.contents}
+        <div>
+          {props.contents}
+        </div>
       </div>
       <style jsx>{`
         .space {
           --caret-size: calc(var(--board-size) / 100);
           position: relative;
-          width: 90%;
-          height: 90%;
+          width: 100%;
+          height: 100%;
           background-color: ${props.backgroundColor};
           display: flex;
           align-items: center;
@@ -43,15 +45,14 @@ export default function Space(props) {
           color: black;
           font-size: calc(var(--board-size) / 90);
 
-          &.targeted {
-            outline: 3px solid #99ff99;
-          }
-
           &.targeted:after {
             content: '';
             width: 100%;
             height: 100%;
-            background-color: #00ff0044;
+            background-color: #0000ff44;
+            outline: calc(var(--board-size) / 150) solid #0000ff;
+            box-sizing: content-box;
+            z-index: 3;
           }
         }
         .special-label {

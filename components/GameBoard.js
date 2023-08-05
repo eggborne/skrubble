@@ -20,7 +20,6 @@ export default function GameBoard(props) {
       <div className='game-board' id='game-board' style={{
         opacity: revealed ? '1' : '0',
         scale: revealed ? '1' : '0.25',
-        // rotate: revealed ? '0deg' : '-180deg',
       }}>
         {fullBoard.map((row, r) =>
           row.map((space, s) =>
@@ -40,8 +39,8 @@ export default function GameBoard(props) {
                   ''
               }
               contents={
-                // props.letterMatrix[r][s] || ''
-                null
+                props.letterMatrix[r][s] || ''
+                // null
               }
             />
           )
@@ -51,7 +50,6 @@ export default function GameBoard(props) {
         .game-board {
           width: var(--board-size);
           height: var(--board-size);
-          background-color: #eee;
           border: calc(var(--board-outline-size) * 2.5) solid #eee;          
           display: grid;
           grid-template-columns: repeat(15, 1fr);
@@ -59,11 +57,11 @@ export default function GameBoard(props) {
           justify-items: center;
           align-items: center;
           box-shadow: 0 0 0.25rem #00000099;
-          
-          // overflow: hidden;
-
+          gap: calc(var(--board-outline-size) * 0.9);
+          background-color: var(--board-bg-color);
           transition: scale 500ms ease-out;
         }
+        
         .game-board::after {
           content: '';
           position: absolute;
@@ -81,7 +79,7 @@ export default function GameBoard(props) {
           transform: translateY(-80%);
           
           border-right:  .3em solid transparent;
-          border-bottom: .7em solid #333;
+          border-bottom: .75em solid #333;
           border-left:   .3em solid transparent;
         
           &:before, &:after {

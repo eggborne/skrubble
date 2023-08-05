@@ -11,6 +11,7 @@ export default function Button(props) {
           font-family: inherit;
           font-size: calc(var(--button-height) / 3);
           border-radius: 0.5rem;
+          cursor: pointer;
         }
       `}</style>
     </button>
