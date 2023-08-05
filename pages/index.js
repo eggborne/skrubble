@@ -99,21 +99,21 @@ export default function Home() {
     return letterArray;
   }
 
-  function placeLetter(letter, spacePosition) {
-    const letterValue = tileData[letter].value;
-    const tileComponent = <Tile 
-      letter={letter.toUpperCase()}
-      // size={'calc(var(--board-size) / 17.5)'} 
-      size={'calc(var(--rack-height) * 1.05)'} 
-      value={letterValue} 
-      key={`qwrwrwr`}
-      id={`qwrwrwr`}
+  function placeLetter(letterObj, spacePosition) {
+    const rackedLetterElement = document.getElementById(letterObj.id);
+    const tileComponent = 
+    <Tile 
+      letter={letterObj.letter.toUpperCase()}
+      value={letterObj.value} 
+      key={letterObj.key}
+      id={letterObj.id}
       placed={true}
-      onPointerDown={() => null}
+      onPointerDown={handleTilePointerDown}
     />;
     const newLetterMatrix = [...letterMatrix];
     newLetterMatrix[spacePosition.x][spacePosition.y] = tileComponent;
-    setLetterMatrix(newLetterMatrix)
+    rackedLetterElement.parentElement.removeChild(rackedLetterElement);
+    setLetterMatrix(newLetterMatrix);
   }
 
   useEffect(() => {
@@ -184,14 +184,13 @@ export default function Home() {
   function handleTilePointerUp(e) {
     if (SELECTED_TILE) {
       if (TARGETED_SPACE_ID) {
-        const tileElement = document.getElementById(SELECTED_TILE.id);
-        tileElement.style.opacity = '0';
+        // const tileElement = document.getElementById(SELECTED_TILE.id);
+        // tileElement.style.opacity = '0';
         const targetCoords = {
           x: parseInt(TARGETED_SPACE_ID.split('-')[0] - 1),
           y: parseInt(TARGETED_SPACE_ID.split('-')[1] - 1)
         }
-        console.warn('dropping on', targetCoords);
-        placeLetter(SELECTED_TILE.letter.toLowerCase(), targetCoords);
+        placeLetter(SELECTED_TILE, targetCoords);
         setTargetedSpaceId(null);
         TARGETED_SPACE_ID = null;
 
@@ -250,7 +249,7 @@ export default function Home() {
         </div>
       </div>
       <Head>
-        <title>Skrubble.io</title>
+        <title>Skrubble.live</title>
         <link rel="icon" href="/favicon.ico" />
       </Head>
 
@@ -266,8 +265,9 @@ export default function Home() {
                 <div className='player-info'></div>
                 <div className='rack-area'>
                   <Rack
+                    owner={'opponent'}
                     tiles={opponentRack}
-                    handleClickTile={() => null}
+                    handleTilePointerDown={() => null}
                   />
                 </div>
               </div>
@@ -278,10 +278,10 @@ export default function Home() {
               <div className='player-area'>
                 <div className='rack-area'>
                   <Rack
+                    owner={'user'}
                     tiles={playerRack}
                     selectedTile={selectedTile}
                     handleTilePointerDown={handleTilePointerDown}
-                  // handleTilePointerMove={handleTilePointerMove}
                   />
                 </div>
                 <div className='player-info'></div>

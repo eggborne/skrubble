@@ -54,10 +54,10 @@ export default function Tile(props) {
           min-height: var(--current-size);
           border-radius: calc(var(--current-size) / 16);
           box-shadow: 
-            0 0 calc(var(--current-size) / 24) #00000066,
-            0 0 calc(var(--current-size) / 18) #00000066 inset
+            0 0 calc(var(--current-size) / 24) #00000077,
+            0 0 calc(var(--current-size) / 24) #00000077 inset
           ;
-          border: calc(var(--current-size) / 64) solid #333;
+          // border: calc(var(--current-size) / 64) solid #333;
           font-size: calc(var(--current-size) / 1.5);
           font-weight: bold;
           font-family: 'interstate-bold', sans-serif;
@@ -78,7 +78,6 @@ export default function Tile(props) {
           position: absolute;
           bottom: 5%;
           right: 10%;
-          // font-size: calc(${props.size} / 4);
           font-size: 35%;
         }
 
@@ -90,7 +89,6 @@ export default function Tile(props) {
         
         .tile.selected {
           transform-origin: 0 -25%;
-          // outline: 0.1rem solid lightgreen;
           transition: scale 100ms ease !important;
           cursor: grabbing;
           z-index: 999;

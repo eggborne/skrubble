@@ -1,23 +1,43 @@
+import Space from "./Space";
 import Tile from "./Tile";
 
 
 export default function Rack(props) {
   return (
     <>
-      <div className='rack'>
+      <div className={`rack ${props.owner}`}>
         <div className='tile-container'>
-          {props.tiles.map(tile =>
-            <Tile 
-              draggable={true}
-              letter={tile.letter} 
-              // size={'calc(var(--board-size) / 9.5)'} 
-              size={'var(--racked-tile-size)'} 
-              value={tile.value} 
-              key={tile.id}
-              id={tile.id}
-              selected={props.selectedTile && props.selectedTile.id === tile.id}
-              onPointerDown={props.handleTilePointerDown}
-            />
+          {props.tiles.map((tile, t) =>
+            <Space
+              key={`${props.owner}-rack-space=${t}`}
+              id={`${props.owner}-rack-space=${t}`}
+              type={'racked'}
+              targeted={props.targetedSpaceId === `${props.owner}-rack-space=${t}`}
+              spaceData={[]}
+              // backgroundColor={'transparent'}
+              label={''}
+              contents={
+                <Tile 
+                draggable={true}
+                letter={tile.letter} 
+                value={tile.value} 
+                key={tile.id}
+                id={tile.id}
+                selected={props.selectedTile && props.selectedTile.id === tile.id}
+                onPointerDown={props.handleTilePointerDown}
+              />
+              }
+            >
+              {/* <Tile 
+                draggable={true}
+                letter={tile.letter} 
+                value={tile.value} 
+                key={tile.id}
+                id={tile.id}
+                selected={props.selectedTile && props.selectedTile.id === tile.id}
+                onPointerDown={props.handleTilePointerDown}
+              /> */}
+            </Space>
           )}
         </div>
         <div className='shelf'></div>
@@ -64,6 +84,14 @@ export default function Rack(props) {
           border: 1px solid black;
           border-radius: calc(var(--board-size) / 200);
           z-index: 3;
+        }
+
+        .tile-space {
+          outline: 2px solid red;
+          width: var(--racked-tile-size);
+          height: var(--racked-tile-size);
+          min-width: var(--racked-tile-size);
+          min-height: var(--racked-tile-size);
         }
       `}</style>
     </>

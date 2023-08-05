@@ -35,8 +35,10 @@ export default function Space(props) {
         .space {
           --caret-size: calc(var(--board-size) / 100);
           position: relative;
-          width: 100%;
-          height: 100%;
+          // width: 100%;
+          // height: 100%;
+          width: ${props.type === 'racked' ? 'var(--racked-tile-size)' : '100%'};
+          height: ${props.type === 'racked' ? 'var(--racked-tile-size)' : '100%'};
           background-color: ${props.backgroundColor};
           display: flex;
           align-items: center;
