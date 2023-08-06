@@ -11,21 +11,21 @@ export default function Rack(props) {
             <Space
               key={`${props.owner}-rack-space=${t}`}
               id={`${props.owner}-rack-space=${t}`}
-              type={'racked'}
+              racked={true}
               targeted={props.targetedSpaceId === `${props.owner}-rack-space=${t}`}
               spaceData={[]}
               // backgroundColor={'transparent'}
               label={''}
               contents={
                 <Tile 
-                draggable={true}
-                letter={tile.letter} 
-                value={tile.value} 
-                key={tile.id}
-                id={tile.id}
-                selected={props.selectedTile && props.selectedTile.id === tile.id}
-                onPointerDown={props.handleTilePointerDown}
-              />
+                  draggable={props.owner === 'user'}
+                  letter={tile.letter} 
+                  value={tile.value} 
+                  key={tile.id}
+                  id={tile.id}
+                  selected={props.selectedTile && props.selectedTile.id === tile.id}
+                  onPointerDown={props.handleTilePointerDown}
+                />
               }
             >
               {/* <Tile 

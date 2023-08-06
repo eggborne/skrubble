@@ -1,7 +1,7 @@
 export default function Space(props) {
   return (
     <>
-      <div className={`space dropzone${props.targeted ? ' targeted' : ''}`} id={props.id}>
+      <div className={`space dropzone${props.targeted ? ' targeted' : ''}${props.racked ? ' racked' : ''}`} id={props.id}>
         {props.spaceData.length > 0 &&
           <>
             <div className='caret-trio top'>
@@ -35,10 +35,8 @@ export default function Space(props) {
         .space {
           --caret-size: calc(var(--board-size) / 100);
           position: relative;
-          // width: 100%;
-          // height: 100%;
-          width: ${props.type === 'racked' ? 'var(--racked-tile-size)' : '100%'};
-          height: ${props.type === 'racked' ? 'var(--racked-tile-size)' : '100%'};
+          width: 100%;
+          height: 100%;
           background-color: ${props.backgroundColor};
           display: flex;
           align-items: center;
@@ -46,15 +44,30 @@ export default function Space(props) {
           text-align: center;
           color: black;
           font-size: calc(var(--board-size) / 90);
+          pointer-events: none;
 
-          &.targeted:after {
+          &.racked {
+            width: var(--racked-tile-size);
+            height: var(--racked-tile-size);
+          }
+
+          &:after {
+            position: absolute;
             content: '';
-            width: 100%;
-            height: 100%;
-            background-color: #0000ff44;
-            outline: calc(var(--board-size) / 150) solid #0000ff;
-            box-sizing: content-box;
+            width: calc(var(--board-size) / 15);
+            height: calc(var(--board-size) / 15);
+            background-color: #44ff44aa;
+            // box-sizing: content-box;
             z-index: 3;
+            opacity: 0;
+            transition: opacity 100ms ease;
+          }
+
+          &.targeted {
+
+            &:after {
+              opacity: 1;
+            }
           }
         }
         .special-label {
@@ -71,7 +84,7 @@ export default function Space(props) {
           justify-content: center;
           gap: calc(var(--caret-size) / 2);
           width: 100%;
-          z-index: 2;
+          z-index: 1;
         }
         .caret-trio.top {
           top: calc(var(--caret-size) * -1);

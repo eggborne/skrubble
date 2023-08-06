@@ -1,13 +1,13 @@
 import { useEffect, useState } from 'react';
 import { db, auth, provider } from '../scripts/firebase';
-import { getAuth, signInWithPopup, GoogleAuthProvider, setPersistence, inMemoryPersistence } from "firebase/auth";
+import { getAuth, signInWithPopup, GoogleAuthProvider, setPersistence, inMemoryPersistence, signInWithRedirect, signOut, getRedirectResult } from "firebase/auth";
 import Head from 'next/head';
 import Footer from '../components/Footer';
 import Header from '../components/Header';
 import Button from '../components/Button';
 import GameBoard from '../components/GameBoard';
 import Rack from '../components/Rack';
-import { tileData } from '../scripts/scrabbledata';
+import { emptyLetterMatrix, tileData } from '../scripts/scrabbledata';
 import { pause, randomInt } from '../scripts/util';
 import LoginModal from '../components/LoginModal';
 import Tile from '../components/Tile';
@@ -26,30 +26,17 @@ export default function Home() {
   const [selectedTile, setSelectedTile] = useState(null);
   const [targetedSpaceId, setTargetedSpaceId] = useState(null);
   const [pointerPosition, setPointerPosition] = useState({ x: null, y: null });
-  const [letterMatrix, setLetterMatrix] = useState([
-    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-  ]);
+  const [letterMatrix, setLetterMatrix] = useState([...emptyLetterMatrix]);
+
+  function callGoogleRedirect() {
+    signInWithRedirect(auth, provider);
+  }
 
   function callGooglePopup() {
-    console.log("BLARGH");
-    // signInWithPopup(auth, provider)
+    console.log("callGooglePopup");
     signInWithPopup(auth, provider)
       .then((result) => {
-        console.log('clicked sign in?', result);
+        console.log('signInWithPopup().then =>', result);
         setUser(result.user);
         // This gives you a Google Access Token. You can use it to access the Google API.
         const credential = GoogleAuthProvider.credentialFromResult(result);
@@ -62,8 +49,10 @@ export default function Home() {
         // Handle Errors here.
         const errorCode = error.code;
         const errorMessage = error.message;
+        console.error('START callGooglePopup ERROR:');
         console.log(errorCode);
         console.log(errorMessage);
+        console.error('END callGooglePopup ERROR:');
         // The email of the user's account used.
         const email = error.customData.email;
         // The AuthCredential type that was used.
@@ -101,15 +90,16 @@ export default function Home() {
 
   function placeLetter(letterObj, spacePosition) {
     const rackedLetterElement = document.getElementById(letterObj.id);
-    const tileComponent = 
-    <Tile 
-      letter={letterObj.letter.toUpperCase()}
-      value={letterObj.value} 
-      key={letterObj.key}
-      id={letterObj.id}
-      placed={true}
-      onPointerDown={handleTilePointerDown}
-    />;
+    const tileComponent =
+      <Tile
+        draggable={true}
+        letter={letterObj.letter.toUpperCase()}
+        value={letterObj.value}
+        key={letterObj.key}
+        id={letterObj.id}
+        placed={true}
+        onPointerDown={handleTilePointerDown}
+      />;
     const newLetterMatrix = [...letterMatrix];
     newLetterMatrix[spacePosition.x][spacePosition.y] = tileComponent;
     rackedLetterElement.parentElement.removeChild(rackedLetterElement);
@@ -123,6 +113,21 @@ export default function Home() {
       //   document.documentElement.style.setProperty('--actual-height', window.innerHeight + 'px');
       // });
       window.addEventListener('pointerup', handleTilePointerUp);
+      // getRedirectResult(auth)
+      //   .then((result) => {
+      //     setUser(result.user);
+      //   }).catch((error) => {
+      //     // Handle Errors here.
+      //     const errorCode = error.code;
+      //     const errorMessage = error.message;
+      //     // The email of the user's account used.
+      //     // const email = error.customData.email;
+      //     // The AuthCredential type that was used.
+      //     const credential = GoogleAuthProvider.credentialFromError(error);
+      //     console.error('SETPERSISTENCE ERROR!', errorCode, errorMessage);
+      //   });
+
+
       setPersistence(auth, inMemoryPersistence)
         .then(() => {
           // In memory persistence will be applied to the signed in Google user
@@ -135,6 +140,7 @@ export default function Home() {
           // Handle Errors here.
           const errorCode = error.code;
           const errorMessage = error.message;
+          console.error('SETPERSISTENCE ERROR!', errorCode, errorMessage);
         });
       setLoaded(true);
     }
@@ -168,16 +174,9 @@ export default function Home() {
       tileElement.style.top = cursorPosition.y + 'px';
       tileElement.style.left = cursorPosition.x + 'px';
       const newTargetedSpaceId = findTargetedSpaceId(tileElement, { x: e.pageX, y: e.pageY });
-      if (e.pageY < document.getElementById('game-board').getBoundingClientRect().bottom) {
-        tileElement.classList.add('over-board');
-        // if (newTargetedSpaceId) {
-        console.log('target space', newTargetedSpaceId);
-        setTargetedSpaceId(newTargetedSpaceId);
-        TARGETED_SPACE_ID = newTargetedSpaceId;
-        // }
-      } else {
-        tileElement.classList.remove('over-board');
-      }
+      console.log('target space', newTargetedSpaceId);
+      setTargetedSpaceId(newTargetedSpaceId);
+      TARGETED_SPACE_ID = newTargetedSpaceId;
     }
   }
 
@@ -189,7 +188,7 @@ export default function Home() {
         const targetCoords = {
           x: parseInt(TARGETED_SPACE_ID.split('-')[0] - 1),
           y: parseInt(TARGETED_SPACE_ID.split('-')[1] - 1)
-        }
+        };
         placeLetter(SELECTED_TILE, targetCoords);
         setTargetedSpaceId(null);
         TARGETED_SPACE_ID = null;
@@ -213,10 +212,10 @@ export default function Home() {
   function findTargetedSpaceId(tileElement, cursorPosition) {
     let result;
     [...document.getElementsByClassName('dropzone')].forEach((spaceElement) => {
-      if (spaceElement) {
+      const occupied = !spaceElement.classList.contains('racked') && letterMatrix[parseInt(spaceElement.id.split('-')[0]) - 1][parseInt(spaceElement.id.split('-')[1]) - 1] !== 0;
+      if (spaceElement && !occupied) {
         const targetedX = cursorPosition.x > spaceElement.getBoundingClientRect().x && cursorPosition.x < (spaceElement.getBoundingClientRect().x + spaceElement.getBoundingClientRect().width);
         const targetedY = cursorPosition.y > spaceElement.getBoundingClientRect().y && cursorPosition.y < (spaceElement.getBoundingClientRect().y + spaceElement.getBoundingClientRect().height);
-
         if (targetedX && targetedY) {
           result = spaceElement.id;
         }
@@ -226,26 +225,35 @@ export default function Home() {
     return result;
   }
 
+  function handleSignOut() {
+    signOut(auth).then(() => {
+      console.warn('--------------------> signed out!');
+    }).catch((error) => {
+      console.error('--------------------> FAILED to sign out!');
+      // An error happened.
+    });
+  }
+
   return (
     <div>
       <div className='debug'>
         <div>
           <div>Selected tile:</div>
           <div>Targeted space:</div>
-          
-
         </div>
         <div>
-        <div>
-          {pointerPosition.x ?
-            `${selectedTile.letter}` :
-            ``
-          }
-        </div>
-        {targetedSpaceId ?
-            `${targetedSpaceId}` :
-            ``
-          }
+          <div>
+            {pointerPosition.x ?
+              `${selectedTile.letter}` :
+              ``
+            }
+          </div>
+          <div>
+            {targetedSpaceId ?
+              `${targetedSpaceId}` :
+              ``
+            }
+          </div>
         </div>
       </div>
       <Head>
@@ -254,7 +262,7 @@ export default function Home() {
       </Head>
 
       <main>
-        <Header />
+        <Header revealed={loaded} user={user} />
         <div
           id='home-container'
           onPointerMove={handleTilePointerMove}
@@ -305,7 +313,7 @@ export default function Home() {
               <LoginModal callGooglePopup={callGooglePopup} />
           }
         </div>
-        <Footer bag={bag} />
+        <Footer bag={bag} handleSignOut={handleSignOut} />
       </main>
 
       <style jsx>{`
@@ -332,6 +340,7 @@ export default function Home() {
             grid-template-rows: 0.8fr 0.8fr;
             justify-items: center;
             align-items: center;
+            pointer-events: none;
 
             & > .player-info {
               height: 100%;
@@ -411,7 +420,7 @@ export default function Home() {
 
         .debug {
           position: fixed;
-          top: 0;
+          top: 40%;
           right: 0;
           padding: 0.5rem;
           width: 12rem;

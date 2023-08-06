@@ -1,19 +1,15 @@
 import { useEffect, useState } from "react";
 import Space from "./Space";
-import Tile from "./Tile";
 import { fullBoard, specialSpaceData } from "../scripts/scrabbledata";
 
 export default function GameBoard(props) {
   const [revealed, setRevealed] = useState(false);
 
   useEffect(() => {
-    console.log('GameBoard effect!');
     if (!revealed) {
       setRevealed(true);
     }
   }, [revealed]);
-
-  console.log('letterMat', props.letterMatrix)
 
   return (
     <>
@@ -40,7 +36,6 @@ export default function GameBoard(props) {
               }
               contents={
                 props.letterMatrix[r][s] || ''
-                // null
               }
             />
           )

@@ -28,7 +28,7 @@ export default function Tile(props) {
     props.onPointerDown(tileObject, { x: e.pageX, y: e.pageY });
   }
 
-  const tileClass = `tile${revealed ? ' revealed' : ''}${props.selected ? ' selected' : ''}${props.placed ? ' placed' : ''}`;
+  const tileClass = `tile${props.selected ? ' selected' : ''}${props.placed ? ' placed' : ''}${props.title ? ' title' : ''}${revealed ? ' revealed' : ''}`;
   return (
     <>
       <div
@@ -66,7 +66,13 @@ export default function Tile(props) {
           z-index: 3;
           // transition: opacity 500ms ease, translate 500ms ease;
           transition: all 500ms ease;
-          cursor: grab;
+          cursor: ${props.draggable ? 'grab' : 'unset'};
+          pointer-events: all !important;
+
+          &.title {
+            translate: none;
+            cursor: unset;
+          }
         }
 
         .tile * {
@@ -102,6 +108,16 @@ export default function Tile(props) {
           left: 50%;
           top: 50%;
           translate: -50% -50%;
+          box-shadow: 
+            0 0 calc(var(--current-size) / 18) #00000044,
+            0 0 calc(var(--current-size) / 18) #00000077 inset
+          ;
+          scale: 1.5;
+
+          &.revealed {
+            transition-duration: 100ms;
+            scale: 1;
+          }
         }
       `}</style>
     </>
