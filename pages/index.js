@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { db, auth, provider } from '../scripts/firebase';
-import { getAuth, signInWithPopup, GoogleAuthProvider, setPersistence, inMemoryPersistence, signInWithRedirect, signOut, getRedirectResult } from "firebase/auth";
+import { getAuth, signInWithPopup, GoogleAuthProvider, setPersistence, inMemoryPersistence, signInWithRedirect, signOut, getRedirectResult, signInWithCredential } from "firebase/auth";
 import Head from 'next/head';
 import Footer from '../components/Footer';
 import Header from '../components/Header';
@@ -11,14 +11,25 @@ import { emptyLetterMatrix, tileData } from '../scripts/scrabbledata';
 import { pause, randomInt } from '../scripts/util';
 import LoginModal from '../components/LoginModal';
 import Tile from '../components/Tile';
+import UserIcon from '../components/UserIcon';
+import VersusScreen from '../components/VersusScreen';
+
+let LANDSCAPE;
 
 let SELECTED_TILE = null;
 let TARGETED_SPACE_ID = null;
+
+const defaultOpponent = {
+  displayName: 'Opponent',
+  photoURL: '../femaleavatar.png',
+  uid: 'placeholderopponentid',
+};
 
 export default function Home() {
   const [loaded, setLoaded] = useState(false);
   const [userLoggedIn, setUserLoggedIn] = useState(false);
   const [user, setUser] = useState(null);
+  const [opponent, setOpponent] = useState(defaultOpponent);
   const [gameStarted, setGameStarted] = useState(false);
   const [bag, setBag] = useState([]);
   const [playerRack, setPlayerRack] = useState([]);
@@ -37,12 +48,15 @@ export default function Home() {
     signInWithPopup(auth, provider)
       .then((result) => {
         console.log('signInWithPopup().then =>', result);
-        setUser(result.user);
+        let newUser = { ...result.user };
+
+        setUser(newUser);
+        console.log(newUser);
         // This gives you a Google Access Token. You can use it to access the Google API.
-        const credential = GoogleAuthProvider.credentialFromResult(result);
-        const token = credential.accessToken;
+        // const credential = GoogleAuthProvider.credentialFromResult(result);
+        // const token = credential.accessToken;
         // The signed-in user info.
-        const user = result.user;
+        // const user = result.user;
         // IdP data available using getAdditionalUserInfo(result)
         // ...
       }).catch((error) => {
@@ -109,9 +123,11 @@ export default function Home() {
   useEffect(() => {
     if (!loaded) {
       // document.documentElement.style.setProperty('--actual-height', '100dvh');
-      // window.addEventListener('resize', () => {
-      //   document.documentElement.style.setProperty('--actual-height', window.innerHeight + 'px');
-      // });
+      LANDSCAPE = window.innerWidth > window.innerHeight;
+      window.addEventListener('resize', () => {
+        // document.documentElement.style.setProperty('--actual-height', window.innerHeight + 'px');
+        LANDSCAPE = window.innerWidth > window.innerHeight;
+      });
       window.addEventListener('pointerup', handleTilePointerUp);
       // getRedirectResult(auth)
       //   .then((result) => {
@@ -128,20 +144,22 @@ export default function Home() {
       //   });
 
 
-      setPersistence(auth, inMemoryPersistence)
-        .then(() => {
-          // In memory persistence will be applied to the signed in Google user
-          // even though the persistence was set to 'none' and a page redirect
-          // occurred.
-          // return signInWithPopup(auth, provider);
-          return callGooglePopup();
-        })
-        .catch((error) => {
-          // Handle Errors here.
-          const errorCode = error.code;
-          const errorMessage = error.message;
-          console.error('SETPERSISTENCE ERROR!', errorCode, errorMessage);
-        });
+      // setPersistence(auth, inMemoryPersistence)
+      //   .then(() => {
+      //     // In memory persistence will be applied to the signed in Google user
+      //     // even though the persistence was set to 'none' and a page redirect
+      //     // occurred.
+
+      //     // return signInWithPopup(auth, provider);
+      //     // return signInWithCredential()
+      //     return callGooglePopup();
+      //   })
+      //   .catch((error) => {
+      //     // Handle Errors here.
+      //     const errorCode = error.code;
+      //     const errorMessage = error.message;
+      //     console.error('SETPERSISTENCE ERROR!', errorCode, errorMessage);
+      //   });
       setLoaded(true);
     }
   }, [loaded]);
@@ -159,6 +177,10 @@ export default function Home() {
 
   function handleTilePointerDown(tile, cursorPosition) {
     const tileElement = document.getElementById(tile.id);
+    if (tileElement.classList.contains('placed')) {
+      tileElement.classList.remove('placed');
+      tileElement.style.position = 'absolute';
+    }
     setSelectedTile(tile);
     SELECTED_TILE = tile;
   }
@@ -262,7 +284,11 @@ export default function Home() {
       </Head>
 
       <main>
-        <Header revealed={loaded} user={user} />
+        <Header
+          landscape={LANDSCAPE}
+          revealed={loaded}
+          user={user}
+        />
         <div
           id='home-container'
           onPointerMove={handleTilePointerMove}
@@ -297,20 +323,13 @@ export default function Home() {
             </>
             :
             user ?
-              <>
-                <div className='logged-in-user-info'>
-                  <p>Signed in as</p>
-                  <img src={user.photoURL}></img>
-                  <p className='user-name'>{user.displayName}</p>
-                  <p>{user.email}</p>
-                </div>
-                <Button
-                  label='START'
-                  clickAction={startGame}
-                />
-              </>
+              <VersusScreen
+                user={user}
+                opponent={opponent}
+                handleClickStartGame={startGame}
+              />
               :
-              <LoginModal callGooglePopup={callGooglePopup} />
+              <LoginModal handleClickGoogleLogin={callGooglePopup} />
           }
         </div>
         <Footer bag={bag} handleSignOut={handleSignOut} />
@@ -326,6 +345,7 @@ export default function Home() {
           flex-direction: column;
           justify-content: space-between;
           align-items: center;
+          overflow: hidden;
         }
         #home-container {
           flex-grow: 1;
@@ -385,16 +405,18 @@ export default function Home() {
         :root {
           --actual-height: 100dvh;
           --main-width: 100vw;
+          --header-height: 3rem;
           --board-size: 100vw;
           --racked-tile-size: calc(var(--board-size) / 9.5);
           --played-tile-size: calc(var(--board-size) / 16.5);
+          --title-tile-size: calc(var(--header-height) * 0.75);
           --rack-height: calc(var(--board-size) / 10);
           --board-outline-size: calc(var(--board-size) / 160);
-          --header-height: 3rem;
           --footer-height: 3rem;
           --button-height: 4rem;
           --main-bg-color: #335533;
           --secondary-bg-color: #443330;
+          --footer-color: #443330;
           --main-text-color: #cdc;
           --secondary-text-color: #ccc;
           --board-color: #ccc2a1;
@@ -430,6 +452,7 @@ export default function Home() {
           color: black;
           z-index: 4;
           font-size: 0.75rem;
+          display: none;
 
           & > div {
             display: flex;

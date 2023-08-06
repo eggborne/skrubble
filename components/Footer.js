@@ -4,7 +4,7 @@ export default function Footer(props) {
   return (
     <footer>
       footer text
-      <button style={{padding: '0.5rem'}} onClick={props.handleSignOut}>sign out</button>
+      {/* <button style={{padding: '0.5rem'}} onClick={props.handleSignOut}>sign out</button> */}
       <style jsx>{`
         footer {
           width: 100%;
@@ -13,7 +13,7 @@ export default function Footer(props) {
           align-items: center;
           justify-content: space-between;
           padding: 0 0.5rem;
-          background-color: var(--secondary-bg-color);
+          background-color: var(--footer-color);
         }
       `}</style>
     </footer>

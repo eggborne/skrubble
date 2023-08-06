@@ -1,5 +1,6 @@
 import { tileData } from "../scripts/scrabbledata";
 import Tile from "./Tile";
+import UserIcon from "./UserIcon";
 
 export default function Header(props) {
   return (
@@ -14,53 +15,40 @@ export default function Header(props) {
         <Tile letter='L' value={tileData['l'].value} title />
         <Tile letter='E' value={tileData['e'].value} title />
       </div>
-      {props.user && <div className='user-info'>
-        <p className='user-name'>{props.user.displayName}</p>
-        <img src={props.user.photoURL}></img>
-      </div>}
+      {props.landscape && props.user &&
+        <UserIcon
+          user={props.user}
+          size={'small'}
+        />
+      }
       <style jsx>{`
         header {
-          width: 100%;
+          min-width: 100dvw;
           height: var(--header-height);
           display: flex;
           align-items: center;
           justify-content: center;
           background-color: var(--secondary-bg-color);
           padding: 0 calc(var(--racked-tile-size) * 0.1);
+          overflow: hidden;
 
           & > .title-tile-area {
             display: flex;
             justify-content: space-between;
             align-items: center;
+            gap: calc(var(--title-tile-size) * 0.1);
             transition: all 1200ms;
-            
-            scale: 0.8;
-            width: calc(var(--racked-tile-size) * 14.5);
-            max-width: 100vw;
+
+            width: calc(var(--title-tile-size) * 16);
+            // max-width: 100vw;
             height: var(--header-height);
             opacity: 0;
             
             &.revealed {
-              width: calc(var(--racked-tile-size) * 8.5);
+              width: calc((var(--title-tile-size) * 8) + (var(--title-tile-size) * 0.7));
               opacity: 1;
             }
           }
-
-          & > .user-info {
-            display: flex;
-            align-items: center;
-            gap: calc(var(--header-height) / 6);
-            height: var(--header-height);
-            font-size: 0.9rem;
-            & img {
-              height: 80%;
-              border-radius: 50%;
-            }
-          }
-        }
-
-        h1 {
-          font-size: calc(var(--header-height) / 2);
         }
 
         @media screen and (orientation: landscape) {
@@ -68,8 +56,7 @@ export default function Header(props) {
             justify-content: space-between;
 
             & > .title-tile-area {
-              scale: 0.7;
-              transform-origin: left center;
+              
             }
           }
         }

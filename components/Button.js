@@ -1,6 +1,6 @@
 export default function Button(props) {
   return (
-    <button onClick={props.clickAction}>
+    <button type='button' onClick={props.clickAction}>
       {props.label}
       <style jsx>{`
         button {

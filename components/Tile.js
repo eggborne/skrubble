@@ -70,6 +70,7 @@ export default function Tile(props) {
           pointer-events: all !important;
 
           &.title {
+            --current-size: var(--title-tile-size);
             translate: none;
             cursor: unset;
           }
