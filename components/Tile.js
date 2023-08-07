@@ -47,27 +47,28 @@ export default function Tile(props) {
           display: flex;
           align-items: center;
           justify-content: center;
-          background-color: #cccc99;
+          background-color: #ffff99;
+          background-image: url(../floorwood.png);
           width: var(--current-size);
           height: var(--current-size);
           min-width: var(--current-size);
           min-height: var(--current-size);
           border-radius: calc(var(--current-size) / 16);
           box-shadow: 
-            0 0 calc(var(--current-size) / 24) #00000077,
-            0 0 calc(var(--current-size) / 24) #00000077 inset
+            0 0 calc(var(--current-size) / 24) #000000aa,
+            0 0 calc(var(--current-size) / 24) #000000aa inset
           ;
-          // border: calc(var(--current-size) / 64) solid #333;
+          border: 1px solid #000;
           font-size: calc(var(--current-size) / 1.5);
           font-weight: bold;
           font-family: 'interstate-bold', sans-serif;
           opacity: 0.5;
-          translate: 0 -1rem;
+          translate: 0 -50%;
           z-index: 3;
           // transition: opacity 500ms ease, translate 500ms ease;
           transition: all 500ms ease;
           cursor: ${props.draggable ? 'grab' : 'unset'};
-          pointer-events: all !important;
+          pointer-events: all;
 
           &.title {
             --current-size: var(--title-tile-size);
@@ -113,6 +114,7 @@ export default function Tile(props) {
             0 0 calc(var(--current-size) / 18) #00000044,
             0 0 calc(var(--current-size) / 18) #00000077 inset
           ;
+          border: 1px solid #00000066;
           scale: 1.5;
 
           &.revealed {

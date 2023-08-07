@@ -34,9 +34,9 @@ export default function Header(props) {
 
           & > .title-tile-area {
             display: flex;
-            justify-content: space-between;
+            justify-content: center;
             align-items: center;
-            gap: calc(var(--title-tile-size) * 0.1);
+            // gap: calc(var(--title-tile-size) * 0.1);
             transition: all 1200ms;
 
             width: calc(var(--title-tile-size) * 16);

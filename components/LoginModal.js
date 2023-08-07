@@ -17,8 +17,6 @@ export default function LoginModal(props) {
           display: flex;
           align-items: center;
           justify-content: center;
-          background-color: var(--secondary-bg-color);
-          border-radius: 1rem;
         }
 
         div button {

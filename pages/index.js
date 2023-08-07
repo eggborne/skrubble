@@ -190,7 +190,7 @@ export default function Home() {
       const tileElement = document.getElementById(SELECTED_TILE.id);
       const cursorPosition = {
         x: e.pageX - SELECTED_TILE.originalPosition.x - (tileElement.getBoundingClientRect().width / 2),
-        y: e.pageY - SELECTED_TILE.originalPosition.y - (tileElement.getBoundingClientRect().height / 1.25)
+        y: e.pageY - SELECTED_TILE.originalPosition.y - (tileElement.getBoundingClientRect().height / 1)
       };
       setPointerPosition(cursorPosition);
       tileElement.style.top = cursorPosition.y + 'px';
@@ -282,7 +282,6 @@ export default function Home() {
         <title>Skrubble.live</title>
         <link rel="icon" href="/favicon.ico" />
       </Head>
-
       <main>
         <Header
           landscape={LANDSCAPE}
@@ -290,13 +289,23 @@ export default function Home() {
           user={user}
         />
         <div
+          className='container'
           id='home-container'
           onPointerMove={handleTilePointerMove}
         >
           {gameStarted ?
             <>
-              <div className='player-area'>
-                <div className='player-info'></div>
+              <div className='turn-display-area'>
+                <div className='player-turn-area user'>
+                  <UserIcon user={user} size='large' />
+                  <div className='player-score'>0</div>
+                </div>
+                <div className='player-turn-area opponent'>
+                  <UserIcon user={opponent} size='large' />
+                  <div className='player-score'>0</div>
+                </div>
+              </div>
+              <div className='player-area opponent'>
                 <div className='rack-area'>
                   <Rack
                     owner={'opponent'}
@@ -309,7 +318,7 @@ export default function Home() {
                 letterMatrix={letterMatrix}
                 targetedSpaceId={targetedSpaceId}
               />
-              <div className='player-area'>
+              <div className='player-area user'>
                 <div className='rack-area'>
                   <Rack
                     owner={'user'}
@@ -318,7 +327,6 @@ export default function Home() {
                     handleTilePointerDown={handleTilePointerDown}
                   />
                 </div>
-                <div className='player-info'></div>
               </div>
             </>
             :
@@ -332,7 +340,7 @@ export default function Home() {
               <LoginModal handleClickGoogleLogin={callGooglePopup} />
           }
         </div>
-        <Footer bag={bag} handleSignOut={handleSignOut} />
+        {/* <Footer bag={bag} handleSignOut={handleSignOut} /> */}
       </main>
 
       <style jsx>{`
@@ -351,25 +359,61 @@ export default function Home() {
           flex-grow: 1;
           display: grid;
           grid-template-columns: 1fr;
-          grid-template-rows: 1fr min-content 1fr;
-          // overflow: hidden;
+          grid-template-rows: calc(var(--rack-height) * 3) calc(var(--rack-height) * 2) min-content 1fr;
 
+          & > * {
+            // outline: 1px solid red;
+          }
+
+          & > .turn-display-area {
+            display: flex;
+            align-items: stretch;
+            justify-content: center;
+
+            & > .player-turn-area {
+              flex-grow: 1;
+              display: flex;
+              flex-direction: column;
+              align-items: center;
+              justify-content: center;
+
+              & > .player-score {
+                font-size: calc(var(--racked-tile-size) / 1.5);
+              }
+            }
+          }
+           
           & > .player-area {
-            display: grid;
-            grid-template-columns: 1fr;
-            grid-template-rows: 0.8fr 0.8fr;
+            position: relative;
+            display: flex;
             justify-items: center;
             align-items: center;
             pointer-events: none;
+            width: 100%;
+            // background-color: salmon;
+            
 
-            & > .player-info {
+            &.user {
+              align-items: flex-start;
+              padding-top: calc(var(--rack-height) / 1.5);
               height: 100%;
-              width: 100%;
+              &:before {
+                content: '';
+                position: absolute;
+                top: calc(var(--rack-height) * 1.5);
+                left: 50%;
+                translate: -50% 0;
+                width: 100%;
+                height: 90%;
+                background: rgb(194,123,0);
+                background: linear-gradient(180deg, rgba(194,123,0,1) 0%, rgba(208,147,74,1) 10%, rgba(173,110,0,1) 20%, rgba(173,110,0,1) 100%);
+                border-radius: calc(var(--main-padding) / 3) calc(var(--main-padding) / 3) 0 0;
+              }
             }
 
             & > .rack-area {
               width: 100%;
-              height: 100%;
+              // height: 100%;
               display: flex;
               align-items: center;
               justify-content: center;
@@ -406,11 +450,13 @@ export default function Home() {
           --actual-height: 100dvh;
           --main-width: 100vw;
           --header-height: 3rem;
+          --main-padding: 0px;
           --board-size: 100vw;
-          --racked-tile-size: calc(var(--board-size) / 9.5);
           --played-tile-size: calc(var(--board-size) / 16.5);
           --title-tile-size: calc(var(--header-height) * 0.75);
           --rack-height: calc(var(--board-size) / 10);
+          --rack-width: calc(var(--rack-height) * 9);
+          --racked-tile-size: calc(var(--rack-height) * 1.1);
           --board-outline-size: calc(var(--board-size) / 160);
           --footer-height: 3rem;
           --button-height: 4rem;
@@ -468,17 +514,37 @@ export default function Home() {
 
         @media screen and (orientation: landscape) {
           :root {
-            --rack-height: 3rem;
-            --board-size: calc(100vh - (var(--rack-height) * 5.2));
+            --main-padding: 1rem;
+            --board-size: calc((100dvh - var(--header-height)) - var(--main-padding));
+            --rack-height: calc(var(--board-size) / 12);
+          }
+
+          #home-container.container {
+            grid-template-columns: 1fr var(--board-size);
+            grid-template-rows: 1fr 1fr 1fr;
+            gap: 0 calc(var(--racked-tile-size) / 3);
           }
 
           .player-area {
-            
             grid-template-rows: 1fr !important;
+            padding: var(--main-padding);
+            grid-column-start: 1;
 
-            & > .player-info {
-              position: fixed;
+            &.opponent {
+              grid-row:-start: 1;
             }
+            &.user {
+              grid-column-start: 1;
+            }
+          }
+
+          .game-board {
+            grid-column-start: 2;
+            grid-row-start: 1;
+            grid-row-end: 4;
+            align-self: center;
+            justify-self: center;
+
           }
         }
       `}</style>

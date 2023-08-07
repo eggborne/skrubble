@@ -14,7 +14,6 @@ export default function Rack(props) {
               racked={true}
               targeted={props.targetedSpaceId === `${props.owner}-rack-space=${t}`}
               spaceData={[]}
-              // backgroundColor={'transparent'}
               label={''}
               contents={
                 <Tile 
@@ -28,15 +27,6 @@ export default function Rack(props) {
                 />
               }
             >
-              {/* <Tile 
-                draggable={true}
-                letter={tile.letter} 
-                value={tile.value} 
-                key={tile.id}
-                id={tile.id}
-                selected={props.selectedTile && props.selectedTile.id === tile.id}
-                onPointerDown={props.handleTilePointerDown}
-              /> */}
             </Space>
           )}
         </div>
@@ -45,12 +35,14 @@ export default function Rack(props) {
       <style jsx>{`
         .rack {
           position: relative;
-          background-color: #cccc99;
-          background-color: #bbbb88;
-          width: 90%;
+          background-color: #aaaa66;
+          width: var(--rack-width);
           height: var(--rack-height);
           border-radius: calc(var(--board-size) / 150);
-          box-shadow: 0 0 calc(var(--board-size) / 150) #000000aa;
+          box-shadow: 
+            0 0 calc(var(--board-size) / 150) #000000aa,
+            0 0 calc(var(--board-size) / 150) #000000aa inset
+          ;
           font-size: calc(var(--board-size) / 24);
           font-weight: bold;
           font-family: 'interstate-bold', sans-serif;
@@ -63,26 +55,26 @@ export default function Rack(props) {
             display: grid;
             grid-template-rows: 1fr;
             grid-template-columns: repeat(7, min-content);
-            gap: calc(var(--rack-height) / 6);
+            gap: calc(var(--rack-height) / 8);
             align-content: bottom;
             justify-items: center;
             justify-content: center;
-            bottom: 5%;
-            // display: flex;
-            // justify-content: space-between;
+            bottom: 0%;
           }
         }
 
         .shelf {
           position: absolute;
-          bottom: -20%;
+          bottom: -33%;
           left: -1%;
           width: 102%;
           align-self: center;
-          height: calc(var(--board-size) / 30);
+          height: calc(var(--rack-height) / 2.5);
           background-color: inherit;
+          background-image: linear-gradient(to bottom, #00000033 0%, transparent 50%, #00000033 100%);
           border: 1px solid black;
-          border-radius: calc(var(--board-size) / 200);
+          border-radius: calc(var(--rack-height) / 20);
+          box-shadow: 1px 0 calc(var(--rack-height) / 16) #00000099;
           z-index: 3;
         }
 
