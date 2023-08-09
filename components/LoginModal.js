@@ -1,13 +1,14 @@
 import Button from "./Button";
 import GoogleButton from "./GoogleButton";
+import SignInButton from "./SignInButton";
 
 export default function LoginModal(props) {
   return (
-    <div>
-      {/* <Button label="Log in with Google" clickAction={props.callGooglePopup} /> */}
+    <div className='login-modal'>
       <GoogleButton label="Sign in with Google" clickAction={props.handleClickGoogleLogin} />
+      <SignInButton label="Play as Guest" clickAction={props.handleClickGuestLogin} />
       <style jsx>{`
-        div {
+        .login-modal {
           position: fixed;
           top: 50%;
           left: 50%;
@@ -15,8 +16,10 @@ export default function LoginModal(props) {
           padding: 0 2rem;
           height: calc(var(--board-size) * 0.8);
           display: flex;
-          align-items: center;
+          flex-direction: column;
+          align-items: stretch;
           justify-content: center;
+          gap: calc(var(--board-size) * 0.025);;
         }
 
         div button {

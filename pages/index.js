@@ -1,6 +1,7 @@
+import { isMobile } from 'is-mobile';
 import { useEffect, useState } from 'react';
 import { db, auth, provider } from '../scripts/firebase';
-import { getAuth, signInWithPopup, GoogleAuthProvider, setPersistence, inMemoryPersistence, signInWithRedirect, signOut, getRedirectResult, signInWithCredential } from "firebase/auth";
+import { getAuth, signInWithPopup, GoogleAuthProvider, signInWithRedirect, signOut, signInAnonymously } from "firebase/auth";
 import Head from 'next/head';
 import Footer from '../components/Footer';
 import Header from '../components/Header';
@@ -8,12 +9,14 @@ import Button from '../components/Button';
 import GameBoard from '../components/GameBoard';
 import Rack from '../components/Rack';
 import { emptyLetterMatrix, tileData } from '../scripts/scrabbledata';
-import { pause, randomInt } from '../scripts/util';
+import { pause, randomInt, shuffleArray } from '../scripts/util';
 import LoginModal from '../components/LoginModal';
 import Tile from '../components/Tile';
 import UserIcon from '../components/UserIcon';
 import VersusScreen from '../components/VersusScreen';
+import { v4 } from 'uuid';
 
+const IS_MOBILE = isMobile();
 let LANDSCAPE;
 
 let SELECTED_TILE = null;
@@ -24,10 +27,14 @@ const defaultOpponent = {
   photoURL: '../femaleavatar.png',
   uid: 'placeholderopponentid',
 };
+const guestUser = {
+  displayName: 'Guest',
+  photoURL: '../guestavatar.png',
+  uid: v4(),
+};
 
 export default function Home() {
   const [loaded, setLoaded] = useState(false);
-  const [userLoggedIn, setUserLoggedIn] = useState(false);
   const [user, setUser] = useState(null);
   const [opponent, setOpponent] = useState(defaultOpponent);
   const [gameStarted, setGameStarted] = useState(false);
@@ -38,6 +45,22 @@ export default function Home() {
   const [targetedSpaceId, setTargetedSpaceId] = useState(null);
   const [pointerPosition, setPointerPosition] = useState({ x: null, y: null });
   const [letterMatrix, setLetterMatrix] = useState([...emptyLetterMatrix]);
+
+  function signInAsGuest() {
+    signInAnonymously(getAuth())
+      .then(() => {
+        console.log('signInAsGuest().then =>');
+        let newUser = guestUser;
+
+        setUser(newUser);
+        console.log(newUser);
+      })
+      .catch((error) => {
+        const errorCode = error.code;
+        const errorMessage = error.message;
+        console.error(errorCode, errorMessage);
+      });
+  }
 
   function callGoogleRedirect() {
     signInWithRedirect(auth, provider);
@@ -82,9 +105,9 @@ export default function Home() {
       let tileQuantity = tileData[letter].quantity;
       for (let i = 0; i < tileQuantity; i++) {
         nextBag.push({
-          letter: letter.toUpperCase(),
+          letter: letter,
           value: tileData[letter].value,
-          id: crypto.randomUUID() || `${letter}-${i}`,
+          id: v4(),
         });
       }
     }
@@ -96,39 +119,31 @@ export default function Home() {
   function getRandomLetters(nextBag, amount) {
     const letterArray = [];
     for (let i = 0; i < amount; i++) {
+      console.log('nextBag length when i', i, ':', nextBag.length)
       letterArray.push(nextBag.splice(randomInt(0, nextBag.length - 1), 1)[0]);
     }
+    // nextBag = nextBag.filter(tile => letterArray.indexOf(tile) === -1);
+    console.log('letters:', nextBag)
     setBag(nextBag);
     return letterArray;
   }
 
-  function placeLetter(letterObj, spacePosition) {
-    const rackedLetterElement = document.getElementById(letterObj.id);
-    const tileComponent =
-      <Tile
-        draggable={true}
-        letter={letterObj.letter.toUpperCase()}
-        value={letterObj.value}
-        key={letterObj.key}
-        id={letterObj.id}
-        placed={true}
-        onPointerDown={handleTilePointerDown}
-      />;
-    const newLetterMatrix = [...letterMatrix];
-    newLetterMatrix[spacePosition.x][spacePosition.y] = tileComponent;
-    rackedLetterElement.parentElement.removeChild(rackedLetterElement);
-    setLetterMatrix(newLetterMatrix);
-  }
-
   useEffect(() => {
     if (!loaded) {
-      // document.documentElement.style.setProperty('--actual-height', '100dvh');
+      // document.documentElement.style.setProperty('--actual-height', 'window.innerHeight');
       LANDSCAPE = window.innerWidth > window.innerHeight;
       window.addEventListener('resize', () => {
         // document.documentElement.style.setProperty('--actual-height', window.innerHeight + 'px');
         LANDSCAPE = window.innerWidth > window.innerHeight;
       });
-      window.addEventListener('pointerup', handleTilePointerUp);
+      if (IS_MOBILE) {
+        // window.addEventListener('touchmove', handleTileTouchMove, {passive: false});
+        // window.addEventListener('touchend', handleTilePointerUp);
+      } else {
+      }
+      window.addEventListener(IS_MOBILE ? 'touchmove' : 'pointermove', handleTilePointerMove, { passive: false });
+      // window.addEventListener('pointerup', handleTilePointerUp);
+
       // getRedirectResult(auth)
       //   .then((result) => {
       //     setUser(result.user);
@@ -175,53 +190,124 @@ export default function Home() {
     setOpponentRack(opponentOpeningLetters);
   }
 
-  function handleTilePointerDown(tile, cursorPosition) {
+  function handleTilePointerDown(e, tile) {
     const tileElement = document.getElementById(tile.id);
     if (tileElement.classList.contains('placed')) {
-      tileElement.classList.remove('placed');
-      tileElement.style.position = 'absolute';
+      const originalTile = { ...tile };
+      originalTile.id = originalTile.id.replace('-placed', '');
+      unplaceLetter(originalTile, tile.placed);
+      setSelectedTile(originalTile);
+      SELECTED_TILE = originalTile;
+      // document.getElementById(originalTile.id).style.opacity = '0.5';
+    } else {
+      setSelectedTile(tile);
+      SELECTED_TILE = tile;
+      // tileElement.style.opacity = '0.5';
     }
-    setSelectedTile(tile);
-    SELECTED_TILE = tile;
   }
 
   function handleTilePointerMove(e) {
     if (SELECTED_TILE) {
       const tileElement = document.getElementById(SELECTED_TILE.id);
+      const touchX = IS_MOBILE ? e.touches[0].pageX : e.pageX;
+      const touchY = IS_MOBILE ? e.touches[0].pageY : e.pageY;
+      // const cursorPosition = {
+      //   x: touchX - SELECTED_TILE.originalPosition.x - (tileElement.getBoundingClientRect().width / 2),
+      //   y: touchY - SELECTED_TILE.originalPosition.y - (tileElement.getBoundingClientRect().height / 1)
+      // };
       const cursorPosition = {
-        x: e.pageX - SELECTED_TILE.originalPosition.x - (tileElement.getBoundingClientRect().width / 2),
-        y: e.pageY - SELECTED_TILE.originalPosition.y - (tileElement.getBoundingClientRect().height / 1)
+        x: touchX - SELECTED_TILE.originalPosition.x - (tileElement.getBoundingClientRect().width / 2),
+        y: touchY - SELECTED_TILE.originalPosition.y - (tileElement.getBoundingClientRect().height / 1)
       };
+      const cursorOffset = {
+        x: touchX - SELECTED_TILE.originalPosition.x - (tileElement.getBoundingClientRect().width / 2),
+        y: touchY - SELECTED_TILE.originalPosition.y - (tileElement.getBoundingClientRect().height / 1)
+      }
       setPointerPosition(cursorPosition);
-      tileElement.style.top = cursorPosition.y + 'px';
-      tileElement.style.left = cursorPosition.x + 'px';
-      const newTargetedSpaceId = findTargetedSpaceId(tileElement, { x: e.pageX, y: e.pageY });
-      console.log('target space', newTargetedSpaceId);
-      setTargetedSpaceId(newTargetedSpaceId);
-      TARGETED_SPACE_ID = newTargetedSpaceId;
+      // tileElement.style.top = cursorPosition.y + 'px';
+      // tileElement.style.left = cursorPosition.x + 'px';
+      // tileElement.style.transform = `translate(${cursorOffset.x}px, ${cursorOffset.y}px)`
+      tileElement.style.translate = `${cursorOffset.x}px ${cursorOffset.y}px`
+      const newTargetedSpaceId = findTargetedSpaceId({ x: touchX, y: touchY });
+      if (newTargetedSpaceId) {
+        setTargetedSpaceId(newTargetedSpaceId);
+        TARGETED_SPACE_ID = newTargetedSpaceId;
+      }
     }
+    e.preventDefault();
   }
 
   function handleTilePointerUp(e) {
     if (SELECTED_TILE) {
       if (TARGETED_SPACE_ID) {
-        // const tileElement = document.getElementById(SELECTED_TILE.id);
-        // tileElement.style.opacity = '0';
         const targetCoords = {
           x: parseInt(TARGETED_SPACE_ID.split('-')[0] - 1),
           y: parseInt(TARGETED_SPACE_ID.split('-')[1] - 1)
         };
-        placeLetter(SELECTED_TILE, targetCoords);
+        placeLetter(e, SELECTED_TILE, targetCoords);
         setTargetedSpaceId(null);
         TARGETED_SPACE_ID = null;
 
       } else {
         replaceTile(SELECTED_TILE.id);
       }
-      setSelectedTile(null);
-      SELECTED_TILE = null;
-      setPointerPosition({ x: null, y: null });
     }
+    setSelectedTile(null);
+    SELECTED_TILE = null;
+    setPointerPosition({ x: null, y: null });
+  }
+
+  function placeLetter(e, tileObj, spacePosition) {
+    const rackedLetterElement = document.getElementById(tileObj.id);
+    const placedTileComponent =
+      <Tile
+        draggable={true}
+        letter={tileObj.letter}
+        value={tileObj.value}
+        key={tileObj.key + '-placed'}
+        id={tileObj.id + '-placed'}
+        rackSpaceId={tileObj.rackSpaceId}
+        onPointerDown={handleTilePointerDown}
+        onPointerUp={handleTilePointerUp}
+        tileObj
+        placed={spacePosition}
+      />;
+    const newLetterMatrix = [...letterMatrix];
+    newLetterMatrix[spacePosition.x][spacePosition.y] = placedTileComponent;
+    const spaceElement = document.getElementById(`${spacePosition.y}-${spacePosition.x}`);
+    // rackedLetterElement.style.setProperty('--current-size', 'var(--played-tile-size)');
+    // rackedLetterElement.style.left = '0';
+    // rackedLetterElement.style.top = '0';
+    // rackedLetterElement.style.opacity = '0.2';
+    // rackedLetterElement.style.pointerEvents = 'none';
+    // rackedLetterElement.style.visibility = 'hidden';
+    setLetterMatrix(newLetterMatrix);
+  }
+
+  function unplaceLetter(tileObj, spacePosition) {
+    console.log('unplacing', tileObj, 'from', spacePosition);
+    const placedTileElement = document.getElementById(tileObj.id + '-placed');
+    const floatingTileElement = document.getElementById(tileObj.id);
+    console.warn('floatingTileElement', floatingTileElement)
+    // floatingTileElement.style.opacity = '1';
+    // floatingTileElement.style.pointerEvents = 'all';
+    // floatingTileElement.style.visibility = 'visible';
+
+    const newTileObject = {
+      ...tileObj,
+      draggable: true,
+      // placed: false,
+    };
+    const newLetterMatrix = [...letterMatrix];
+    newLetterMatrix[spacePosition.y][spacePosition.x] = 0;
+    placedTileElement.parentElement.removeChild(placedTileElement);
+    setLetterMatrix(newLetterMatrix);
+    setSelectedTile(newTileObject);
+    SELECTED_TILE = newTileObject;
+    console.log('setting selected', newTileObject);
+    // const newPlayerRack = [...playerRack];
+    // newPlayerRack.push(tileComponent);
+    // setPlayerRack(newPlayerRack);
   }
 
   function replaceTile(tileId) {
@@ -231,10 +317,27 @@ export default function Home() {
     tileElement.style.left = '0';
   }
 
-  function findTargetedSpaceId(tileElement, cursorPosition) {
+  function shuffleUserTiles() {
+    console.log('shuffling!', playerRack);
+    let newRack = [...playerRack];
+    shuffleArray(newRack);
+    console.log('shuffled!', newRack);
+    setPlayerRack(newRack);
+
+  }
+
+  function findTargetedSpaceId(cursorPosition) {
     let result;
-    [...document.getElementsByClassName('dropzone')].forEach((spaceElement) => {
-      const occupied = !spaceElement.classList.contains('racked') && letterMatrix[parseInt(spaceElement.id.split('-')[0]) - 1][parseInt(spaceElement.id.split('-')[1]) - 1] !== 0;
+    [...document.getElementsByClassName('dropzone')].filter(spaceElement => spaceElement && !spaceElement.classList.contains('racked')).forEach((spaceElement) => {
+      const matrixX = parseInt(spaceElement.id.split('-')[0]) - 1;
+      const matrixY = parseInt(spaceElement.id.split('-')[1]) - 1;
+      const occupied = letterMatrix[matrixX][matrixY] !== 0;
+      // if (!spaceElement.classList.contains('racked')) {
+      //   console.warn('space occupied?', occupied);
+      //   console.warn('matrixX?', matrixX);
+      //   console.warn('matrixY?', matrixY);
+      // }
+      // console.warn('cursorPosition?', cursorPosition.x, cursorPosition.y);
       if (spaceElement && !occupied) {
         const targetedX = cursorPosition.x > spaceElement.getBoundingClientRect().x && cursorPosition.x < (spaceElement.getBoundingClientRect().x + spaceElement.getBoundingClientRect().width);
         const targetedY = cursorPosition.y > spaceElement.getBoundingClientRect().y && cursorPosition.y < (spaceElement.getBoundingClientRect().y + spaceElement.getBoundingClientRect().height);
@@ -243,7 +346,6 @@ export default function Home() {
         }
       }
     });
-    console.log('returning result', result);
     return result;
   }
 
@@ -287,16 +389,17 @@ export default function Home() {
           landscape={LANDSCAPE}
           revealed={loaded}
           user={user}
+          gameStarted={gameStarted}
         />
         <div
           className='container'
           id='home-container'
-          onPointerMove={handleTilePointerMove}
+          // onPointerMove={handleTilePointerMove}
         >
           {gameStarted ?
             <>
               <div className='turn-display-area'>
-                <div className='player-turn-area user'>
+                <div className='player-turn-area user current-turn'>
                   <UserIcon user={user} size='large' />
                   <div className='player-score'>0</div>
                 </div>
@@ -305,6 +408,7 @@ export default function Home() {
                   <div className='player-score'>0</div>
                 </div>
               </div>
+              
               <div className='player-area opponent'>
                 <div className='rack-area'>
                   <Rack
@@ -314,10 +418,12 @@ export default function Home() {
                   />
                 </div>
               </div>
+
               <GameBoard
                 letterMatrix={letterMatrix}
                 targetedSpaceId={targetedSpaceId}
               />
+              
               <div className='player-area user'>
                 <div className='rack-area'>
                   <Rack
@@ -325,7 +431,13 @@ export default function Home() {
                     tiles={playerRack}
                     selectedTile={selectedTile}
                     handleTilePointerDown={handleTilePointerDown}
+                    handleTilePointerUp={handleTilePointerUp}
                   />
+                </div>
+                <div className='user-button-area'>
+                  <Button label='Menu' clickAction={() => null} />
+                  <Button color='green' label='Submit' clickAction={() => null} />
+                  <Button label='Shuffle' clickAction={shuffleUserTiles} />
                 </div>
               </div>
             </>
@@ -337,7 +449,7 @@ export default function Home() {
                 handleClickStartGame={startGame}
               />
               :
-              <LoginModal handleClickGoogleLogin={callGooglePopup} />
+              <LoginModal handleClickGoogleLogin={callGooglePopup} handleClickGuestLogin={signInAsGuest} />
           }
         </div>
         {/* <Footer bag={bag} handleSignOut={handleSignOut} /> */}
@@ -359,23 +471,30 @@ export default function Home() {
           flex-grow: 1;
           display: grid;
           grid-template-columns: 1fr;
-          grid-template-rows: calc(var(--rack-height) * 3) calc(var(--rack-height) * 2) min-content 1fr;
-
-          & > * {
-            // outline: 1px solid red;
-          }
+          grid-template-rows: min-content calc(var(--rack-height) * 1.5) min-content 1fr;
 
           & > .turn-display-area {
             display: flex;
             align-items: stretch;
             justify-content: center;
-
+            padding: 2.5%;
+            // padding-top: 0;
+            gap: 2.5%;
+            
             & > .player-turn-area {
-              flex-grow: 1;
+              width: 50%;
               display: flex;
-              flex-direction: column;
+              flex-direction: row;
               align-items: center;
-              justify-content: center;
+              justify-content: space-evenly;
+              border-radius: calc(var(--rack-height) / 4);
+              background-color: #ffffff33;
+              padding: calc(var(--racked-tile-size) * 0.1) 0;
+              
+              &.current-turn {
+                border: calc(var(--rack-height) / 10) solid #ffff00aa;
+                background-color: #ffff0066;
+              }
 
               & > .player-score {
                 font-size: calc(var(--racked-tile-size) / 1.5);
@@ -391,9 +510,9 @@ export default function Home() {
             pointer-events: none;
             width: 100%;
             // background-color: salmon;
-            
 
             &.user {
+              flex-direction: column;
               align-items: flex-start;
               padding-top: calc(var(--rack-height) / 1.5);
               height: 100%;
@@ -407,13 +526,32 @@ export default function Home() {
                 height: 90%;
                 background: rgb(194,123,0);
                 background: linear-gradient(180deg, rgba(194,123,0,1) 0%, rgba(208,147,74,1) 10%, rgba(173,110,0,1) 20%, rgba(173,110,0,1) 100%);
+                box-shadow: 
+                  0 0 calc(var(--board-size) / 96) #00000099,
+                  0 0 calc(var(--board-size) / 150) #000000aa inset
+                ;
+                border: 1px solid black;
                 border-radius: calc(var(--main-padding) / 3) calc(var(--main-padding) / 3) 0 0;
+                z-index: 0;
+              }
+
+              & > .user-button-area {
+                width: 95%;
+                display: flex;
+                align-items: center;
+                align-self: center;
+                flex-grow: 1;
+                // padding-top: calc(var(--rack-height) / 4);
+                // margin-top: calc(var(--rack-height) / 2.5);
+                justify-content: center;
+                gap: 2%;
+                z-index: 1;
               }
             }
 
             & > .rack-area {
               width: 100%;
-              // height: 100%;
+              align-self: stretch;
               display: flex;
               align-items: center;
               justify-content: center;
@@ -448,18 +586,17 @@ export default function Home() {
       <style jsx global>{`
         :root {
           --actual-height: 100dvh;
-          --main-width: 100vw;
-          --header-height: 3rem;
-          --main-padding: 0px;
           --board-size: 100vw;
-          --played-tile-size: calc(var(--board-size) / 16.5);
-          --title-tile-size: calc(var(--header-height) * 0.75);
+          --header-height: ${user ? '2rem' : '14vw'};
+          --main-padding: 0px;
           --rack-height: calc(var(--board-size) / 10);
           --rack-width: calc(var(--rack-height) * 9);
+          --title-tile-size: calc(var(--header-height) * 0.7);
           --racked-tile-size: calc(var(--rack-height) * 1.1);
+          --played-tile-size: calc(var(--board-size) / 16.5);
           --board-outline-size: calc(var(--board-size) / 160);
           --footer-height: 3rem;
-          --button-height: 4rem;
+          --button-height: 3rem;
           --main-bg-color: #335533;
           --secondary-bg-color: #443330;
           --footer-color: #443330;
@@ -473,7 +610,7 @@ export default function Home() {
         body {
           padding: 0;
           margin: 0;
-          font-family: 'interstate-bold', sans-serif;
+          font-family: -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Oxygen,Ubuntu,Cantarell,"Fira Sans","Droid Sans","Helvetica Neue",sans-serif;
           background-color: black;
           color: var(--main-text-color);
           user-select: none;
@@ -514,14 +651,19 @@ export default function Home() {
 
         @media screen and (orientation: landscape) {
           :root {
+            --header-height: ${user ? '2.5rem' : '6rem'};
             --main-padding: 1rem;
-            --board-size: calc((100dvh - var(--header-height)) - var(--main-padding));
+            --board-size: calc((var(--actual-height) - var(--header-height)) - var(--main-padding));
             --rack-height: calc(var(--board-size) / 12);
+          }
+
+          header {
+            background-color: transparent;
           }
 
           #home-container.container {
             grid-template-columns: 1fr var(--board-size);
-            grid-template-rows: 1fr 1fr 1fr;
+            grid-template-rows: min-content 1fr 1fr;
             gap: 0 calc(var(--racked-tile-size) / 3);
           }
 
@@ -536,6 +678,10 @@ export default function Home() {
             &.user {
               grid-column-start: 1;
             }
+          }
+
+          .turn-display-area {
+            padding-top: 2.5%;
           }
 
           .game-board {

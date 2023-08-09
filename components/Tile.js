@@ -7,10 +7,10 @@ export default function Tile(props) {
   useEffect(() => {
     if (!revealed) {
       setRevealed(true);
-      if (props.draggable) {
+      if (props.draggable && !props.placed) {
         const rackPosition = { 
           x: document.getElementById(props.id).getBoundingClientRect().x, 
-          y: document.getElementById(props.id).getBoundingClientRect().y 
+          y: document.getElementById(props.id).getBoundingClientRect().y,
         };
         setOriginalRackPosition(rackPosition);
       }
@@ -19,24 +19,31 @@ export default function Tile(props) {
 
   function handlePointerDown(e) {
     const tileObject = {
-      letter: props.letter,
-      value: props.value,
-      key: props.id,
-      id: props.id,
+      // letter: props.letter,
+      // value: props.value,
+      // key: props.id,
+      // id: props.id,
+      ...props,
       originalPosition: originalRackPosition,
     };
-    props.onPointerDown(tileObject, { x: e.pageX, y: e.pageY });
+    props.onPointerDown(e, tileObject, { x: e.pageX, y: e.pageY });
   }
 
-  const tileClass = `tile${props.selected ? ' selected' : ''}${props.placed ? ' placed' : ''}${props.title ? ' title' : ''}${revealed ? ' revealed' : ''}`;
+  function handlePointerUp(e) {
+    console.log('up on', e.target.id);
+    props.onPointerUp(e)
+  }
+
+  const tileClass = `tile ${props.owner}${props.selected ? ' selected' : ''}${props.placed ? ' placed' : ''}${props.title ? ' title' : ''}${revealed ? ' revealed' : ''}`;
   return (
     <>
       <div
         id={props.id}
-        onPointerDown={props.draggable ? handlePointerDown : () => null}
+        onPointerDownCapture={props.draggable ? handlePointerDown : () => null}
+        onPointerUpCapture={props.selected && props.draggable ? handlePointerUp : () => null}
         className={tileClass}
       >
-        {props.letter}
+        <span className='letter'>{props.letter.toUpperCase()}</span>
       </div>
       <style jsx>{`
         .tile {
@@ -49,19 +56,21 @@ export default function Tile(props) {
           justify-content: center;
           background-color: #ffff99;
           background-image: url(../floorwood.png);
+          background-repeat: no-repeat;
           width: var(--current-size);
           height: var(--current-size);
           min-width: var(--current-size);
           min-height: var(--current-size);
-          border-radius: calc(var(--current-size) / 16);
-          box-shadow: 
-            0 0 calc(var(--current-size) / 24) #000000aa,
-            0 0 calc(var(--current-size) / 24) #000000aa inset
-          ;
+          border-radius: calc(var(--current-size) / 14);
+          // box-shadow: 
+          //   0 0 calc(var(--current-size) / 24) #000000aa,
+          //   0 0 calc(var(--current-size) / 24) #000000aa inset
+          // ;
           border: 1px solid #000;
           font-size: calc(var(--current-size) / 1.5);
-          font-weight: bold;
-          font-family: 'interstate-bold', sans-serif;
+          font-weight: 700;
+          font-family: 'Open Sans', sans-serif;
+          color: #000000;
           opacity: 0.5;
           translate: 0 -50%;
           z-index: 3;
@@ -89,18 +98,25 @@ export default function Tile(props) {
           font-size: 35%;
         }
 
+        .tile.opponent {
+          translate: none;
+        }
+
+        .tile.opponent > .letter, .tile.opponent:after {
+          opacity: 0.2;
+        }
+
         .tile.revealed {
           opacity: 1;
           scale: 1;
           translate: 0;
+          transform: none;
         }
         
         .tile.selected {
-          transform-origin: 0 -25%;
-          transition: scale 100ms ease !important;
+          transition: scale 100ms ease;
           cursor: grabbing;
-          z-index: 999;
-          scale: 1.25;
+          z-index: 5;
           opacity: 0.65;
         }
         
@@ -110,10 +126,10 @@ export default function Tile(props) {
           left: 50%;
           top: 50%;
           translate: -50% -50%;
-          box-shadow: 
-            0 0 calc(var(--current-size) / 18) #00000044,
-            0 0 calc(var(--current-size) / 18) #00000077 inset
-          ;
+          // box-shadow: 
+          //   0 0 calc(var(--current-size) / 18) #00000044,
+          //   0 0 calc(var(--current-size) / 18) #00000077 inset
+          // ;
           border: 1px solid #00000066;
           scale: 1.5;
 
