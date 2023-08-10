@@ -1,40 +1,67 @@
 import Space from "./Space";
 import Tile from "./Tile";
 
-
 export default function Rack(props) {
   return (
-    <>
-      <div className={`rack ${props.owner}`} id={`${props.owner}-rack`}>
-        <div className='tile-container'>
-          {props.tiles.map((tile, t) =>
-            <Space
-              key={`${props.owner}-rack-space-${t}`}
-              id={`${props.owner}-rack-space-${t}`}
-              racked={true}
-              targeted={props.targetedSpaceId === `${props.owner}-rack-space=${t}`}
-              spaceData={[]}
-              label={''}
-              contents={
-                <Tile 
-                  owner={props.owner}
-                  draggable={props.owner === 'user'}
-                  letter={tile.letter} 
-                  value={tile.value} 
-                  key={tile.id}
-                  id={tile.id}
-                  selected={props.selectedTile && props.selectedTile.id === tile.id}
-                  rackSpaceId={`${props.owner}-rack-space-${t}`}
-                  onPointerDown={props.handleTilePointerDown}
-                  onPointerUp={props.handleTilePointerUp}
-                />
-              }
-            >
-            </Space>
-          )}
-        </div>
-        <div className='shelf'></div>
+    <div className={`rack ${props.owner}`} id={`${props.owner}-rack`}>
+      <div className='tile-container'>
+        {props.tiles.map((tile, t) =>
+          <Space
+            key={`${props.owner}-rack-space-${t}`}
+            id={`${props.owner}-rack-space-${t}`}
+            racked={true}
+            targeted={props.targetedSpaceId === `${props.owner}-rack-space=${t}`}
+            spaceData={[]}
+            label={''}
+            contents={
+              <Tile
+                owner={props.owner}
+                draggable={props.owner === 'user'}
+                letter={tile.letter}
+                value={tile.value}
+                key={tile.id}
+                id={tile.id}
+                selected={props.selectedTileId === tile.id}
+                rackSpaceId={`${props.owner}-rack-space-${t}`}
+                offset={tile.offset}
+                placed={tile.placed}
+              />
+            }
+          >
+          </Space>
+        )}
+        {/* {emptyRackSpaces.map((space, s) => {
+          let spaceContents;
+          if (s < props.tiles.length) {
+            const tile = props.tiles[s];
+            spaceContents = <Tile
+              owner={props.owner}
+              draggable={props.owner === 'user'}
+              letter={tile.letter}
+              value={tile.value}
+              key={tile.id}
+              id={tile.id}
+              selected={props.selectedTileId && props.selectedTileId.id === tile.id}
+              rackSpaceId={`${props.owner}-rack-space-${s}`}
+              onPointerDown={props.handleTilePointerDown}
+              onPointerUp={props.handleTilePointerUp}
+            />;
+          } else {
+            spaceContents = 'blargh';
+          }
+          return <Space
+            key={`${props.owner}-rack-space-${s}`}
+            id={`${props.owner}-rack-space-${s}`}
+            racked={true}
+            targeted={props.targetedSpaceId === `${props.owner}-rack-space=${s}`}
+            spaceData={[]}
+            label={''}
+            contents={spaceContents}
+          >;
+          </Space>;
+        })} */}
       </div>
+      <div className='shelf'></div>
       <style jsx>{`
         .rack {
           position: relative;
@@ -42,13 +69,13 @@ export default function Rack(props) {
           height: var(--rack-height);
           border-radius: calc(var(--board-size) / 150);
           ${props.owner === 'user' &&
-            `background-color: #aaaa66;
+        `background-color: #aaaa66;
             box-shadow: 
               0 0 calc(var(--board-size) / 150) #000000aa,
               0 0 calc(var(--board-size) / 150) #000000aa inset
             ;
             border: 1px solid black;`
-          }
+        }
           font-size: calc(var(--board-size) / 24);
           font-weight: bold;
           font-family: 'interstate-bold', sans-serif;
@@ -90,6 +117,6 @@ export default function Rack(props) {
           }
         }
       `}</style>
-    </>
+    </div>
   );
 }

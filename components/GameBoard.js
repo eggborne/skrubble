@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import Space from "./Space";
 import { fullBoard, specialSpaceData } from "../scripts/scrabbledata";
+import Tile from "./Tile";
 
 export default function GameBoard(props) {
   const [revealed, setRevealed] = useState(false);
@@ -8,6 +9,7 @@ export default function GameBoard(props) {
   useEffect(() => {
     if (!revealed) {
       setRevealed(true);
+
     }
   }, [revealed]);
 
@@ -18,8 +20,9 @@ export default function GameBoard(props) {
         scale: revealed ? '1' : '0.25',
       }}>
         {fullBoard.map((row, r) =>
-          row.map((space, s) =>
-            <Space
+          row.map((space, s) => {
+            const spaceContents = props.letterMatrix[r][s].contents;
+            return <Space
               key={`${(r+1)}-${(s+1)}`}
               id={`${(r+1)}-${(s+1)}`}
               targeted={props.targetedSpaceId === `${(r+1)}-${(s+1)}`}
@@ -35,9 +38,12 @@ export default function GameBoard(props) {
                   ''
               }
               contents={
-                props.letterMatrix[r][s] || ''
+                spaceContents ?
+                  spaceContents
+                  :
+                  ''
               }
-            />
+            />}
           )
         )}
       </div>
@@ -52,7 +58,7 @@ export default function GameBoard(props) {
           justify-items: center;
           align-items: center;
           box-shadow: 0 0 0.25rem #00000099;
-          gap: calc(var(--board-outline-size) * 0.9);
+          gap: calc(var(--board-size) * 0.005);
           background-color: var(--board-bg-color);
           transition: scale 500ms ease-out;
         }

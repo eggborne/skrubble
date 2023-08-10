@@ -1,6 +1,5 @@
 export default function Space(props) {
   return (
-    <>
       <div className={`space dropzone${props.targeted ? ' targeted' : ''}${props.racked ? ' racked' : ''}`} id={props.id}>
         {props.spaceData.length > 0 &&
           <>
@@ -27,10 +26,9 @@ export default function Space(props) {
           </>
         }
         <div className='special-label'>{props.label}</div>
-        <div>
+        <div className='contents'>
           {props.contents}
         </div>
-      </div>
       <style jsx>{`
         .space {
           --caret-size: calc(var(--board-size) / 100);
@@ -49,6 +47,7 @@ export default function Space(props) {
           &.racked {
             width: var(--racked-tile-size);
             height: var(--racked-tile-size);
+            position: relative;
           }
 
           &:after {
@@ -56,8 +55,8 @@ export default function Space(props) {
             content: '';
             width: calc(var(--board-size) / 15);
             height: calc(var(--board-size) / 15);
-            background-color: #44ff44aa;
-            // box-sizing: content-box;
+            background-color: #22ff4499;
+            border: calc(var(--played-tile-size) / 15) dotted #bbffbb;
             z-index: 3;
             opacity: 0;
             transition: opacity 100ms ease;
@@ -130,6 +129,6 @@ export default function Space(props) {
           border-top: calc(var(--board-outline-size) * 1) solid transparent;
         }
       `}</style>
-    </>
+    </div>
   );
 }

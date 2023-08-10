@@ -1,55 +1,34 @@
 import { useEffect, useState } from "react";
 
 export default function Tile(props) {
+  if (props.placed) {
+    // console.log('placed tile props', props)
+  }
   const [revealed, setRevealed] = useState(false);
-  const [originalRackPosition, setOriginalRackPosition]  = useState({});
 
   useEffect(() => {
     if (!revealed) {
       setRevealed(true);
-      if (props.draggable && !props.placed) {
-        const rackPosition = { 
-          x: document.getElementById(props.id).getBoundingClientRect().x, 
-          y: document.getElementById(props.id).getBoundingClientRect().y,
-        };
-        setOriginalRackPosition(rackPosition);
-      }
     }
   }, [revealed]);
 
-  function handlePointerDown(e) {
-    const tileObject = {
-      // letter: props.letter,
-      // value: props.value,
-      // key: props.id,
-      // id: props.id,
-      ...props,
-      originalPosition: originalRackPosition,
-    };
-    props.onPointerDown(e, tileObject, { x: e.pageX, y: e.pageY });
-  }
-
-  function handlePointerUp(e) {
-    console.log('up on', e.target.id);
-    props.onPointerUp(e)
-  }
-
-  const tileClass = `tile ${props.owner}${props.selected ? ' selected' : ''}${props.placed ? ' placed' : ''}${props.title ? ' title' : ''}${revealed ? ' revealed' : ''}`;
+  const tileClass = `tile ${props.owner}${props.selected ? ' selected' : ''}${props.title ? ' title' : ''}${revealed ? ' revealed' : ''}${props.placed ? ' placed' : ''}`;
+  const tileOffset = props.offset || { x: 0, y: 0 };
   return (
     <>
       <div
         id={props.id}
-        onPointerDownCapture={props.draggable ? handlePointerDown : () => null}
-        onPointerUpCapture={props.selected && props.draggable ? handlePointerUp : () => null}
         className={tileClass}
       >
-        <span className='letter'>{props.letter.toUpperCase()}</span>
+        <span className='letter'>{props.letter}</span>
       </div>
       <style jsx>{`
         .tile {
           --current-size: var(--racked-tile-size);
           box-sizing: border-box;
-          position: relative;
+          position: absolute;
+          top: 0;
+          left: 0;
           color: black;
           display: flex;
           align-items: center;
@@ -59,8 +38,8 @@ export default function Tile(props) {
           background-repeat: no-repeat;
           width: var(--current-size);
           height: var(--current-size);
-          min-width: var(--current-size);
-          min-height: var(--current-size);
+          // min-width: var(--current-size);
+          // min-height: var(--current-size);
           border-radius: calc(var(--current-size) / 14);
           // box-shadow: 
           //   0 0 calc(var(--current-size) / 24) #000000aa,
@@ -76,13 +55,50 @@ export default function Tile(props) {
           z-index: 3;
           // transition: opacity 500ms ease, translate 500ms ease;
           transition: all 500ms ease;
+          // transition: none !important;
           cursor: ${props.draggable ? 'grab' : 'unset'};
           pointer-events: all;
+          transform-origin: center;
+          
+          &.revealed {
+            opacity: 1;
+            scale: 1;
+            translate: ${tileOffset.x}px ${tileOffset.y}px;
+            transform: none;
+          }
 
           &.title {
+            position: relative;
             --current-size: var(--title-tile-size);
             translate: none;
             cursor: unset;
+          }
+
+          &.selected {
+            // --current-size: calc(var(--racked-tile-size) * 1.5);
+            // scale: 1.5 !important;
+            cursor: grabbing;
+            z-index: 5;
+            opacity: 0.65 !important;
+            background-image: none;
+            background-color: #affa0088;
+            transition: translate 100ms, scale 100ms ease !important;
+          }
+
+          &.placed {
+            box-shadow: 
+              0 0 calc(var(--current-size) / 18) #00000044,
+              0 0 calc(var(--current-size) / 18) #00000077 inset
+            ;
+            border: 1px solid #00000099;
+            scale: 1;
+            transform-origin: top left;
+
+            &.revealed {
+              transition-duration: 100ms;
+              // --current-size: var(--played-tile-size);
+              scale: var(--rack-board-tile-ratio);
+            }
           }
         }
 
@@ -104,39 +120,6 @@ export default function Tile(props) {
 
         .tile.opponent > .letter, .tile.opponent:after {
           opacity: 0.2;
-        }
-
-        .tile.revealed {
-          opacity: 1;
-          scale: 1;
-          translate: 0;
-          transform: none;
-        }
-        
-        .tile.selected {
-          transition: scale 100ms ease;
-          cursor: grabbing;
-          z-index: 5;
-          opacity: 0.65;
-        }
-        
-        .tile.placed {
-          --current-size: var(--played-tile-size);
-          position: absolute;
-          left: 50%;
-          top: 50%;
-          translate: -50% -50%;
-          // box-shadow: 
-          //   0 0 calc(var(--current-size) / 18) #00000044,
-          //   0 0 calc(var(--current-size) / 18) #00000077 inset
-          // ;
-          border: 1px solid #00000066;
-          scale: 1.5;
-
-          &.revealed {
-            transition-duration: 100ms;
-            scale: 1;
-          }
         }
       `}</style>
     </>
