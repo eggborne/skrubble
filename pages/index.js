@@ -41,7 +41,7 @@ export default function Home() {
   const [pointerPosition, setPointerPosition] = useState({ x: null, y: null });
   const [letterMatrix, setLetterMatrix] = useState([...emptyLetterMatrix]);
   const [dragStartPosition, setDragStartPosition] = useState(null);
-  const [currentDragPosition, setCurrentDragPosition] = useState(null);
+  const [lastCursorPosition, setLastCursorPosition] = useState(null);
 
   function signInAsGuest() {
     signInAnonymously(getAuth())
@@ -235,6 +235,10 @@ export default function Home() {
         rackedTileObject.offset = newTileOffset;
         setPlayerRack(newPlayerRack);
         setDragStartPosition(tileCenter);
+        // setLastCursorPosition({
+        //   x: touchX,
+        //   y: touchY
+        // });
       }
     });
   }
@@ -255,10 +259,13 @@ export default function Home() {
         const newTargetedSpaceId = findTargetedSpaceId(touchX, touchY);
         if (newTargetedSpaceId) {
           setTargetedSpaceId(newTargetedSpaceId);
-        } else {
-          // setTargetedSpaceId(null);
         }
+      } else {
+        setTargetedSpaceId(null);
       }
+      // setLastCursorPosition({
+      //   x: touchX, y: touchY
+      // })
     }
   }
 
@@ -283,10 +290,11 @@ export default function Home() {
       setDragStartPosition(null);
       setSelectedTileId(null);
       setTargetedSpaceId(null);
+      // setLastCursorPosition(null);
     }
   }
 
-  function placeTile(tileObj) {
+  async function placeTile(tileObj) {
     tileObj.placed = true;
     
     const newPlayerRack = [...playerRack];
@@ -299,11 +307,14 @@ export default function Home() {
       x: spaceElement.getBoundingClientRect().left,
       y: spaceElement.getBoundingClientRect().top
     };
-    const xDifference = tileElement.getBoundingClientRect().left - spacePosition.x;
-    const yDifference = tileElement.getBoundingClientRect().top - spacePosition.y;
-    
-    rackedTileObject.offset.x -= xDifference;
-    rackedTileObject.offset.y -= yDifference;
+    const preTileDistance = getTileDistanceFromSpace(tileElement, spacePosition);
+    rackedTileObject.offset.x -= preTileDistance.x;
+    rackedTileObject.offset.y -= preTileDistance.y;
+    setPlayerRack(newPlayerRack);
+    await pause(160);
+    const postTileDistance = getTileDistanceFromSpace(tileElement, spacePosition);
+    rackedTileObject.offset.x -= postTileDistance.x;
+    rackedTileObject.offset.y -= postTileDistance.y;
     setPlayerRack(newPlayerRack);
     console.warn('CALLED placeTile', tileObj);
   }
@@ -311,6 +322,13 @@ export default function Home() {
   function unplaceTile(tileObj, spacePosition) {
     console.warn('CALLING UNPLACELETTER', tileObj);
     
+  }
+
+  function getTileDistanceFromSpace(tileElement, spacePosition) {
+    return {
+      x: tileElement.getBoundingClientRect().left - spacePosition.x,
+      y: tileElement.getBoundingClientRect().top - spacePosition.y
+    }
   }
 
   function replaceTile(tileId) {
@@ -400,8 +418,10 @@ export default function Home() {
           onPointerDown={gameStarted ? handleScreenPointerDown : () => null}
           onPointerMove={(gameStarted && !IS_MOBILE) ? handleScreenPointerMove : () => null}
           onPointerUp={(gameStarted && !IS_MOBILE) ? handleScreenPointerUp : () => null}
+          onPointerCancel={(gameStarted && !IS_MOBILE) ? handleScreenPointerUp : () => null}
           onTouchMove={(gameStarted && IS_MOBILE) ? handleScreenPointerMove : () => null}
           onTouchEnd={(gameStarted && IS_MOBILE) ? handleScreenPointerUp : () => null}
+          onTouchCancel={(gameStarted && IS_MOBILE) ? handleScreenPointerUp : () => null}
         >
           {gameStarted ?
             <>
@@ -545,11 +565,11 @@ export default function Home() {
                 display: flex;
                 align-items: center;
                 align-self: center;
-                flex-grow: 1;
+                // flex-grow: 1;
                 // padding-top: calc(var(--rack-height) / 4);
-                // margin-top: calc(var(--rack-height) / 2.5);
+                margin-top: calc(var(--rack-height) / 1.5);
                 justify-content: center;
-                gap: 2%;
+                gap: 3%;
                 z-index: 1;
               }
             }
@@ -670,7 +690,7 @@ export default function Home() {
 
           #home-container.container {
             grid-template-columns: 1fr var(--board-size);
-            grid-template-rows: min-content 1fr 1fr;
+            grid-template-rows:  0.65fr min-content  1fr;
             gap: 0 calc(var(--racked-tile-size) / 3);
           }
 

@@ -58,7 +58,8 @@ export default function Tile(props) {
           // transition: none !important;
           cursor: ${props.draggable ? 'grab' : 'unset'};
           pointer-events: all;
-          transform-origin: center;
+          // transform-origin: center;
+          transform-origin: top left;
           
           &.revealed {
             opacity: 1;
@@ -82,7 +83,7 @@ export default function Tile(props) {
             opacity: 0.65 !important;
             background-image: none;
             background-color: #affa0088;
-            transition: translate 100ms, scale 100ms ease !important;
+            transition: translate 80ms, scale 100ms ease !important;
           }
 
           &.placed {
@@ -92,12 +93,10 @@ export default function Tile(props) {
             ;
             border: 1px solid #00000099;
             scale: 1;
-            transform-origin: top left;
+            transition-duration: 80ms;
+            scale: var(--rack-board-tile-ratio);
 
             &.revealed {
-              transition-duration: 100ms;
-              // --current-size: var(--played-tile-size);
-              scale: var(--rack-board-tile-ratio);
             }
           }
         }
