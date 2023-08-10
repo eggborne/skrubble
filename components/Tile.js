@@ -12,7 +12,14 @@ export default function Tile(props) {
     }
   }, [revealed]);
 
-  const tileClass = `tile ${props.owner}${props.selected ? ' selected' : ''}${props.title ? ' title' : ''}${revealed ? ' revealed' : ''}${props.placed ? ' placed' : ''}`;
+  const tileClass =
+    `tile ${props.owner}
+    ${props.selected ? ' selected' : ''}
+    ${props.title ? ' title' : ''}
+    ${revealed ? ' revealed' : ''}
+    ${props.placed ? ' placed' : ''}
+    ${props.landed ? ' landed' : ''}`
+  ;
   const tileOffset = props.offset || { x: 0, y: 0 };
   return (
     <>
@@ -38,9 +45,7 @@ export default function Tile(props) {
           background-repeat: no-repeat;
           width: var(--current-size);
           height: var(--current-size);
-          // min-width: var(--current-size);
-          // min-height: var(--current-size);
-          border-radius: calc(var(--current-size) / 14);
+          border-radius: calc(var(--current-size) / 18);
           // box-shadow: 
           //   0 0 calc(var(--current-size) / 24) #000000aa,
           //   0 0 calc(var(--current-size) / 24) #000000aa inset
@@ -50,21 +55,19 @@ export default function Tile(props) {
           font-weight: 700;
           font-family: 'Open Sans', sans-serif;
           color: #000000;
-          opacity: 0.5;
-          translate: 0 -50%;
+          opacity: 0;
+          transform: translateY(-50%);
           z-index: 3;
-          // transition: opacity 500ms ease, translate 500ms ease;
-          transition: all 500ms ease;
+          transition: opacity 500ms ease, transform 500ms ease;
           // transition: none !important;
           cursor: ${props.draggable ? 'grab' : 'unset'};
           pointer-events: all;
-          // transform-origin: center;
-          transform-origin: top left;
           
+
           &.revealed {
+            translate: ${tileOffset.x}px ${tileOffset.y}px;
             opacity: 1;
             scale: 1;
-            translate: ${tileOffset.x}px ${tileOffset.y}px;
             transform: none;
           }
 
@@ -77,13 +80,14 @@ export default function Tile(props) {
 
           &.selected {
             // --current-size: calc(var(--racked-tile-size) * 1.5);
-            // scale: 1.5 !important;
+            scale: var(--grabbed-tile-scale);
             cursor: grabbing;
             z-index: 5;
             opacity: 0.65 !important;
             background-image: none;
             background-color: #affa0088;
             transition: translate 80ms, scale 100ms ease !important;
+            transform-origin: center;
           }
 
           &.placed {
@@ -92,9 +96,20 @@ export default function Tile(props) {
               0 0 calc(var(--current-size) / 18) #00000077 inset
             ;
             border: 1px solid #00000099;
-            scale: 1;
             scale: var(--rack-board-tile-ratio);
-            transition: translate 60ms, scale 80ms ease !important;
+            transition: none;
+            transform-origin: top left;
+            // visibility: hidden;
+            opacity: 0;
+
+            &.landed {
+              opacity: 1;
+              transition: opacity 200ms ease;
+            }
+          }
+
+          &:not(.selected):not(.placed) {
+            transition: all 500ms ease;
           }
         }
 
@@ -117,6 +132,13 @@ export default function Tile(props) {
         .tile.opponent > .letter, .tile.opponent:after {
           opacity: 0.2;
         }
+
+        // @media screen and (orientation: portrait) {
+        //   .tile.revealed.placed {
+        //     background: orange;
+        //     // transition: none !important;
+        //   }
+        // }
       `}</style>
     </>
   );

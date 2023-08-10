@@ -43,12 +43,14 @@ export default function Space(props) {
           color: black;
           font-size: calc(var(--board-size) / 90);
           pointer-events: none;
+          box-sizing: content-box;
+          // outline: ${props.contents ? '1px solid red' : 'none'};
 
           &.racked {
             width: var(--racked-tile-size);
             height: var(--racked-tile-size);
             position: relative;
-            background-color: #00990099;
+            // background-color: #00990099;
           }
 
           &:after {
@@ -57,14 +59,13 @@ export default function Space(props) {
             width: calc(var(--board-size) / 15);
             height: calc(var(--board-size) / 15);
             background-color: #22ff4499;
-            border: calc(var(--played-tile-size) / 15) dotted #bbffbb;
+            border: calc(var(--played-tile-size) / 15) dotted #ffffbb;
             z-index: 3;
             opacity: 0;
             transition: opacity 100ms ease;
           }
 
           &.targeted {
-
             &:after {
               opacity: 1;
             }

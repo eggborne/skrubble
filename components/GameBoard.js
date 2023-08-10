@@ -58,7 +58,7 @@ export default function GameBoard(props) {
           justify-items: center;
           align-items: center;
           box-shadow: 0 0 0.25rem #00000099;
-          gap: calc(var(--board-size) * 0.005);
+          gap: calc(var(--board-outline-size) / 1.5);
           background-color: var(--board-bg-color);
           transition: scale 500ms ease-out;
         }
