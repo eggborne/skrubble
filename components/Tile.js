@@ -93,11 +93,8 @@ export default function Tile(props) {
             ;
             border: 1px solid #00000099;
             scale: 1;
-            transition-duration: 80ms;
             scale: var(--rack-board-tile-ratio);
-
-            &.revealed {
-            }
+            transition: translate 60ms, scale 80ms ease !important;
           }
         }
 

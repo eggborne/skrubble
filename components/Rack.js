@@ -2,6 +2,7 @@ import Space from "./Space";
 import Tile from "./Tile";
 
 export default function Rack(props) {
+  console.log('rack', props)
   return (
     <div className={`rack ${props.owner}`} id={`${props.owner}-rack`}>
       <div className='tile-container'>

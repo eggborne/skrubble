@@ -42,7 +42,7 @@ export default function Home() {
   const [letterMatrix, setLetterMatrix] = useState([...emptyLetterMatrix]);
   const [dragStartPosition, setDragStartPosition] = useState(null);
   const [lastCursorPosition, setLastCursorPosition] = useState(null);
-  const [lastTouchStart, setLastTouchStart] = useState(0);
+  const [lastTouchStart, setLastTouchStart] = useState(null);
 
   function signInAsGuest() {
     signInAnonymously(getAuth())
@@ -118,6 +118,7 @@ export default function Home() {
   function getRandomLetters(nextBag, amount) {
     const letterArray = [];
     for (let i = 0; i < amount; i++) {
+      console.log('nextBag length when i', i, ':', nextBag.length);
       letterArray.push(nextBag.splice(randomInt(0, nextBag.length - 1), 1)[0]);
     }
     // nextBag = nextBag.filter(tile => letterArray.indexOf(tile) === -1);
@@ -188,7 +189,12 @@ export default function Home() {
     const boardElement = document.getElementById('game-board');
     const xDistance = touchX - boardElement.getBoundingClientRect().left;
     const yDistance = touchY - boardElement.getBoundingClientRect().top;
+    console.log('touched', touchX, touchY);
+    console.log('distance', xDistance, yDistance);
+    console.log('boardW', boardElement.getBoundingClientRect().width);
+    console.log('boardH', boardElement.getBoundingClientRect().height);
     if (xDistance > 0 && yDistance > 0 && xDistance < boardElement.getBoundingClientRect().width && yDistance < boardElement.getBoundingClientRect().height) {
+      console.error('over!');
       over = true;
     }
     return over;
@@ -212,7 +218,7 @@ export default function Home() {
           y: parseInt(getComputedStyle(tileElement).translate.split(' ')[1]) || 0
         }
         if (tileElement.classList.contains('placed')) {
-          unplaceTile(rackedTileObject)
+          rackedTileObject.placed = false;
         }
         const tileSize = parseFloat(getComputedStyle(tileElement).width);
         const tileCenter = {
@@ -225,8 +231,8 @@ export default function Home() {
         };
         rackedTileObject.offset = newTileOffset;
         setPlayerRack(newPlayerRack);
-        setDragStartPosition(tileCenter);
-        // setDragStartPosition({x: touchX, y: touchY});
+        // setDragStartPosition(tileCenter);
+        setDragStartPosition({x: touchX, y: touchY});
         setLastCursorPosition({
           x: touchX,
           y: touchY
@@ -252,8 +258,6 @@ export default function Home() {
         const newTargetedSpaceId = findTargetedSpaceId(touchX, touchY);
         if (newTargetedSpaceId) {
           setTargetedSpaceId(newTargetedSpaceId);
-        } else {
-          setTargetedSpaceId(null);
         }
       } else {
         setTargetedSpaceId(null);
@@ -265,6 +269,7 @@ export default function Home() {
   }
 
   function handleScreenPointerUp(e) {
+    console.log('up e', targetedSpaceId, e)
     if (selectedTileId) {
       const touchX = IS_MOBILE ? e.changedTouches[0].pageX : e.pageX;
       const touchY = IS_MOBILE ? e.changedTouches[0].pageY : e.pageY;
@@ -278,12 +283,11 @@ export default function Home() {
       const swipedOff = swipeDuration < 300 && (Math.abs(moveAmount.x) > 10 || Math.abs(moveAmount.y) > 10);
       
       if (swipedOff || !cursorOverBoard(touchX, touchY)) {
+        console.warn('returning tile')
         rackedTileObject.offset = { x: 0, y: 0 };
       } else {
         if (targetedSpaceId) {
           placeTile(rackedTileObject);
-        } else {
-          rackedTileObject.offset = { x: 0, y: 0 };
         }
       }
       setPlayerRack(newPlayerRack);
@@ -292,17 +296,18 @@ export default function Home() {
       setTargetedSpaceId(null);
       setLastCursorPosition(null);
     }
-    setLastTouchStart(0);
+    setLastTouchStart(null);
   }
 
   async function placeTile(tileObj) {
-    tileObj.placed = targetedSpaceId;
+    tileObj.placed = true;
     
     const newPlayerRack = [...playerRack];
     const rackedTileObject = newPlayerRack.filter(tile => tile.id === selectedTileId)[0];
     const tileElement = document.getElementById(rackedTileObject.id);
 
-    const spaceElement = document.getElementById(targetedSpaceId);
+    const splitId = targetedSpaceId.split('-'); 
+    const spaceElement = document.getElementById(`${splitId[0]}-${splitId[1]}`);
     const spacePosition = {
       x: spaceElement.getBoundingClientRect().left,
       y: spaceElement.getBoundingClientRect().top
@@ -311,12 +316,6 @@ export default function Home() {
     rackedTileObject.offset.x -= preTileDistance.x;
     rackedTileObject.offset.y -= preTileDistance.y;
     setPlayerRack(newPlayerRack);
-
-    const newLetterMatrix = [...letterMatrix];
-    const matrixX = parseInt(spaceElement.id.split('-')[0]) - 1;
-    const matrixY = parseInt(spaceElement.id.split('-')[1]) - 1;
-    newLetterMatrix[matrixX][matrixY].contents = tileObj.letter;
-
     await pause(160);
     const postTileDistance = getTileDistanceFromSpace(tileElement, spacePosition);
     rackedTileObject.offset.x -= postTileDistance.x;
@@ -325,13 +324,7 @@ export default function Home() {
   }
 
   function unplaceTile(tileObj, spacePosition) {
-    const splitId = tileObj.placed.split('-');
-    const newLetterMatrix = [...letterMatrix];
-    const matrixX = parseInt(splitId[0]) - 1;
-    const matrixY = parseInt(splitId[1]) - 1;
-    newLetterMatrix[matrixX][matrixY].contents = null;
-
-    tileObj.placed = false;
+    console.warn('CALLING UNPLACELETTER', tileObj);
     
   }
 

@@ -48,6 +48,7 @@ export default function Space(props) {
             width: var(--racked-tile-size);
             height: var(--racked-tile-size);
             position: relative;
+            background-color: #00990099;
           }
 
           &:after {
