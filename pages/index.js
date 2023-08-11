@@ -569,7 +569,7 @@ export default function Home() {
               flex-direction: row;
               align-items: center;
               justify-content: space-evenly;
-              border-radius: calc(var(--rack-height) / 4);
+              border-radius: calc(var(--racked-tile-size) / 4);
               background-color: #ffffff33;
               padding: calc(var(--racked-tile-size) * 0.1) 0;
               
@@ -617,7 +617,7 @@ export default function Home() {
                   0 0 calc(var(--board-size) / 150) #000000aa inset
                 ;
                 border: 1px solid black;
-                border-radius: calc(var(--main-padding) / 3) calc(var(--main-padding) / 3) 0 0;
+                border-radius: calc(var(--racked-tile-size) / 4) calc(var(--racked-tile-size) / 4) 0 0 !important;
                 z-index: 0;
               }
 
@@ -792,6 +792,12 @@ export default function Home() {
             align-self: center;
             justify-self: center;
 
+          }
+        }
+
+        @media screen and (orientation: landscape) and (max-aspect-ratio: 5.2/3) {
+          :root {
+            --board-size: 50vw;
           }
         }
       `}</style>

@@ -90,8 +90,7 @@ export default function Rack(props) {
           }
         }
         #opponent-rack {
-          --rack-height: calc(var(--racked-tile-size));
-          // align-self: start;
+          --rack-height: var(--racked-tile-size);
         }
         @media screen and (orientation: landscape) {
           #opponent-rack {
