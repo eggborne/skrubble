@@ -2,7 +2,6 @@ import Space from "./Space";
 import Tile from "./Tile";
 
 export default function Rack(props) {
-  console.log("Rack", props);
   return (
     <div className={`rack ${props.owner}`} id={`${props.owner}-rack`}>
       <div className='tile-container'>
@@ -62,7 +61,7 @@ export default function Rack(props) {
             display: grid;
             grid-template-rows: 1fr;
             grid-template-columns: repeat(7, min-content);
-            gap: calc(var(--rack-height) / 8);
+            gap: calc(var(--rack-height) / 12);
             align-content: bottom;
             justify-items: center;
             justify-content: center;

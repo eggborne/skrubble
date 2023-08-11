@@ -262,11 +262,10 @@ export default function Home() {
         }
       } else {
         const targetedRackSpaceId = findTargetedRackSpaceId(touchX, touchY);
-        if (targetedRackSpaceId) {
-          console.warn('targetedRackSpaceId', targetedRackSpaceId);
+        if ((Math.abs(rackedTileObject.offset.x) > document.getElementById(rackedTileObject.id).getBoundingClientRect().width / 2 )&& targetedRackSpaceId) {
           setTargetedSpaceId(targetedRackSpaceId);
         } else {
-          // setTargetedSpaceId(null);
+          setTargetedSpaceId(null);
         }
       }
       setLastCursorPosition({
@@ -302,7 +301,10 @@ export default function Home() {
           placeTile(rackedTileObject);
         }
       }
-      // setPlayerRack(newPlayerRack);
+      if (!targetedSpaceId) {
+        rackedTileObject.offset = { x: 0, y: 0 };
+        setPlayerRack(newPlayerRack);
+      }
       setDragStartPosition(null);
       setSelectedTileId(null);
       setTargetedSpaceId(null);
@@ -507,7 +509,7 @@ export default function Home() {
                   />
                 </div>
                 <div className='user-button-area'>
-                  <Button label='Menu' clickAction={swapRackTiles} />
+                  <Button label='Menu' clickAction={() => null} />
                   <Button color='green' label='Submit' clickAction={() => null} />
                   {playerRack.every(tile => !tile.placed && !tile.selected) ?
                     <Button label='Shuffle' clickAction={shuffleUserTiles} />
