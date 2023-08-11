@@ -59,7 +59,6 @@ export default function Tile(props) {
           transform: scale(80%);
           z-index: 3;
           transition: opacity 500ms ease, transform 100ms ease;
-          // transition: none !important;
           cursor: ${props.draggable ? 'grab' : 'unset'};
           pointer-events: all;
           
@@ -93,10 +92,10 @@ export default function Tile(props) {
             cursor: grabbing;
             z-index: 5;
             opacity: 0.65 !important;
-            background-image: none;
-            background-color: #affa0088;
-            transition: translate 80ms, scale 100ms ease !important;
-            transform-origin: center;
+            // background-image: none;
+            // background-color: #affa0088;
+            transition: translate 100ms, scale 100ms ease !important;
+            // transform-origin: center;
             box-shadow: none;
           }
 
@@ -142,13 +141,6 @@ export default function Tile(props) {
         .tile.opponent > .letter, .tile.opponent:after {
           opacity: 0;
         }
-
-        // @media screen and (orientation: portrait) {
-        //   .tile.revealed.placed {
-        //     background: orange;
-        //     // transition: none !important;
-        //   }
-        // }
       `}</style>
     </>
   );

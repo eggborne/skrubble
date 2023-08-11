@@ -246,7 +246,8 @@ export default function Home() {
   }
 
   function handleScreenPointerMove(e) {
-    if (selectedTileId) {
+    const currentTime = Date.now();
+    if (selectedTileId && currentTime % 2 === 0) {
       const touchX = IS_MOBILE ? e.touches[0].pageX : e.pageX;
       const touchY = IS_MOBILE ? e.touches[0].pageY : e.pageY;
 
@@ -667,6 +668,7 @@ export default function Home() {
           --board-size: 100vw;
           --header-height: ${user ? '2.5rem' : '18vw'};
           --main-padding: 0px;
+          --large-icon-size: calc(var(--racked-tile-size) * 1.5);
           --rack-height: calc(var(--board-size) / 10);
           --rack-width: 98vw;
           --title-tile-size: calc(var(--header-height) * 0.6);
@@ -729,13 +731,11 @@ export default function Home() {
           }
         }
 
-        @media screen and (orientation: portrait) and (min-aspect-ratio: 0.5) {
-          body {
-            opacity: 0.5;
-          }
+        @media screen and (orientation: portrait) and (min-aspect-ratio: 0.55) {
           :root {
-            --board-size: 48vh;
+            --board-size: 49vh;
             --racked-tile-size: 7vh;
+            --large-icon-size: calc(var(--racked-tile-size) * 1);
           }
 
           #user-rack {

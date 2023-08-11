@@ -5,7 +5,7 @@ export default function UserIcon(props) {
       <span className='user-name'>{props.user.displayName}</span>
       <style jsx>{`
         .user-icon {
-          --icon-size: ${props.size === 'large' ? 'calc(var(--racked-tile-size) * 1.5)' : 'var(--header-height)'};
+          --icon-size: ${props.size === 'large' ? 'var(--large-icon-size)' : 'var(--header-height)'};
           position: relative;
           display: flex;
           flex-direction: column;
