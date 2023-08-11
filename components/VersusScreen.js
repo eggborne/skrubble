@@ -10,6 +10,8 @@ export default function VersusScreen(props) {
         <Button
           label='START'
           clickAction={props.handleClickStartGame}
+          width={'9rem'}
+          color={'green'}
         />
       </div>
       <style jsx>{`

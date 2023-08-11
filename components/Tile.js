@@ -45,7 +45,7 @@ export default function Tile(props) {
           background-repeat: no-repeat;
           width: var(--current-size);
           height: var(--current-size);
-          border-radius: calc(var(--current-size) / 12);
+          border-radius: calc(var(--current-size) / 9);
           box-shadow: 
             0 0 calc(var(--current-size) / 24) #000000aa,
             0 0 calc(var(--current-size) / 24) #000000aa inset
@@ -56,9 +56,9 @@ export default function Tile(props) {
           font-family: 'Open Sans', sans-serif;
           color: #000000;
           opacity: 0;
-          // transform: translateY(-50%);
+          transform: scale(80%);
           z-index: 3;
-          transition: opacity 500ms ease, transform 500ms ease;
+          transition: opacity 500ms ease, transform 100ms ease;
           // transition: none !important;
           cursor: ${props.draggable ? 'grab' : 'unset'};
           pointer-events: all;
@@ -119,7 +119,8 @@ export default function Tile(props) {
         }
 
         .tile:after {
-          content: '${props.value}';
+          // content: '${props.value}';
+          content: '${props.rackIndex || '0'}';
           position: absolute;
           bottom: 5%;
           right: 10%;
@@ -131,7 +132,7 @@ export default function Tile(props) {
         }
 
         .tile.opponent > .letter, .tile.opponent:after {
-          opacity: 0.2;
+          opacity: 0;
         }
 
         // @media screen and (orientation: portrait) {

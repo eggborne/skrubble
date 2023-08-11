@@ -7,6 +7,7 @@ export default function Button(props) {
           --button-color: ${props.color ? props.color : 'var(--secondary-bg-color)'};
           padding: 0 calc(var(--button-height) / 3);
           height: var(--button-height);
+          width: ${props.width || 'auto'};
           flex-grow: ${props.color === 'green' ? '1' : '0'};
           background-color: var(--button-color);
           background-image: linear-gradient(180deg, var(--button-color) 0%, #ffffff22 50%, var(--button-color) 100%);
@@ -24,6 +25,7 @@ export default function Button(props) {
           border-radius: calc(var(--button-height) / 8);
           cursor: pointer;
           pointer-events: all;
+          padding: 0;
 
           transition: all 100ms linear;
 

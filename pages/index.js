@@ -118,7 +118,9 @@ export default function Home() {
   function getRandomLetters(nextBag, amount) {
     const letterArray = [];
     for (let i = 0; i < amount; i++) {
-      letterArray.push(nextBag.splice(randomInt(0, nextBag.length - 1), 1)[0]);
+      const drawnTile = nextBag.splice(randomInt(0, nextBag.length - 1), 1)[0];
+      drawnTile.rackIndex = i;
+      letterArray.push(drawnTile);
     }
     // nextBag = nextBag.filter(tile => letterArray.indexOf(tile) === -1);
     console.log('letters:', nextBag);
@@ -138,7 +140,7 @@ export default function Home() {
   useEffect(() => {
     if (!loaded) {
       establishScreenAttributes();
-      document.getElementById('home-container').addEventListener('touchmove', e => e.preventDefault(), false)
+      document.getElementById('home-container').addEventListener('touchmove', e => e.preventDefault(), false);
       // getRedirectResult(auth)
       //   .then((result) => {
       //     setUser(result.user);
@@ -210,7 +212,7 @@ export default function Home() {
         const tileTranslate = {
           x: parseInt(getComputedStyle(tileElement).translate.split(' ')[0]),
           y: parseInt(getComputedStyle(tileElement).translate.split(' ')[1]) || 0
-        }
+        };
         const tileSize = parseFloat(getComputedStyle(tileElement).width);
         const tileCenter = {
           x: (tileTranslate.x * -1) + tileElement.getBoundingClientRect().left + (tileSize / 2),
@@ -221,6 +223,7 @@ export default function Home() {
           y: touchY - tileCenter.y
         };
         rackedTileObject.offset = newTileOffset;
+
         setPlayerRack(newPlayerRack);
 
         setDragStartPosition(tileCenter);
@@ -262,7 +265,7 @@ export default function Home() {
         }
       } else {
         const targetedRackSpaceId = findTargetedRackSpaceId(touchX, touchY);
-        if ((Math.abs(rackedTileObject.offset.x) > document.getElementById(rackedTileObject.id).getBoundingClientRect().width / 2 )&& targetedRackSpaceId) {
+        if (targetedRackSpaceId) {
           setTargetedSpaceId(targetedRackSpaceId);
         } else {
           setTargetedSpaceId(null);
@@ -272,7 +275,6 @@ export default function Home() {
         x: touchX, y: touchY
       });
     }
-    e.preventDefault();
   }
 
   function handleScreenPointerUp(e) {
@@ -351,7 +353,7 @@ export default function Home() {
     return {
       x: tileElement.getBoundingClientRect().left - spacePosition.x,
       y: tileElement.getBoundingClientRect().top - spacePosition.y
-    }
+    };
   }
 
   function shuffleUserTiles() {
@@ -373,7 +375,7 @@ export default function Home() {
 
   function findTargetedRackSpaceId(cursorPositionX, cursorPositionY) {
     let result;
-    const playerRackSpaces = [...document.getElementsByClassName('dropzone')].filter(spaceElement => spaceElement && spaceElement.classList.contains('racked') && spaceElement.id.includes('user'));
+    const playerRackSpaces = [...document.getElementsByClassName('dropzone')].filter(spaceElement => spaceElement && spaceElement.classList.contains('racked') && !spaceElement.classList.contains('vacant') && spaceElement.id.includes('user'));
     playerRackSpaces.forEach((spaceElement, s) => {
       if (spaceElement) {
         const targetedX = cursorPositionX > spaceElement.getBoundingClientRect().x && cursorPositionX < (spaceElement.getBoundingClientRect().x + spaceElement.getBoundingClientRect().width);
@@ -398,7 +400,7 @@ export default function Home() {
         const targetedX = cursorPositionX > spaceElement.getBoundingClientRect().x && cursorPositionX < (spaceElement.getBoundingClientRect().x + spaceElement.getBoundingClientRect().width);
         const targetedY = cursorPositionY > spaceElement.getBoundingClientRect().y && cursorPositionY < (spaceElement.getBoundingClientRect().y + spaceElement.getBoundingClientRect().height);
         if (targetedX && targetedY) {
-          console.warn('occupied', occupied)
+          console.warn('occupied', occupied);
           if (occupied) {
             spaceOccupied = true;
           } else {
@@ -516,7 +518,7 @@ export default function Home() {
                     :
                     <Button label='Return' clickAction={returnUserTiles} />
                   }
-                    </div>
+                </div>
               </div>
             </>
             :
@@ -549,15 +551,16 @@ export default function Home() {
           position: relative;
           flex-grow: 1;
           display: grid;
+          
           grid-template-columns: 1fr;
-          grid-template-rows: min-content calc(var(--rack-height) * 1.5) min-content 1fr;
+          grid-template-rows: min-content calc(var(--rack-height) * 1.75) min-content 1fr;
 
           & > .turn-display-area {
             display: flex;
             align-items: stretch;
             justify-content: center;
             padding: 2.5%;
-            // padding-top: 0;
+            padding-bottom: 0;
             gap: 2.5%;
             
             & > .player-turn-area {
@@ -584,11 +587,9 @@ export default function Home() {
           & > .player-area {
             position: relative;
             display: flex;
-            justify-items: center;
             align-items: center;
             pointer-events: none;
             width: 100%;
-            // background-color: salmon;
 
             &.user {
               flex-direction: column;
@@ -604,7 +605,13 @@ export default function Home() {
                 width: 100%;
                 height: 90%;
                 background: rgb(194,123,0);
-                background: linear-gradient(180deg, rgba(194,123,0,1) 0%, rgba(208,147,74,1) 10%, rgba(173,110,0,1) 20%, rgba(173,110,0,1) 100%);
+                background: linear-gradient(
+                  180deg, 
+                  rgba(194,123,0) 0%, 
+                  rgba(208,147,74) calc(var(--racked-tile-size) * 0.5), 
+                  rgba(183,130,0) calc(var(--racked-tile-size) * 0.6) ,
+                  rgba(183,130,0) 100%
+                );
                 box-shadow: 
                   0 0 calc(var(--board-size) / 96) #00000099,
                   0 0 calc(var(--board-size) / 150) #000000aa inset
@@ -620,9 +627,7 @@ export default function Home() {
                 grid-template-columns: 25% 1fr 25%;
                 align-items: center;
                 align-self: center;
-                // flex-grow: 1;
-                // padding-top: calc(var(--rack-height) / 4);
-                margin-top: calc(var(--rack-height) / 1.5);
+                margin-top: calc(var(--rack-height) / 1.25);
                 justify-content: center;
                 gap: 3%;
                 z-index: 1;
@@ -636,12 +641,6 @@ export default function Home() {
               align-items: center;
               justify-content: center;
             }
-
-            &:last-of-type {
-              grid-template-rows: 0.8fr 0.8fr;
-              align-content: flex-end;
-            }
-
           }
         }
 
@@ -670,11 +669,12 @@ export default function Home() {
           --header-height: ${user ? '2rem' : '14vw'};
           --main-padding: 0px;
           --rack-height: calc(var(--board-size) / 10);
-          --rack-width: calc(var(--rack-height) * 9);
+          --rack-width: 98vw;
           --title-tile-size: calc(var(--header-height) * 0.7);
-          --racked-tile-size: calc(var(--rack-height) * 1.1);
+          // --racked-tile-size: calc(var(--rack-width) / 7.75);
+          --racked-tile-size: calc(var(--rack-width) / 7.5);
           --played-tile-size: calc(var(--board-size) / 16.5);
-          --rack-board-tile-ratio: 0.55;
+          --rack-board-tile-ratio: 0.475;
           --grabbed-tile-scale: 1.4;
           --board-outline-size: calc(var(--board-size) / 160);
           --footer-height: 3rem;
@@ -737,7 +737,8 @@ export default function Home() {
             --main-padding: 1rem;
             --board-size: calc((var(--actual-height) - var(--header-height)) - var(--main-padding));
             --rack-height: calc(var(--board-size) / 12);
-            --rack-board-tile-ratio: 0.67;
+            --rack-width: calc(var(--rack-height) * 9);
+            --rack-board-tile-ratio: 0.6;
           }
 
           header {
@@ -746,13 +747,12 @@ export default function Home() {
 
           #home-container.container {
             grid-template-columns: 1fr var(--board-size);
-            grid-template-rows:  0.65fr min-content  1fr;
+            grid-template-rows:  0.65fr 1fr 1fr;
             gap: 0 calc(var(--racked-tile-size) / 3);
           }
 
           .player-area {
-            grid-template-rows: 1fr !important;
-            padding: var(--main-padding);
+            padding: 0 var(--main-padding);
             grid-column-start: 1;
 
             &.opponent {
@@ -764,7 +764,7 @@ export default function Home() {
           }
 
           .turn-display-area {
-            padding-top: 2.5%;
+            padding: 2.5% !important;
           }
 
           .game-board {

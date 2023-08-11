@@ -13,6 +13,8 @@ export default function Rack(props) {
             targeted={props.targetedSpaceId === `${props.owner}-rack-space-${t}`}
             spaceData={[]}
             label={''}
+            vacant={tile.placed}
+            
             contents={
               <Tile
                 owner={props.owner}
@@ -26,6 +28,7 @@ export default function Rack(props) {
                 offset={tile.offset}
                 placed={tile.placed}
                 landed={tile.landed}
+                rackIndex={tile.rackIndex}
               />
             }
           >
@@ -39,38 +42,34 @@ export default function Rack(props) {
           position: relative;
           width: var(--rack-width);
           height: var(--rack-height);
-          border-radius: calc(var(--board-size) / 150);
-          ${props.owner === 'user' &&
+          ${props.owner === 'user' ?
             `background-color: #aaaa66;
+            border-radius: calc(var(--board-size) / 150);
             box-shadow: 
               0 0 calc(var(--board-size) / 150) #000000aa,
               0 0 calc(var(--board-size) / 150) #000000aa inset
             ;
             border: 1px solid black;`
+            :
+            `--rack-height: calc(var(--board-size) / 16);
+            `
           }
-          font-size: calc(var(--board-size) / 24);
-          font-weight: bold;
-          font-family: 'interstate-bold', sans-serif;
           z-index: 3;
           display: flex;
           justify-content: center;
+          align-items: flex-end;
+          // opacity: 0;
 
           & > .tile-container {
-            position: absolute;
-            width: 100%;
-            display: grid;
-            grid-template-rows: 1fr;
-            grid-template-columns: repeat(7, min-content);
-            gap: calc(var(--rack-height) / 12);
-            align-content: bottom;
-            justify-items: center;
-            justify-content: center;
+            display: flex;
+            gap: calc(var(--racked-tile-size) / 16);
+            
             ${props.owner === 'user' && 'bottom: 0%'};
           }
           & > .shelf {
             display: ${props.owner === 'opponent' ? 'none' : 'block'};
             position: absolute;
-            bottom: -33%;
+            bottom: -30%;
             left: -1%;
             width: 102%;
             align-self: center;
@@ -79,7 +78,7 @@ export default function Rack(props) {
             background-image: linear-gradient(to bottom, #00000033 0%, transparent 50%, #00000033 100%);
             border: 1px solid black;
             border-radius: calc(var(--rack-height) / 20);
-            box-shadow: 1px 0 calc(var(--rack-height) / 16) #00000099;
+            box-shadow: 1px 0 calc(var(--rack-height) / 18) #00000099;
             z-index: 3;
           }
   
@@ -89,6 +88,24 @@ export default function Rack(props) {
             min-width: var(--racked-tile-size);
             min-height: var(--racked-tile-size);
           }
+        }
+        #opponent-rack {
+          --rack-height: calc(var(--racked-tile-size));
+          // align-self: start;
+        }
+        @media screen and (orientation: landscape) {
+          #opponent-rack {
+            align-self: start;
+          }
+
+          // #user-rack {
+          //   background-color: transparent;
+          //   box-shadow: none;
+          //   border: none;
+          //   & > .shelf {
+          //     display: none;
+          //   }
+          // }
         }
       `}</style>
     </div>
