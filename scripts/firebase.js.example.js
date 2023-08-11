@@ -2,9 +2,6 @@ import { initializeApp } from "firebase/app";
 import { getFirestore } from 'firebase/firestore';
 import { getAuth, GoogleAuthProvider } from "firebase/auth";
 
-console.log('ENV');
-console.log(process.env)
-
 const firebaseConfig = {
   apiKey: '',
   authDomain: '',

@@ -43,7 +43,7 @@ export default function Tile(props) {
           background-position: ${props.bgPosition}%;
           width: var(--current-size);
           height: var(--current-size);
-          border-radius: calc(var(--current-size) / 9);
+          border-radius: calc(var(--current-size) / 8);
           box-shadow: 
             0 0 calc(var(--current-size) / 24) #000000aa,
             0 0 calc(var(--current-size) / 24) #000000aa inset
@@ -54,9 +54,9 @@ export default function Tile(props) {
           font-family: 'Open Sans', sans-serif;
           color: #000000;
           opacity: 0;
-          transform: scale(80%);
+          
           z-index: 3;
-          transition: opacity 500ms ease, transform 100ms ease;
+          transition: opacity 200ms ease, transform 100ms ease;
           cursor: ${props.draggable ? 'grab' : 'unset'};
           pointer-events: all;
           
@@ -73,9 +73,11 @@ export default function Tile(props) {
             --current-size: var(--title-tile-size);
             translate: none;
             cursor: unset;
+            transform: scale(80%);
             transition: all 500ms ease, rotate 500ms ease 500ms, background 0ms;
 
             &.revealed {
+              transform: none;
               &:nth-child(odd) {
                 rotate: -4deg;
               }
@@ -126,7 +128,6 @@ export default function Tile(props) {
 
         .tile:after {
           content: '${props.value}';
-          content: '${props.rackIndex}';
           position: absolute;
           bottom: 5%;
           right: 10%;

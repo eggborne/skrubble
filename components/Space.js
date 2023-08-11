@@ -52,9 +52,9 @@ export default function Space(props) {
             // background-color: #00990099;
             transition: all 300ms ease;
 
-            &.vacant {
-              background: orange;
-            }
+            // &.vacant {
+            //   background: orange;
+            // }
 
             // &:after, &:first-of-type:before {
             //   content: '';

@@ -5,12 +5,10 @@ import Tile from "./Tile";
 export default function Rack(props) {
   const [homeSpaceCoords, setHomeSpaceCoords] = useState([]);
   useEffect(() => {
-    console.warn('rackeffect');
     const newHomeSpaceCoords = [...homeSpaceCoords];
     const rackElement = document.getElementById(`${props.owner}-rack`);
     const spaces = [...rackElement.getElementsByClassName('space')];
     spaces.forEach((space, s) => {
-      console.log('space', space);
       newHomeSpaceCoords[s] = {
         x: space.getBoundingClientRect().left,
         y: space.getBoundingClientRect().top

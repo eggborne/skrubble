@@ -41,8 +41,6 @@ export default function Home() {
   const [pointerPosition, setPointerPosition] = useState({ x: null, y: null });
   const [letterMatrix, setLetterMatrix] = useState([...emptyLetterMatrix]);
   const [dragStartPosition, setDragStartPosition] = useState(null);
-  const [lastCursorPosition, setLastCursorPosition] = useState(null);
-  const [lastTouchStart, setLastTouchStart] = useState(0);
 
   function signInAsGuest() {
     signInAnonymously(getAuth())
@@ -51,7 +49,7 @@ export default function Home() {
         let newUser = guestUser;
 
         setUser(newUser);
-        console.log(newUser);
+        console.log('guest user!', newUser);
       })
       .catch((error) => {
         const errorCode = error.code;
@@ -72,7 +70,7 @@ export default function Home() {
         let newUser = { ...result.user };
 
         setUser(newUser);
-        console.log(newUser);
+        console.log('new user!', newUser);
         // This gives you a Google Access Token. You can use it to access the Google API.
         // const credential = GoogleAuthProvider.credentialFromResult(result);
         // const token = credential.accessToken;
@@ -98,11 +96,11 @@ export default function Home() {
   }
 
   function createBag() {
-    const nextBag = [];
+    const newBag = [];
     for (const letter in tileData) {
       let tileQuantity = tileData[letter].quantity;
       for (let i = 0; i < tileQuantity; i++) {
-        nextBag.push({
+        newBag.push({
           letter: letter.toUpperCase(),
           value: tileData[letter].value,
           id: v4(),
@@ -111,9 +109,9 @@ export default function Home() {
         });
       }
     }
-    console.warn('created bag!', nextBag);
-    setBag(nextBag);
-    return nextBag;
+    console.warn('created bag!', newBag);
+    setBag(newBag);
+    return newBag;
   }
 
   function getRandomLetters(nextBag, amount) {
@@ -123,8 +121,6 @@ export default function Home() {
       drawnTile.rackIndex = i;
       letterArray.push(drawnTile);
     }
-    // nextBag = nextBag.filter(tile => letterArray.indexOf(tile) === -1);
-    console.log('letters:', nextBag);
     setBag(nextBag);
     return letterArray;
   }
@@ -189,9 +185,10 @@ export default function Home() {
   function cursorOverBoard(touchX, touchY) {
     let over;
     const boardElement = document.getElementById('game-board');
-    const xDistance = touchX - boardElement.getBoundingClientRect().left;
-    const yDistance = touchY - boardElement.getBoundingClientRect().top;
-    if (xDistance > 0 && yDistance > 0 && xDistance < boardElement.getBoundingClientRect().width && yDistance < boardElement.getBoundingClientRect().height) {
+    const boardRect = boardElement.getBoundingClientRect();
+    const xDistance = touchX - boardRect.left;
+    const yDistance = touchY - boardRect.top;
+    if (xDistance > 0 && yDistance > 0 && xDistance < boardRect.width && yDistance < boardRect.height) {
       over = true;
     }
     return over;
@@ -203,21 +200,23 @@ export default function Home() {
 
     const draggableTiles = [...document.querySelectorAll(`.tile:not(.opponent):not(.title)`)];
     draggableTiles.forEach((tileElement, t) => {
-      const xDistance = touchX - tileElement.getBoundingClientRect().left;
-      const yDistance = touchY - tileElement.getBoundingClientRect().top;
-      if (xDistance > 0 && yDistance > 0 && xDistance < tileElement.getBoundingClientRect().width && yDistance < tileElement.getBoundingClientRect().height) {
+      const tileRect = tileElement.getBoundingClientRect();
+      const xDistance = touchX - tileRect.left;
+      const yDistance = touchY - tileRect.top;
+      if (xDistance > 0 && yDistance > 0 && xDistance < tileRect.width && yDistance < tileRect.height) {
         const newSelectedTileId = tileElement.id;
         setSelectedTileId(newSelectedTileId);
         const newPlayerRack = [...playerRack];
         const rackedTileObject = newPlayerRack.filter(tile => tile.id === newSelectedTileId)[0];
+        const tileStyle = getComputedStyle(tileElement);
         const tileTranslate = {
-          x: parseInt(getComputedStyle(tileElement).translate.split(' ')[0]),
-          y: parseInt(getComputedStyle(tileElement).translate.split(' ')[1]) || 0
+          x: parseInt(tileStyle.translate.split(' ')[0]),
+          y: parseInt(tileStyle.translate.split(' ')[1]) || 0
         };
-        const tileSize = parseFloat(getComputedStyle(tileElement).width);
+        const tileSize = parseFloat(tileStyle.width);
         const tileCenter = {
-          x: (tileTranslate.x * -1) + tileElement.getBoundingClientRect().left + (tileSize / 2),
-          y: (tileTranslate.y * -1) + tileElement.getBoundingClientRect().top + (tileSize / 2)
+          x: (tileTranslate.x * -1) + tileRect.left + (tileSize / 2),
+          y: (tileTranslate.y * -1) + tileRect.top + (tileSize / 2)
         };
         const newTileOffset = {
           x: touchX - tileCenter.x,
@@ -228,10 +227,7 @@ export default function Home() {
         setPlayerRack(newPlayerRack);
 
         setDragStartPosition(tileCenter);
-        setLastCursorPosition({
-          x: touchX,
-          y: touchY
-        });
+
         if (tileElement.classList.contains('placed')) {
           unplaceTile(rackedTileObject);
           const newTargetedSpaceId = findTargetedBoardSpaceId(touchX, touchY);
@@ -243,7 +239,6 @@ export default function Home() {
         }
       }
     });
-    setLastTouchStart(Date.now());
   }
 
   function handleScreenPointerMove(e) {
@@ -273,9 +268,6 @@ export default function Home() {
           setTargetedSpaceId(null);
         }
       }
-      setLastCursorPosition({
-        x: touchX, y: touchY
-      });
     }
   }
 
@@ -286,13 +278,6 @@ export default function Home() {
 
       const newPlayerRack = [...playerRack];
       const rackedTileObject = newPlayerRack.filter(tile => tile.id === selectedTileId)[0];
-      const moveAmount = {
-        x: touchX - lastCursorPosition.x,
-        y: touchY - lastCursorPosition.y
-      };
-      const swipeDuration = Date.now() - lastTouchStart;
-      const swipedOff = swipeDuration < 300 && (Math.abs(moveAmount.x) > 10 || Math.abs(moveAmount.y) > 10);
-      if (swipedOff) { rackedTileObject.offset = { x: 0, y: 0 }; };
       if (!cursorOverBoard(touchX, touchY)) {
         if (targetedSpaceId) {
           const rackIndex = newPlayerRack.indexOf(rackedTileObject);
@@ -301,7 +286,6 @@ export default function Home() {
           const position = targetedRackSpace.position;
           const moveDirection = targetIndex > rackIndex ? 'right' : 'left';
           insertRackTile(rackIndex, targetIndex, position, moveDirection);
-          // swapRackTiles(rackIndex, targetIndex);
           rackedTileObject.offset = { x: 0, y: 0 };
         }
       } else {
@@ -316,9 +300,7 @@ export default function Home() {
       setDragStartPosition(null);
       setSelectedTileId(null);
       setTargetedSpaceId(null);
-      setLastCursorPosition(null);
     }
-    setLastTouchStart(0);
   }
 
   function placeTile(tileObj) {
@@ -330,18 +312,21 @@ export default function Home() {
     const matrixY = parseInt(targetedSpaceId.split('-')[1]) - 1;
     newLetterMatrix[matrixX][matrixY].contents = tileObj.letter;
     const spaceElement = document.getElementById(targetedSpaceId);
+    const spaceRect = spaceElement.getBoundingClientRect();
     const spacePosition = {
-      x: spaceElement.getBoundingClientRect().left,
-      y: spaceElement.getBoundingClientRect().top
+      x: spaceRect.left,
+      y: spaceRect.top
     };
-
+    
     window.requestAnimationFrame(async () => {
-      const preTileDistance = getTileDistanceFromSpace(tileElement, spacePosition);
+      const tileRect = tileElement.getBoundingClientRect();
+      const preTileDistance = getTileDistanceFromSpace(tileRect, spacePosition);
       tileObj.offset.x -= preTileDistance.x;
       tileObj.offset.y -= preTileDistance.y;
       tileObj.landed = true;
       await pause(2);
       setPlayerRack(newPlayerRack);
+      setLetterMatrix(newLetterMatrix);
     });
   }
 
@@ -350,23 +335,22 @@ export default function Home() {
     const newLetterMatrix = [...letterMatrix];
     const matrixX = parseInt(splitId[0]) - 1;
     const matrixY = parseInt(splitId[1]) - 1;
-    newLetterMatrix[matrixX][matrixY].contents = null;
     tileObj.landed = false;
     tileObj.placed = false;
+    newLetterMatrix[matrixX][matrixY].contents = null;
+    setLetterMatrix(newLetterMatrix);
   }
 
-  function getTileDistanceFromSpace(tileElement, spacePosition) {
+  function getTileDistanceFromSpace(tileRect, spacePosition) {
     return {
-      x: tileElement.getBoundingClientRect().left - spacePosition.x,
-      y: tileElement.getBoundingClientRect().top - spacePosition.y
+      x: tileRect.left - spacePosition.x,
+      y: tileRect.top - spacePosition.y
     };
   }
 
   function shuffleUserTiles() {
-    console.log('shuffling!', playerRack);
     let newRack = [...playerRack];
     shuffleArray(newRack);
-    console.log('shuffled!', newRack);
     setPlayerRack(newRack);
   }
 
@@ -403,15 +387,15 @@ export default function Home() {
     let result;
     let spaceOccupied = false;
     [...document.getElementsByClassName('dropzone')].filter(spaceElement => spaceElement && !spaceElement.classList.contains('on-rack')).forEach((spaceElement) => {
+      const spaceRect = spaceElement.getBoundingClientRect();
       const matrixX = parseInt(spaceElement.id.split('-')[0]) - 1;
       const matrixY = parseInt(spaceElement.id.split('-')[1]) - 1;
       const occupied = letterMatrix[matrixX][matrixY].contents !== null;
 
       if (spaceElement) {
-        const targetedX = cursorPositionX > spaceElement.getBoundingClientRect().x && cursorPositionX < (spaceElement.getBoundingClientRect().x + spaceElement.getBoundingClientRect().width);
-        const targetedY = cursorPositionY > spaceElement.getBoundingClientRect().y && cursorPositionY < (spaceElement.getBoundingClientRect().y + spaceElement.getBoundingClientRect().height);
+        const targetedX = cursorPositionX > spaceRect.x && cursorPositionX < (spaceRect.x + spaceRect.width);
+        const targetedY = cursorPositionY > spaceRect.y && cursorPositionY < (spaceRect.y + spaceRect.height);
         if (targetedX && targetedY) {
-          console.warn('occupied', occupied);
           if (occupied) {
             spaceOccupied = true;
           } else {
@@ -423,22 +407,12 @@ export default function Home() {
     return result || spaceOccupied;
   }
 
-  function swapRackTiles(firstIndex, secondIndex) {
-    const newPlayerRack = [...playerRack];
-    const replacingTileObj = newPlayerRack[firstIndex];
-    const replacedTileObj = newPlayerRack[secondIndex];
-    newPlayerRack[secondIndex] = replacingTileObj;
-    newPlayerRack[firstIndex] = replacedTileObj;
-    setPlayerRack(newPlayerRack);
-  }
-
   function insertRackTile(originalIndex, newIndex) {
     const newPlayerRack = [...playerRack];
     const replacingTileObj = newPlayerRack[originalIndex];
     newPlayerRack.splice(originalIndex, 1);
     newPlayerRack.splice(newIndex, 0, replacingTileObj);
     setPlayerRack(newPlayerRack);
-
   }
 
   function handleSignOut() {
@@ -446,7 +420,6 @@ export default function Home() {
       console.warn('--------------------> signed out!');
     }).catch((error) => {
       console.error('--------------------> FAILED to sign out!');
-      // An error happened.
     });
   }
 
