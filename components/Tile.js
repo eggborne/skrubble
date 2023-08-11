@@ -45,18 +45,18 @@ export default function Tile(props) {
           background-repeat: no-repeat;
           width: var(--current-size);
           height: var(--current-size);
-          border-radius: calc(var(--current-size) / 18);
-          // box-shadow: 
-          //   0 0 calc(var(--current-size) / 24) #000000aa,
-          //   0 0 calc(var(--current-size) / 24) #000000aa inset
-          // ;
+          border-radius: calc(var(--current-size) / 12);
+          box-shadow: 
+            0 0 calc(var(--current-size) / 24) #000000aa,
+            0 0 calc(var(--current-size) / 24) #000000aa inset
+          ;
           border: 1px solid #000;
           font-size: calc(var(--current-size) / 1.5);
           font-weight: 700;
           font-family: 'Open Sans', sans-serif;
           color: #000000;
           opacity: 0;
-          transform: translateY(-50%);
+          // transform: translateY(-50%);
           z-index: 3;
           transition: opacity 500ms ease, transform 500ms ease;
           // transition: none !important;
@@ -88,28 +88,29 @@ export default function Tile(props) {
             background-color: #affa0088;
             transition: translate 80ms, scale 100ms ease !important;
             transform-origin: center;
+            box-shadow: none;
           }
 
           &.placed {
             box-shadow: 
-              0 0 calc(var(--current-size) / 18) #00000044,
-              0 0 calc(var(--current-size) / 18) #00000077 inset
+              0 0 calc(var(--current-size) / 32) calc(var(--current-size) / 64) #00000044,
+              0 0 calc(var(--current-size) / 10) #00000066 inset
             ;
             border: 1px solid #00000099;
             scale: var(--rack-board-tile-ratio);
             transition: none;
             transform-origin: top left;
-            // visibility: hidden;
             opacity: 0;
 
             &.landed {
               opacity: 1;
-              transition: opacity 200ms ease;
+              transition: opacity 150ms ease;
             }
           }
 
           &:not(.selected):not(.placed) {
             transition: all 500ms ease;
+            z-index: 2;
           }
         }
 

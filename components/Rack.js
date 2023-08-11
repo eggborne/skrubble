@@ -2,6 +2,7 @@ import Space from "./Space";
 import Tile from "./Tile";
 
 export default function Rack(props) {
+  console.log("Rack", props);
   return (
     <div className={`rack ${props.owner}`} id={`${props.owner}-rack`}>
       <div className='tile-container'>
@@ -10,7 +11,7 @@ export default function Rack(props) {
             key={`${props.owner}-rack-space-${t}`}
             id={`${props.owner}-rack-space-${t}`}
             racked={true}
-            targeted={props.targetedSpaceId === `${props.owner}-rack-space=${t}`}
+            targeted={props.targetedSpaceId === `${props.owner}-rack-space-${t}`}
             spaceData={[]}
             label={''}
             contents={
@@ -30,6 +31,7 @@ export default function Rack(props) {
             }
           >
           </Space>
+
         )}
       </div>
       <div className='shelf'></div>
@@ -51,6 +53,8 @@ export default function Rack(props) {
           font-weight: bold;
           font-family: 'interstate-bold', sans-serif;
           z-index: 3;
+          display: flex;
+          justify-content: center;
 
           & > .tile-container {
             position: absolute;

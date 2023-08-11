@@ -230,15 +230,11 @@ export default function Home() {
         });
         if (tileElement.classList.contains('placed')) {
           unplaceTile(rackedTileObject);
-
-          if (cursorOverBoard(touchX, touchY)) {
-            const newTargetedSpaceId = findTargetedSpaceId(touchX, touchY);
-            console.log('newtarg', touchX, touchY, newTargetedSpaceId);
-            if (newTargetedSpaceId) {
-              setTargetedSpaceId(newTargetedSpaceId);
-            } else {
-              setTargetedSpaceId(null);
-            }
+          const newTargetedSpaceId = findTargetedBoardSpaceId(touchX, touchY);
+          if (newTargetedSpaceId) {
+            setTargetedSpaceId(newTargetedSpaceId);
+          } else {
+            setTargetedSpaceId(null);
           }
         }
       }
@@ -250,6 +246,7 @@ export default function Home() {
     if (selectedTileId) {
       const touchX = IS_MOBILE ? e.touches[0].pageX : e.pageX;
       const touchY = IS_MOBILE ? e.touches[0].pageY : e.pageY;
+
       const newPlayerRack = [...playerRack];
       const rackedTileObject = newPlayerRack.filter(tile => tile.id === selectedTileId)[0];
       const newTileOffset = {
@@ -259,12 +256,18 @@ export default function Home() {
       rackedTileObject.offset = newTileOffset;
       setPlayerRack(newPlayerRack);
       if (cursorOverBoard(touchX, touchY)) {
-        const newTargetedSpaceId = findTargetedSpaceId(touchX, touchY);
-        if (newTargetedSpaceId) {
+        const newTargetedSpaceId = findTargetedBoardSpaceId(touchX, touchY);
+        if (typeof newTargetedSpaceId === 'string') {
           setTargetedSpaceId(newTargetedSpaceId);
         }
       } else {
-        setTargetedSpaceId(null);
+        const targetedRackSpaceId = findTargetedRackSpaceId(touchX, touchY);
+        if (targetedRackSpaceId) {
+          console.warn('targetedRackSpaceId', targetedRackSpaceId);
+          setTargetedSpaceId(targetedRackSpaceId);
+        } else {
+          // setTargetedSpaceId(null);
+        }
       }
       setLastCursorPosition({
         x: touchX, y: touchY
@@ -277,6 +280,7 @@ export default function Home() {
     if (selectedTileId) {
       const touchX = IS_MOBILE ? e.changedTouches[0].pageX : e.pageX;
       const touchY = IS_MOBILE ? e.changedTouches[0].pageY : e.pageY;
+
       const newPlayerRack = [...playerRack];
       const rackedTileObject = newPlayerRack.filter(tile => tile.id === selectedTileId)[0];
       const moveAmount = {
@@ -285,12 +289,17 @@ export default function Home() {
       };
       const swipeDuration = Date.now() - lastTouchStart;
       const swipedOff = swipeDuration < 300 && (Math.abs(moveAmount.x) > 10 || Math.abs(moveAmount.y) > 10);
-      
-      if (swipedOff || !cursorOverBoard(touchX, touchY)) {
-        rackedTileObject.offset = { x: 0, y: 0 };
+      if (swipedOff) { rackedTileObject.offset = { x: 0, y: 0 }; };
+      if (!cursorOverBoard(touchX, touchY)) {
+        if (targetedSpaceId) {
+          const rackIndex = newPlayerRack.indexOf(rackedTileObject);
+          const destinationIndex = parseInt(targetedSpaceId.split('-')[3]);
+          swapRackTiles(rackIndex, destinationIndex);
+          rackedTileObject.offset = { x: 0, y: 0 };
+        }
       } else {
         if (targetedSpaceId) {
-          placeTile(e, rackedTileObject);
+          placeTile(rackedTileObject);
         }
       }
       // setPlayerRack(newPlayerRack);
@@ -302,11 +311,10 @@ export default function Home() {
     setLastTouchStart(0);
   }
 
-  function placeTile(e, tileObj) {
+  function placeTile(tileObj) {
     tileObj.placed = targetedSpaceId;
     const newPlayerRack = [...playerRack];
     const tileElement = document.getElementById(tileObj.id);
-
     const newLetterMatrix = [...letterMatrix];
     const matrixX = parseInt(targetedSpaceId.split('-')[0]) - 1;
     const matrixY = parseInt(targetedSpaceId.split('-')[1]) - 1;
@@ -361,14 +369,11 @@ export default function Home() {
     setPlayerRack(newPlayerRack);
   }
 
-  function findTargetedSpaceId(cursorPositionX, cursorPositionY) {
+  function findTargetedRackSpaceId(cursorPositionX, cursorPositionY) {
     let result;
-    [...document.getElementsByClassName('dropzone')].filter(spaceElement => spaceElement && !spaceElement.classList.contains('racked')).forEach((spaceElement) => {
-      const matrixX = parseInt(spaceElement.id.split('-')[0]) - 1;
-      const matrixY = parseInt(spaceElement.id.split('-')[1]) - 1;
-      const occupied = letterMatrix[matrixX][matrixY].contents !== null;
-
-      if (spaceElement && !occupied) {
+    const playerRackSpaces = [...document.getElementsByClassName('dropzone')].filter(spaceElement => spaceElement && spaceElement.classList.contains('racked') && spaceElement.id.includes('user'));
+    playerRackSpaces.forEach((spaceElement, s) => {
+      if (spaceElement) {
         const targetedX = cursorPositionX > spaceElement.getBoundingClientRect().x && cursorPositionX < (spaceElement.getBoundingClientRect().x + spaceElement.getBoundingClientRect().width);
         const targetedY = cursorPositionY > spaceElement.getBoundingClientRect().y && cursorPositionY < (spaceElement.getBoundingClientRect().y + spaceElement.getBoundingClientRect().height);
         if (targetedX && targetedY) {
@@ -377,6 +382,39 @@ export default function Home() {
       }
     });
     return result;
+  }
+
+  function findTargetedBoardSpaceId(cursorPositionX, cursorPositionY) {
+    let result;
+    let spaceOccupied = false;
+    [...document.getElementsByClassName('dropzone')].filter(spaceElement => spaceElement && !spaceElement.classList.contains('racked')).forEach((spaceElement) => {
+      const matrixX = parseInt(spaceElement.id.split('-')[0]) - 1;
+      const matrixY = parseInt(spaceElement.id.split('-')[1]) - 1;
+      const occupied = letterMatrix[matrixX][matrixY].contents !== null;
+
+      if (spaceElement) {
+        const targetedX = cursorPositionX > spaceElement.getBoundingClientRect().x && cursorPositionX < (spaceElement.getBoundingClientRect().x + spaceElement.getBoundingClientRect().width);
+        const targetedY = cursorPositionY > spaceElement.getBoundingClientRect().y && cursorPositionY < (spaceElement.getBoundingClientRect().y + spaceElement.getBoundingClientRect().height);
+        if (targetedX && targetedY) {
+          console.warn('occupied', occupied)
+          if (occupied) {
+            spaceOccupied = true;
+          } else {
+            result = spaceElement.id;
+          }
+        }
+      }
+    });
+    return result || spaceOccupied;
+  }
+
+  function swapRackTiles(firstIndex, secondIndex) {
+    const newPlayerRack = [...playerRack];
+    const replacingTileObj = newPlayerRack[firstIndex];
+    const replacedTileObj = newPlayerRack[secondIndex];
+    newPlayerRack[secondIndex] = replacingTileObj;
+    newPlayerRack[firstIndex] = replacedTileObj;
+    setPlayerRack(newPlayerRack);
   }
 
   function handleSignOut() {
@@ -465,10 +503,11 @@ export default function Home() {
                     owner={'user'}
                     tiles={playerRack}
                     selectedTileId={selectedTileId}
+                    targetedSpaceId={targetedSpaceId}
                   />
                 </div>
                 <div className='user-button-area'>
-                  <Button label='Menu' clickAction={() => null} />
+                  <Button label='Menu' clickAction={swapRackTiles} />
                   <Button color='green' label='Submit' clickAction={() => null} />
                   {playerRack.every(tile => !tile.placed && !tile.selected) ?
                     <Button label='Shuffle' clickAction={shuffleUserTiles} />
