@@ -107,6 +107,7 @@ export default function Home() {
           value: tileData[letter].value,
           id: v4(),
           offset: { x: 0, y: 0 },
+          bgPosition: randomInt(0, 100),
         });
       }
     }
@@ -265,9 +266,9 @@ export default function Home() {
           setTargetedSpaceId(newTargetedSpaceId);
         }
       } else {
-        const targetedRackSpaceId = findTargetedRackSpaceId(touchX, touchY);
-        if (targetedRackSpaceId) {
-          setTargetedSpaceId(targetedRackSpaceId);
+        const targetedRackSpace = findTargetedRackSpace(touchX, touchY);
+        if (targetedRackSpace.targetedId) {
+          setTargetedSpaceId(targetedRackSpace.targetedId);
         } else {
           setTargetedSpaceId(null);
         }
@@ -295,8 +296,12 @@ export default function Home() {
       if (!cursorOverBoard(touchX, touchY)) {
         if (targetedSpaceId) {
           const rackIndex = newPlayerRack.indexOf(rackedTileObject);
-          const destinationIndex = parseInt(targetedSpaceId.split('-')[3]);
-          swapRackTiles(rackIndex, destinationIndex);
+          const targetIndex = parseInt(targetedSpaceId.split('-')[3]);
+          const targetedRackSpace = findTargetedRackSpace(touchX, touchY);
+          const position = targetedRackSpace.position;
+          const moveDirection = targetIndex > rackIndex ? 'right' : 'left';
+          insertRackTile(rackIndex, targetIndex, position, moveDirection);
+          // swapRackTiles(rackIndex, targetIndex);
           rackedTileObject.offset = { x: 0, y: 0 };
         }
       } else {
@@ -374,16 +379,21 @@ export default function Home() {
     setPlayerRack(newPlayerRack);
   }
 
-  function findTargetedRackSpaceId(cursorPositionX, cursorPositionY) {
-    let result;
-    const playerRackSpaces = [...document.getElementsByClassName('dropzone')].filter(spaceElement => spaceElement && spaceElement.classList.contains('racked') && !spaceElement.classList.contains('vacant') && spaceElement.id.includes('user'));
+  function findTargetedRackSpace(cursorPositionX, cursorPositionY) {
+    let result = {
+      targetedId: undefined,
+      position: undefined,
+    };
+    const playerRackSpaces = [...document.getElementsByClassName('dropzone')].filter(spaceElement => spaceElement && spaceElement.classList.contains('on-rack') && !spaceElement.classList.contains('vacant') && spaceElement.id.includes('user'));
     playerRackSpaces.forEach((spaceElement, s) => {
-      if (spaceElement) {
-        const targetedX = cursorPositionX > spaceElement.getBoundingClientRect().x && cursorPositionX < (spaceElement.getBoundingClientRect().x + spaceElement.getBoundingClientRect().width);
-        const targetedY = cursorPositionY > spaceElement.getBoundingClientRect().y && cursorPositionY < (spaceElement.getBoundingClientRect().y + spaceElement.getBoundingClientRect().height);
-        if (targetedX && targetedY) {
-          result = spaceElement.id;
-        }
+      const spaceRect = spaceElement.getBoundingClientRect();
+      const distanceX = cursorPositionX - (spaceRect.x + (spaceRect.width / 2));
+      const distanceY = cursorPositionY - (spaceRect.y + (spaceRect.width / 2));
+      const targetedX = Math.abs(distanceX) <= spaceRect.width / 2;
+      const targetedY = Math.abs(distanceY) <= spaceRect.height / 2;
+      if (targetedX && targetedY) {
+        result.targetedId = spaceElement.id;
+        result.position = distanceX < 0 ? 'before' : 'after';
       }
     });
     return result;
@@ -392,7 +402,7 @@ export default function Home() {
   function findTargetedBoardSpaceId(cursorPositionX, cursorPositionY) {
     let result;
     let spaceOccupied = false;
-    [...document.getElementsByClassName('dropzone')].filter(spaceElement => spaceElement && !spaceElement.classList.contains('racked')).forEach((spaceElement) => {
+    [...document.getElementsByClassName('dropzone')].filter(spaceElement => spaceElement && !spaceElement.classList.contains('on-rack')).forEach((spaceElement) => {
       const matrixX = parseInt(spaceElement.id.split('-')[0]) - 1;
       const matrixY = parseInt(spaceElement.id.split('-')[1]) - 1;
       const occupied = letterMatrix[matrixX][matrixY].contents !== null;
@@ -420,6 +430,15 @@ export default function Home() {
     newPlayerRack[secondIndex] = replacingTileObj;
     newPlayerRack[firstIndex] = replacedTileObj;
     setPlayerRack(newPlayerRack);
+  }
+
+  function insertRackTile(originalIndex, newIndex) {
+    const newPlayerRack = [...playerRack];
+    const replacingTileObj = newPlayerRack[originalIndex];
+    newPlayerRack.splice(originalIndex, 1);
+    newPlayerRack.splice(newIndex, 0, replacingTileObj);
+    setPlayerRack(newPlayerRack);
+
   }
 
   function handleSignOut() {
@@ -675,6 +694,7 @@ export default function Home() {
           --racked-tile-size: calc(var(--rack-width) / 7.5);
           --played-tile-size: calc(var(--board-size) / 16.5);
           --rack-board-tile-ratio: 0.475;
+          --racked-tile-gap-size: calc(var(--racked-tile-size) / 16);
           --grabbed-tile-scale: 1.4;
           --board-outline-size: calc(var(--board-size) / 160);
           --footer-height: 3rem;
@@ -756,7 +776,7 @@ export default function Home() {
             --title-tile-size: calc(var(--header-height) * 0.85);
             --rack-height: calc(var(--board-size) / 12);
             --rack-width: calc(var(--rack-height) * 9);
-            --rack-board-tile-ratio: 0.6;
+            --rack-board-tile-ratio: 0.61;
           }
 
           header {

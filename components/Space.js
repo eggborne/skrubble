@@ -1,6 +1,6 @@
 export default function Space(props) {
   return (
-    <div className={`space dropzone${props.targeted ? ' targeted' : ''}${props.racked ? ' racked' : ''}${props.vacant ? ' vacant' : ''}`} id={props.id}>
+    <div className={`space dropzone${props.targeted ? ' targeted' : ''}${props.onRack ? ' on-rack' : ''}${props.vacant ? ' vacant' : ''}`} id={props.id}>
         {props.spaceData.length > 0 &&
           <>
             <div className='caret-trio top'>
@@ -43,10 +43,9 @@ export default function Space(props) {
           color: black;
           font-size: calc(var(--board-size) / 90);
           pointer-events: none;
-          box-sizing: content-box;
           // outline: ${props.contents ? '1px solid red' : 'none'};
           
-          &.racked {
+          &.on-rack {
             width: var(--racked-tile-size);
             height: var(--racked-tile-size);
             position: relative;
@@ -54,28 +53,26 @@ export default function Space(props) {
             transition: all 300ms ease;
 
             &.vacant {
-              // background: orange;
+              background: orange;
             }
+
+            // &:after, &:first-of-type:before {
+            //   content: '';
+            //   position: absolute;
+            //   width: calc(var(--racked-tile-gap-size));
+            //   height: inherit;
+            //   background-color: blue;
+            //   right: calc(var(--racked-tile-gap-size) * -1);
+            // }
+            // &:first-of-type:before {
+            //   left: calc(var(--racked-tile-gap-size) * -1);
+            // }
           }
 
-          // &:after {
-          //   position: absolute;
-          //   content: '';
-          //   // width: calc(var(--board-size) / 15);
-          //   // height: calc(var(--board-size) / 15);
-          //   width: 100%;
-          //   height: 100%;
-          //   background-color: #22ff4499;
-          //   border: calc(var(--played-tile-size) / 15) dotted #ffffbb;
-          //   z-index: 3;
-          //   opacity: 0;
-          //   transition: opacity 100ms ease;
-          // }
-
           // &.targeted {
-          //   &:after {
-          //     opacity: 1;
-          //   }
+          //   background: #33ff33;
+          //   outline: 4px solid #33ff33;
+          //   transition: all 300ms ease, outline 0ms, background 0ms;
           // }
         }
         .special-label {

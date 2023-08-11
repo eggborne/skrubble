@@ -1,9 +1,6 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 export default function Tile(props) {
-  if (props.placed) {
-    // console.log('placed tile props', props)
-  }
   const [revealed, setRevealed] = useState(false);
 
   useEffect(() => {
@@ -43,6 +40,7 @@ export default function Tile(props) {
           background-color: #ffff99;
           background-image: url(../floorwood.png);
           background-repeat: no-repeat;
+          background-position: ${props.bgPosition}%;
           width: var(--current-size);
           height: var(--current-size);
           border-radius: calc(var(--current-size) / 9);
@@ -75,7 +73,7 @@ export default function Tile(props) {
             --current-size: var(--title-tile-size);
             translate: none;
             cursor: unset;
-            transition: all 500ms ease, rotate 500ms ease 500ms;
+            transition: all 500ms ease, rotate 500ms ease 500ms, background 0ms;
 
             &.revealed {
               &:nth-child(odd) {
@@ -128,6 +126,7 @@ export default function Tile(props) {
 
         .tile:after {
           content: '${props.value}';
+          content: '${props.rackIndex}';
           position: absolute;
           bottom: 5%;
           right: 10%;
