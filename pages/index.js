@@ -532,7 +532,6 @@ export default function Home() {
               <LoginModal handleClickGoogleLogin={callGooglePopup} handleClickGuestLogin={signInAsGuest} />
           }
         </div>
-        {/* <Footer bag={bag} handleSignOut={handleSignOut} /> */}
       </main>
 
       <style jsx>{`
@@ -560,7 +559,7 @@ export default function Home() {
             align-items: stretch;
             justify-content: center;
             padding: 2.5%;
-            padding-bottom: 0;
+            padding-top: 0;
             gap: 2.5%;
             
             & > .player-turn-area {
@@ -666,12 +665,11 @@ export default function Home() {
         :root {
           --actual-height: 100dvh;
           --board-size: 100vw;
-          --header-height: ${user ? '2rem' : '14vw'};
+          --header-height: ${user ? '2.5rem' : '18vw'};
           --main-padding: 0px;
           --rack-height: calc(var(--board-size) / 10);
           --rack-width: 98vw;
-          --title-tile-size: calc(var(--header-height) * 0.7);
-          // --racked-tile-size: calc(var(--rack-width) / 7.75);
+          --title-tile-size: calc(var(--header-height) * 0.6);
           --racked-tile-size: calc(var(--rack-width) / 7.5);
           --played-tile-size: calc(var(--board-size) / 16.5);
           --rack-board-tile-ratio: 0.475;
@@ -731,11 +729,31 @@ export default function Home() {
           }
         }
 
+        @media screen and (orientation: portrait) and (min-aspect-ratio: 0.5) {
+          body {
+            opacity: 0.5;
+          }
+          :root {
+            --board-size: 48vh;
+            --racked-tile-size: 7vh;
+          }
+
+          #user-rack {
+            background-color: transparent;
+            box-shadow: none;
+            border: none;
+            & > .shelf {
+              display: none;
+            }
+          }
+        }
+
         @media screen and (orientation: landscape) {
           :root {
             --header-height: ${user ? '2.5rem' : '6rem'};
             --main-padding: 1rem;
             --board-size: calc((var(--actual-height) - var(--header-height)) - var(--main-padding));
+            --title-tile-size: calc(var(--header-height) * 0.85);
             --rack-height: calc(var(--board-size) / 12);
             --rack-width: calc(var(--rack-height) * 9);
             --rack-board-tile-ratio: 0.6;
@@ -764,7 +782,7 @@ export default function Home() {
           }
 
           .turn-display-area {
-            padding: 2.5% !important;
+            padding: 2.5% 0 !important;
           }
 
           .game-board {

@@ -76,10 +76,19 @@ export default function Tile(props) {
             --current-size: var(--title-tile-size);
             translate: none;
             cursor: unset;
+            transition: all 500ms ease, rotate 500ms ease 500ms;
+
+            &.revealed {
+              &:nth-child(odd) {
+                rotate: -4deg;
+              }
+              &:nth-child(even) {
+                rotate: 4deg;
+              }
+            }
           }
 
           &.selected {
-            // --current-size: calc(var(--racked-tile-size) * 1.5);
             scale: var(--grabbed-tile-scale);
             cursor: grabbing;
             z-index: 5;
@@ -108,7 +117,7 @@ export default function Tile(props) {
             }
           }
 
-          &:not(.selected):not(.placed) {
+          &:not(.selected):not(.placed):not(.title) {
             transition: all 500ms ease;
             z-index: 2;
           }
@@ -119,8 +128,7 @@ export default function Tile(props) {
         }
 
         .tile:after {
-          // content: '${props.value}';
-          content: '${props.rackIndex || '0'}';
+          content: '${props.value}';
           position: absolute;
           bottom: 5%;
           right: 10%;

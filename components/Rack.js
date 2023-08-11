@@ -97,15 +97,6 @@ export default function Rack(props) {
           #opponent-rack {
             align-self: start;
           }
-
-          // #user-rack {
-          //   background-color: transparent;
-          //   box-shadow: none;
-          //   border: none;
-          //   & > .shelf {
-          //     display: none;
-          //   }
-          // }
         }
       `}</style>
     </div>

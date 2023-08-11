@@ -49,6 +49,7 @@ export default function GameBoard(props) {
       </div>
       <style jsx>{`
         .game-board {
+          justify-self: center;
           width: var(--board-size);
           height: var(--board-size);
           border: calc(var(--board-outline-size) * 2.5) solid #eee;          
