@@ -172,6 +172,12 @@ export default function Home() {
     }
   }, [loaded]);
 
+  // useEffect(() => {
+  //   console.warn('newLetterMatrix');
+  //   // console.table([...letterMatrix].flat().filter(val => val.contents));
+  //   // scanPlacedTiles();
+  // }, [letterMatrix]);
+
   async function startGame() {
     setGameStarted(true);
     const nextBag = createBag();
@@ -182,6 +188,19 @@ export default function Home() {
     await pause(800);
     setOpponentRack(opponentOpeningLetters);
   }
+
+  function scanPlacedTiles() {
+    const placedTiles = [...document.getElementsByClassName('placed')];
+    const tileMatrix = [...letterMatrix].map(entry => entry.map(col => col.contents));
+    placedTiles.forEach(tileElement => {
+      const tileObj = playerRack.filter(tile => tile.id === tileElement.id)[0];
+      console.log('obj', tileObj);
+      const matrixX = parseInt(tileObj.placed.split('-')[0]) - 1;
+      const matrixY = parseInt(tileObj.placed.split('-')[1]) - 1;
+      console.log('matr', matrixX, matrixY);
+    });
+  }
+
   function cursorOverBoard(touchX, touchY) {
     let over;
     const boardElement = document.getElementById('game-board');
@@ -242,8 +261,8 @@ export default function Home() {
   }
 
   function handleScreenPointerMove(e) {
-    const currentTime = Date.now();
-    if (selectedTileId && currentTime % 2 === 0) {
+    const throttleOK = Date.now() % 2 === 0;
+    if (selectedTileId && throttleOK) {
       const touchX = IS_MOBILE ? e.touches[0].pageX : e.pageX;
       const touchY = IS_MOBILE ? e.touches[0].pageY : e.pageY;
 
@@ -317,7 +336,7 @@ export default function Home() {
       x: spaceRect.left,
       y: spaceRect.top
     };
-    
+
     window.requestAnimationFrame(async () => {
       const tileRect = tileElement.getBoundingClientRect();
       const preTileDistance = getTileDistanceFromSpace(tileRect, spacePosition);
@@ -448,6 +467,9 @@ export default function Home() {
       <Head>
         <title>Skrubble.live</title>
         <link rel="icon" href="/favicon.ico" />
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+        <link href="https://fonts.googleapis.com/css2?family=Aladin&family=Bangers&display=swap" rel="stylesheet"></link>
       </Head>
       <main>
         <Header
@@ -655,6 +677,7 @@ export default function Home() {
       `}</style>
 
       <style jsx global>{`
+        {/* @import url('https://fonts.googleapis.com/css2?family=Aladin&family=Bangers&display=swap'); */}
         :root {
           --actual-height: 100dvh;
           --board-size: 100vw;
@@ -685,7 +708,7 @@ export default function Home() {
         body {
           padding: 0;
           margin: 0;
-          font-family: -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Oxygen,Ubuntu,Cantarell,"Fira Sans","Droid Sans","Helvetica Neue",sans-serif;
+          font-family: sans-serif;
           background-color: black;
           color: var(--main-text-color);
           user-select: none;
@@ -743,7 +766,7 @@ export default function Home() {
 
         @media screen and (orientation: landscape) {
           :root {
-            --header-height: ${user ? '2.5rem' : '6rem'};
+            --header-height: ${user ? '2.5rem' : '5rem'};
             --main-padding: 1rem;
             --board-size: calc((var(--actual-height) - var(--header-height)) - var(--main-padding));
             --title-tile-size: calc(var(--header-height) * 0.85);

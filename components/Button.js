@@ -20,8 +20,9 @@ export default function Button(props) {
             1px -1px calc(var(--button-height) / 32) #000000
           ;
           color: var(--secondary-text-color);
-          font-family: inherit;
-          font-size: calc(var(--button-height) / 2.5);
+          font-family: 'Bangers';
+          letter-spacing: 0.1rem;
+          font-size: calc(var(--button-height) / ${props.color === 'green' ? 1.5 : 2.5});
           border-radius: calc(var(--button-height) / 8);
           cursor: pointer;
           pointer-events: all;
