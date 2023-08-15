@@ -15,7 +15,8 @@ export default function Tile(props) {
     ${props.title ? ' title' : ''}
     ${revealed ? ' revealed' : ''}
     ${props.placed ? ' placed' : ''}
-    ${props.landed ? ' landed' : ''}`
+    ${props.landed ? ' landed' : ''}
+    ${props.locked ? ' locked' : ''}`
   ;
   const tileOffset = props.offset || { x: 0, y: 0 };
   return (
@@ -74,16 +75,11 @@ export default function Tile(props) {
             translate: none;
             cursor: unset;
             transform: scale(80%);
-            transition: all 500ms ease, rotate 500ms ease 500ms, background 0ms;
+            transition: all 500ms ease, rotate 500ms ease 1200ms, background 0ms;
 
             &.revealed {
               transform: none;
-              &:nth-child(odd) {
-                rotate: -4deg;
-              }
-              &:nth-child(even) {
-                rotate: 4deg;
-              }
+              rotate: ${props.even ? '4deg' : '-4deg'};
             }
           }
 
@@ -113,6 +109,16 @@ export default function Tile(props) {
             &.landed {
               opacity: 1;
               transition: opacity 150ms ease;
+
+              
+              &.locked {
+                position: absolute;
+                top: 0;
+                left: 0;
+                transition: all 500ms ease;
+                background-image: none;
+                background-color: rgb(241, 223, 171);
+              }
             }
           }
 
@@ -138,9 +144,9 @@ export default function Tile(props) {
           translate: none;
         }
 
-        .tile.opponent > .letter, .tile.opponent:after {
-          opacity: 0;
-        }
+        // .tile.opponent > .letter, .tile.opponent:after {
+        //   opacity: 0;
+        // }
       `}</style>
     </>
   );

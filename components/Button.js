@@ -20,10 +20,11 @@ export default function Button(props) {
             1px -1px calc(var(--button-height) / 32) #000000
           ;
           color: var(--secondary-text-color);
-          font-family: 'Bangers';
+          font-family: 'Aladin';
           letter-spacing: 0.1rem;
-          font-size: calc(var(--button-height) / ${props.color === 'green' ? 1.5 : 2.5});
-          border-radius: calc(var(--button-height) / 8);
+          line-height: 2rem;
+          font-size: calc(var(--button-height) / ${props.color === 'green' ? 1.75 : 2.5});
+          border-radius: calc(var(--button-height) / 10);
           cursor: pointer;
           pointer-events: all;
           padding: 0;

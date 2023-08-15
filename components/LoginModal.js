@@ -29,7 +29,7 @@ export default function LoginModal(props) {
           opacity: ${revealed ? 1 : 0};
           pointer-events: ${revealed ? 'all' : 'none'};;
           transition: opacity 800ms ease;
-          transition-delay: 500ms;
+          transition-delay: 1200ms;
         }
 
         div button {

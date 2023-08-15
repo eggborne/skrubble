@@ -42,6 +42,7 @@ export default function Rack(props) {
                   offset={tile.offset}
                   placed={tile.placed}
                   landed={tile.landed}
+                  locked={tile.locked}
                   rackIndex={tile.rackIndex}
                   bgPosition={tile.bgPosition}
                   homeSpaceCoords={homeSpaceCoords[t]}

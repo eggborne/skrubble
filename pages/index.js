@@ -114,11 +114,12 @@ export default function Home() {
     return newBag;
   }
 
-  function getRandomLetters(nextBag, amount) {
+  function getRandomLetters(nextBag, amount, owner) {
     const letterArray = [];
     for (let i = 0; i < amount; i++) {
       const drawnTile = nextBag.splice(randomInt(0, nextBag.length - 1), 1)[0];
       drawnTile.rackIndex = i;
+      drawnTile.owner = owner;
       letterArray.push(drawnTile);
     }
     setBag(nextBag);
@@ -172,22 +173,37 @@ export default function Home() {
     }
   }, [loaded]);
 
-  // useEffect(() => {
-  //   console.warn('newLetterMatrix');
-  //   // console.table([...letterMatrix].flat().filter(val => val.contents));
-  //   // scanPlacedTiles();
-  // }, [letterMatrix]);
+  useEffect(() => {
+    console.warn('newLetterMatrix');
+    console.table('flat placed', [...letterMatrix].flat().filter(val => val.contents));
+    // scanPlacedTiles();
+  }, [letterMatrix]);
 
   async function startGame() {
     setGameStarted(true);
     const nextBag = createBag();
-    const playerOpeningLetters = getRandomLetters(nextBag, 7);
-    const opponentOpeningLetters = getRandomLetters(nextBag, 7);
+    const playerOpeningLetters = getRandomLetters(nextBag, 7, 'user');
+    const opponentOpeningLetters = getRandomLetters(nextBag, 7, 'opponent');
     await pause(1000);
     setPlayerRack(playerOpeningLetters);
     await pause(800);
     setOpponentRack(opponentOpeningLetters);
   }
+
+  function submitTiles() {
+    let newPlayerRack = [...playerRack];
+    const placedTiles = newPlayerRack.filter(tile => tile.placed);
+    placedTiles.map(tile => {
+      tile.locked = true;
+    });
+    newPlayerRack = newPlayerRack.filter(tile => !tile.locked);
+    const newLetters = getRandomLetters([...bag], 7 - newPlayerRack.length, 'user');
+    const newFullRack = [...newPlayerRack, ...newLetters];
+    console.log('newFullRack', newFullRack)
+    setPlayerRack(newFullRack);
+  }
+
+
 
   function scanPlacedTiles() {
     const placedTiles = [...document.getElementsByClassName('placed')];
@@ -281,7 +297,9 @@ export default function Home() {
         }
       } else {
         const targetedRackSpace = findTargetedRackSpace(touchX, touchY);
-        if (targetedRackSpace.targetedId) {
+        const notPastAdjacentTileMidpoint = Math.abs(rackedTileObject.offset.x) < (document.getElementById(rackedTileObject.id).getBoundingClientRect().width * 0.7);
+
+        if (targetedRackSpace.targetedId && !notPastAdjacentTileMidpoint) {
           setTargetedSpaceId(targetedRackSpace.targetedId);
         } else {
           setTargetedSpaceId(null);
@@ -299,12 +317,15 @@ export default function Home() {
       const rackedTileObject = newPlayerRack.filter(tile => tile.id === selectedTileId)[0];
       if (!cursorOverBoard(touchX, touchY)) {
         if (targetedSpaceId) {
-          const rackIndex = newPlayerRack.indexOf(rackedTileObject);
-          const targetIndex = parseInt(targetedSpaceId.split('-')[3]);
-          const targetedRackSpace = findTargetedRackSpace(touchX, touchY);
-          const position = targetedRackSpace.position;
-          const moveDirection = targetIndex > rackIndex ? 'right' : 'left';
-          insertRackTile(rackIndex, targetIndex, position, moveDirection);
+          const rackFull = newPlayerRack.every(tile => !tile.placed);
+          if (rackFull) {
+            const rackIndex = newPlayerRack.indexOf(rackedTileObject);
+            const targetIndex = parseInt(targetedSpaceId.split('-')[3]);
+            const targetedRackSpace = findTargetedRackSpace(touchX, touchY);
+            const position = targetedRackSpace.position;
+            const moveDirection = targetIndex > rackIndex ? 'right' : 'left';
+            insertRackTile(rackIndex, targetIndex, position, moveDirection); 
+          }
           rackedTileObject.offset = { x: 0, y: 0 };
         }
       } else {
@@ -329,7 +350,7 @@ export default function Home() {
     const newLetterMatrix = [...letterMatrix];
     const matrixX = parseInt(targetedSpaceId.split('-')[0]) - 1;
     const matrixY = parseInt(targetedSpaceId.split('-')[1]) - 1;
-    newLetterMatrix[matrixX][matrixY].contents = tileObj.letter;
+    newLetterMatrix[matrixX][matrixY].contents = tileObj;
     const spaceElement = document.getElementById(targetedSpaceId);
     const spaceRect = spaceElement.getBoundingClientRect();
     const spacePosition = {
@@ -527,7 +548,7 @@ export default function Home() {
                 </div>
                 <div className='user-button-area'>
                   <Button label='Menu' clickAction={() => null} />
-                  <Button color='green' label='Submit' clickAction={() => null} />
+                  <Button color='green' label='Submit' clickAction={submitTiles} />
                   {playerRack.every(tile => !tile.placed && !tile.selected) ?
                     <Button label='Shuffle' clickAction={shuffleUserTiles} />
                     :
@@ -547,6 +568,7 @@ export default function Home() {
               <LoginModal handleClickGoogleLogin={callGooglePopup} handleClickGuestLogin={signInAsGuest} />
           }
         </div>
+        <footer><a href='https://github.com/eggborne/skrubble'>View source on GitHub</a></footer>
       </main>
 
       <style jsx>{`
@@ -560,12 +582,13 @@ export default function Home() {
           justify-content: space-between;
           align-items: center;
           overflow: hidden;
+          opacity: ${loaded ? 1 : 0};
+          transition: opacity 500ms ease;
         }
         #home-container {
           position: relative;
           flex-grow: 1;
           display: grid;
-          
           grid-template-columns: 1fr;
           grid-template-rows: min-content calc(var(--rack-height) * 1.75) min-content 1fr;
 
@@ -674,6 +697,23 @@ export default function Home() {
         .logged-in-user-info > img {
           border-radius: 50%;
         }
+
+        footer {
+          position: absolute;
+          bottom: 0;
+          left: 0;
+          width: 100%;
+          height: 2rem;
+          background-color: #00000099;
+          color: #aaa;
+          font-size: 0.8rem;
+          display: flex;
+          align-items: center;
+          justify-content: center; 
+          opacity: ${user ? '0' : '1'};
+          pointer-events: ${user ? 'none' : 'all'};
+          transition: opacity 500ms ease;
+        }
       `}</style>
 
       <style jsx global>{`
@@ -687,6 +727,7 @@ export default function Home() {
           --rack-height: calc(var(--board-size) / 10);
           --rack-width: 98vw;
           --title-tile-size: calc(var(--header-height) * 0.6);
+          --title-font-size: calc(var(--title-tile-size) / 1.5);
           --racked-tile-size: calc(var(--rack-width) / 7.5);
           --played-tile-size: calc(var(--board-size) / 16.5);
           --rack-board-tile-ratio: 0.475;
@@ -694,7 +735,7 @@ export default function Home() {
           --grabbed-tile-scale: 1.4;
           --board-outline-size: calc(var(--board-size) / 160);
           --footer-height: 3rem;
-          --button-height: 3rem;
+          --button-height: 3.5rem;
           --main-bg-color: #335533;
           --secondary-bg-color: #443330;
           --footer-color: #443330;
@@ -712,6 +753,14 @@ export default function Home() {
           background-color: black;
           color: var(--main-text-color);
           user-select: none;
+        }
+        a {
+          text-decoration: none;
+          color: #aa99aa;
+
+          &:hover {
+            color: #ffaaff;
+          }
         }
         p {
           margin: 0;
@@ -747,6 +796,23 @@ export default function Home() {
           }
         }
 
+        @keyframes bounce {
+          from {
+            transform: scale(1);
+          }
+          to {
+            transform: scale(1.05);
+          }
+        }
+        @keyframes dip {
+          from {
+            transform: scale(1);
+          }
+          to {
+            transform: scale(0.95);
+          }
+        }
+
         @media screen and (orientation: portrait) and (min-aspect-ratio: 0.55) {
           :root {
             --board-size: 49vh;
@@ -770,6 +836,7 @@ export default function Home() {
             --main-padding: 1rem;
             --board-size: calc((var(--actual-height) - var(--header-height)) - var(--main-padding));
             --title-tile-size: calc(var(--header-height) * 0.85);
+            --title-font-size: calc(var(--title-tile-size) / 2);
             --rack-height: calc(var(--board-size) / 12);
             --rack-width: calc(var(--rack-height) * 9);
             --rack-board-tile-ratio: 0.61;

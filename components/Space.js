@@ -56,17 +56,26 @@ export default function Space(props) {
             //   background: orange;
             // }
 
-            // &:after, &:first-of-type:before {
+            // &:before, &:after {
             //   content: '';
             //   position: absolute;
             //   width: calc(var(--racked-tile-gap-size));
             //   height: inherit;
-            //   background-color: blue;
+            // }
+
+            // &:before {
+            //   background-color: #0000ff22;
             //   right: calc(var(--racked-tile-gap-size) * -1);
             // }
-            // &:first-of-type:before {
+
+            // &:after {
+            //   background-color: #ff000022;
             //   left: calc(var(--racked-tile-gap-size) * -1);
             // }
+          }
+
+          &.targeted:after, &.targeted:before {
+            background-color: green !important;
           }
 
           // &.targeted {

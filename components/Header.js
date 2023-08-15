@@ -6,17 +6,17 @@ export default function Header(props) {
   return (
     <header>
       <div className={`title-tile-area${props.revealed ? ' revealed' : ''}`}>
-        <Tile bgPosition={0} letter='S' value={tileData['s'].value} title />
-        <Tile bgPosition={15} letter='K' value={tileData['k'].value} title />
-        <Tile bgPosition={30} letter='R' value={tileData['r'].value} title />
-        <Tile bgPosition={45} letter='U' value={tileData['u'].value} title />
-        <Tile bgPosition={60} letter='B' value={tileData['b'].value} title />
-        <Tile bgPosition={75} letter='B' value={tileData['b'].value} title />
-        <Tile bgPosition={90} letter='L' value={tileData['l'].value} title />
-        <Tile bgPosition={100} letter='E' value={tileData['e'].value} title />
+        <div className='title-tile-container'><Tile bgPosition={0} letter='S' value={tileData['s'].value} title /></div>
+        <div className='title-tile-container'><Tile bgPosition={15} letter='K' value={tileData['k'].value} title even /></div>
+        <div className='title-tile-container'><Tile bgPosition={30} letter='R' value={tileData['r'].value} title /></div>
+        <div className='title-tile-container'><Tile bgPosition={45} letter='U' value={tileData['u'].value} title even /></div>
+        <div className='title-tile-container'><Tile bgPosition={60} letter='B' value={tileData['b'].value} title /></div>
+        <div className='title-tile-container'><Tile bgPosition={75} letter='B' value={tileData['b'].value} title even /></div>
+        <div className='title-tile-container'><Tile bgPosition={90} letter='L' value={tileData['l'].value} title /></div>
+        <div className='title-tile-container'><Tile bgPosition={100} letter='E' value={tileData['e'].value} title even /></div>
       </div>
       <div className={`title-legend${props.revealed ? ' revealed' : ''}${props.user ? ' user' : ''}`}>
-        The phonetic crossword game
+        the <span style={{ color: '#ddffcc' }} >phonetic</span> crossword game
       </div>
       {/* {props.landscape && props.user &&
         <UserIcon
@@ -44,32 +44,40 @@ export default function Header(props) {
             align-items: center;
             gap: calc(var(--title-tile-size) * 0.1);
             transition: all 1200ms;
-            // height: var(--header-height);
             opacity: 0;
             
             &.revealed {
               opacity: 1;
             }
+
+            & > .title-tile-container {
+              animation: bounce 200ms ease alternate 2;
+              animation-delay: 1300ms;
+            }
           }
 
           & > .title-legend {
             position: absolute;
-            bottom: -50%;
-            font-size: calc(var(--header-height) / 3);
-
+            bottom: calc(var(--title-tile-size) / -1.25);
+            font-size: var(--title-font-size);
             text-shadow: 
               1px 1px calc(var(--button-height) / 32) #000000,
               -1px 1px calc(var(--button-height) / 32) #000000,
               -1px -1px calc(var(--button-height) / 32) #000000,
               1px -1px calc(var(--button-height) / 32) #000000
             ;
-            
+  
             opacity: 0;
+            scale: 1.5;
+            animation: dip 200ms ease alternate 2;
+            animation-delay: 1000ms;
 
             &.revealed {
-              transition: all 800ms ease;
-              transition-delay: 500ms;
+              transition: all 600ms ease;
+              transition-delay: 600ms;
               opacity: 1;
+              scale: 1;
+              filter: blur(0);
 
               &.user {
                 display: none;

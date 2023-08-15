@@ -4,6 +4,7 @@ import { fullBoard, specialSpaceData } from "../scripts/scrabbledata";
 import Tile from "./Tile";
 
 export default function GameBoard(props) {
+  console.log('gameboard', props);
   const [revealed, setRevealed] = useState(false);
 
   useEffect(() => {
@@ -39,7 +40,22 @@ export default function GameBoard(props) {
               }
               contents={
                 spaceContents ?
-                  spaceContents
+                  spaceContents.locked ?
+                  <Tile
+                    owner={spaceContents.owner}
+                    letter={spaceContents.letter}
+                    value={spaceContents.value}
+                    key={spaceContents.id}
+                    id={spaceContents.id}
+                    offset={{x: 0, y: 0}}
+                    placed={spaceContents.placed}
+                    landed={spaceContents.landed}
+                    locked={spaceContents.locked}
+                    rackIndex={spaceContents.rackIndex}
+                    bgPosition={spaceContents.bgPosition}
+                  />
+                  :
+                    spaceContents.letter
                   :
                   ''
               }

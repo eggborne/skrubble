@@ -68,6 +68,12 @@ const expandedRows = boardData.map(row => [...row, ...row.slice(0, -1).reverse()
 const lowerHalf = [...expandedRows.slice(0, -1)].reverse();
 const fullBoard = [...expandedRows, ...lowerHalf];
 
+emptyLetterMatrix.forEach((row, y) => {
+  row = row.map((space, x) => {
+    space.coords = { x, y };
+  });
+});
+
 export {
   emptyLetterMatrix,
   tileData,
