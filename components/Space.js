@@ -74,15 +74,15 @@ export default function Space(props) {
             // }
           }
 
-          &.targeted:after, &.targeted:before {
-            background-color: green !important;
-          }
-
-          // &.targeted {
-          //   background: #33ff33;
-          //   outline: 4px solid #33ff33;
-          //   transition: all 300ms ease, outline 0ms, background 0ms;
+          // &.targeted:after, &.targeted:before {
+          //   background-color: green !important;
           // }
+
+          &.targeted {
+            // background: #33ff33;
+            border: calc(var(--racked-tile-gap-size) / 2) solid #33ff33;
+            // transition: all 300ms ease, outline 0ms, background 0ms;
+          }
 
           &.locked {
             transition: all 500ms ease;

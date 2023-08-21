@@ -45,7 +45,7 @@ export default function Button(props) {
           }
 
           &.disabled {
-            opacity: 0.5;
+            background: unset;
             pointer-events: none;
           }
         }

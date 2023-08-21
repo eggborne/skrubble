@@ -175,9 +175,23 @@ export default function Home() {
   }, [loaded]);
 
   useEffect(() => {
-    const cong = isCongruous();
-    console.warn('SETTING submitReady', cong)
-    setSubmitReady(cong);
+    const tilesNeighbored = allTilesNeighbored();
+    let ready = tilesNeighbored;
+    const placed = letterMatrix.flat().filter(space => space.contents && space.contents.placed);
+    const touchingLocked = placedTilesTouchingLocked(placed.filter(space => !space.contents.locked));
+    const tilesInLine = placedTilesAreAligned(placed.filter(space => !space.contents.locked));
+    const centerTileFilled = placed.filter(space => space.contents.placed.x === 7 && space.contents.placed.y === 7)[0];
+    const firstWordNotOnStart = (lockedTiles.length === 0 && !centerTileFilled);
+
+    if ((!tilesInLine || (tilesInLine && !tilesNeighbored)) || firstWordNotOnStart || (!touchingLocked && lockedTiles.length > 0)) {
+      ready = false;
+    }
+
+    document.getElementById('in-line-display').innerHTML = tilesInLine;
+    document.getElementById('touching-locked-display').innerHTML = touchingLocked;
+    document.getElementById('contiguous-display').innerHTML = ready;
+
+    setSubmitReady(ready);
   }, [letterMatrix]);
 
   async function startGame() {
@@ -191,75 +205,40 @@ export default function Home() {
     setOpponentRack(opponentOpeningLetters);
   }
 
-  function hasOccupiedNeighbor(space) {
-    const flatOccupiedSpaceArray = [...letterMatrix].flat().filter(val => val.contents);
-    const hasVerticalNeighbor = flatOccupiedSpaceArray.filter(occupiedSpace => {
-      const sameColumn = occupiedSpace.coords.x === space.coords.x;
-      const aboveOrBelow = occupiedSpace.coords.y === (space.coords.y - 1) || occupiedSpace.coords.y === (space.coords.y + 1);
-      return sameColumn && aboveOrBelow;
-    }).length > 0;
-    const hasHorizontalNeighbor = flatOccupiedSpaceArray.filter(occupiedSpace => {
-      const sameRow = occupiedSpace.coords.y === space.coords.y;
-      const toLeftOrRight = occupiedSpace.coords.x === (space.coords.x - 1) || occupiedSpace.coords.x === (space.coords.x + 1);
-      return sameRow && toLeftOrRight;
-    }).length > 0;
+  // function hasOccupiedNeighbor(space) {
+  //   const flatOccupiedSpaceArray = [...letterMatrix].flat().filter(val => val.contents);
+  //   const hasVerticalNeighbor = flatOccupiedSpaceArray.filter(occupiedSpace => {
+  //     const sameColumn = occupiedSpace.coords.x === space.coords.x;
+  //     const aboveOrBelow = occupiedSpace.coords.y === (space.coords.y - 1) || occupiedSpace.coords.y === (space.coords.y + 1);
+  //     return sameColumn && aboveOrBelow;
+  //   }).length > 0;
+  //   const hasHorizontalNeighbor = flatOccupiedSpaceArray.filter(occupiedSpace => {
+  //     const sameRow = occupiedSpace.coords.y === space.coords.y;
+  //     const toLeftOrRight = occupiedSpace.coords.x === (space.coords.x - 1) || occupiedSpace.coords.x === (space.coords.x + 1);
+  //     return sameRow && toLeftOrRight;
+  //   }).length > 0;
 
-    // console.log(space.contents.letter, 'vert', hasVerticalNeighbor);
-    // console.log(space.contents.letter, 'horiz', hasHorizontalNeighbor);
+  //   // console.log(space.contents.letter, 'vert', hasVerticalNeighbor);
+  //   // console.log(space.contents.letter, 'horiz', hasHorizontalNeighbor);
 
-    return hasVerticalNeighbor || hasHorizontalNeighbor;
-  }
+  //   return hasVerticalNeighbor || hasHorizontalNeighbor;
+  // }
 
   function tileHasNeighbor(space) {
     const flatOccupiedSpaceArray = [...letterMatrix].flat().filter(val => val.contents);
-    const hasVerticalNeighbor = flatOccupiedSpaceArray.filter(occupiedSpace => {
+    const verticalNeighbors = flatOccupiedSpaceArray.filter(occupiedSpace => {
       const sameColumn = occupiedSpace.coords.x === space.coords.x;
       const aboveOrBelow = occupiedSpace.coords.y === (space.coords.y - 1) || occupiedSpace.coords.y === (space.coords.y + 1);
       return sameColumn && aboveOrBelow;
-    }).length > 0;
-    const hasHorizontalNeighbor = flatOccupiedSpaceArray.filter(occupiedSpace => {
+    });
+    const horizontalNeighbors = flatOccupiedSpaceArray.filter(occupiedSpace => {
       const sameRow = occupiedSpace.coords.y === space.coords.y;
       const toLeftOrRight = occupiedSpace.coords.x === (space.coords.x - 1) || occupiedSpace.coords.x === (space.coords.x + 1);
       return sameRow && toLeftOrRight;
-    }).length > 0;
-
-    // console.log(space.contents.letter, 'vert', hasVerticalNeighbor);
-    // console.log(space.contents.letter, 'horiz', hasHorizontalNeighbor);
-
-    return hasVerticalNeighbor || hasHorizontalNeighbor;
-  }
-
-  function getIncongruentTileIndexes() {
-    const indexes = [];
-    const flatOccupiedSpaceArray = [...letterMatrix].flat().filter(val => val.contents);
-    if (flatOccupiedSpaceArray.length === 1) { return undefined; }
-    flatOccupiedSpaceArray.forEach(space => {
-      if (!hasOccupiedNeighbor(space)) {
-        indexes.push(space.contents.rackIndex);
-      }
     });
-    return indexes.length ? indexes : undefined;
-  }
 
-  function markIncongruentTiles() {
-    [...letterMatrix].flat().filter(space => space.contents).forEach(space => {
-      const neighbor = hasOccupiedNeighbor(space);
-      if (neighbor) {
-        console.log(space.contents.letter, 'has a neighbor', neighbor);
-
-      } else {
-        console.warn(space.contents.letter, ' has no neighbor!');
-      }
-    });
-    // console.log('isBoardCongruous flatOccupiedSpaceArray', flatOccupiedSpaceArray);
-    // if (flatOccupiedSpaceArray.length === 1) { return undefined; }
-    // flatOccupiedSpaceArray.forEach(space => {
-    //   let hasNeighbor = hasOccupiedNeighbor(space);
-    //   if (!hasNeighbor) {
-    //     incongruentTiles.push(space.contents);
-    //   }
-    // });
-    // return incongruentTiles.length ? incongruentTiles : undefined;
+    const hasNeighbor = verticalNeighbors.length > 0 || horizontalNeighbors.length > 0;
+    return hasNeighbor ? [...verticalNeighbors, ...horizontalNeighbors] : false;
   }
 
   function submitTiles() {
@@ -290,7 +269,7 @@ export default function Home() {
     const touchX = e.pageX;
     const touchY = e.pageY;
 
-    const draggableTiles = [...document.querySelectorAll(`.tile:not(.opponent):not(.title)`)];
+    const draggableTiles = [...document.querySelectorAll(`.tile:not(.opponent):not(.title):not(.locked)`)];
     draggableTiles.forEach((tileElement, t) => {
       const tileRect = tileElement.getBoundingClientRect();
       const xDistance = touchX - tileRect.left;
@@ -455,10 +434,8 @@ export default function Home() {
     });
   }
 
-  function isCongruous() {
+  function allTilesNeighbored() {
     let congruous = true;
-    let lastTilePosition = undefined;
-    let checked = 0;
     [...letterMatrix].forEach((row, r) => {
       row.forEach((space, s) => {
         if (space.contents) {
@@ -468,8 +445,30 @@ export default function Home() {
         }
       });
     });
-    console.log('board cong', congruous)
+    console.log('allTilesNeighbored returning board cong');
+    document.getElementById('neigbored-display').innerText = congruous;
     return congruous;
+  }
+
+  function placedTilesAreAligned(placedTileSpaces) {
+    const horizontallyAligned = placedTileSpaces.every(space => space.coords.x === placedTileSpaces[0].coords.x);
+    const verticallyAligned = placedTileSpaces.every(space => space.coords.y === placedTileSpaces[0].coords.y);
+    console.log('horiz', horizontallyAligned);
+    console.log('vert', verticallyAligned);
+    const tilesInLine = horizontallyAligned || verticallyAligned;
+    return tilesInLine;
+  }
+
+  function placedTilesTouchingLocked(placedTileSpaces) {
+    let touching = false;
+    placedTileSpaces.forEach(space => {
+      const tileNeighbors = tileHasNeighbor(space);
+      const hasLockedNeighbor = tileNeighbors && tileNeighbors.filter(neighborSpace => neighborSpace.contents.locked).length > 0;
+      if (hasLockedNeighbor) {
+        touching = true;
+      }
+    });
+    return touching;
   }
 
   function changeTileAttribute(tileObj, attribute, newValue) {
@@ -570,27 +569,45 @@ export default function Home() {
   }
 
   const placedTiles = [...playerRack].filter(tile => tile.placed);
+  const lockedTiles = [...letterMatrix].flat().filter(space => space.contents && space.contents.locked);
 
   return (
     <div>
       <div className='debug'>
-        <div>
-          <div>Selected tile:</div>
-          <div>Targeted space:</div>
-        </div>
-        <div>
+        <div className={'debug-row'}>
+          <div>Selected:</div>
           <div>
-            {pointerPosition.x ?
-              `${selectedTileId.letter}` :
-              ``
+            {selectedTileId ?
+              `${document.getElementById(selectedTileId).innerText}` :
+              `none`
             }
           </div>
+        </div>
+        <div className={'debug-row'}>
+          <div>Target:</div>
           <div>
             {targetedSpaceId ?
               `${targetedSpaceId}` :
-              ``
+              `none`
             }
           </div>
+        </div>
+        <p>&nbsp;</p>
+        <div className={'debug-row'}>
+          <div>All neighbored:</div>
+          <div id='neigbored-display'></div>
+        </div>
+        <div className={'debug-row'}>
+          <div>Placed in line:</div>
+          <div id='in-line-display'></div>
+        </div>
+        <div className={'debug-row'}>
+          <div>Touching locked:</div>
+          <div id='touching-locked-display'></div>
+        </div>
+        <div className={'debug-row'}>
+          <div style={{ fontWeight: 'bold' }} >Submit ready:</div>
+          <div style={{ fontWeight: 'bold' }} id='contiguous-display'></div>
         </div>
       </div>
       <Head>
@@ -656,7 +673,7 @@ export default function Home() {
                 </div>
                 <div className='user-button-area'>
                   <Button label='Menu' clickAction={() => null} />
-                  <Button disabled={!submitReady || placedTiles.length < 2} color='green' label='Submit' clickAction={submitTiles} />
+                  <Button disabled={!submitReady || !placedTiles.length || (placedTiles.length < 2 && lockedTiles.length === 0)} color='green' label='Submit' clickAction={submitTiles} />
                   {playerRack.every(tile => !tile.placed && !tile.selected) ?
                     <Button label='Shuffle' clickAction={shuffleUserTiles} />
                     :
@@ -880,26 +897,27 @@ export default function Home() {
 
         .debug {
           position: fixed;
-          top: 40%;
+          top: 0;
           right: 0;
-          padding: 0.5rem;
-          width: 12rem;
-          display: grid;
-          grid-template-columns: 1fr 1fr;
-          background: gray;
+          padding: 1rem;
+          display: flex;
+          flex-direction: column;
+          align-items: stretch;
+          gap: 0.25rem;
+          background: #999999dd;
           color: black;
           z-index: 4;
-          font-size: 0.75rem;
-          display: none;
+          pointer-events: none;
 
-          & > div {
+          & > .debug-row {
             display: flex;
-            flex-direction: column;
-            align-items: flex-end;
-            gap: 0.25rem;
+            justify-content: space-between;
+            gap: 1rem;
+            border-bottom: 1px solid black;
+            padding: 0.15rem;
 
             &:last-of-type {
-              padding-right: 1rem;
+              border: 0;
             }
           }
         }
