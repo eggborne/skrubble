@@ -4,7 +4,6 @@ import { fullBoard, specialSpaceData } from "../scripts/scrabbledata";
 import Tile from "./Tile";
 
 export default function GameBoard(props) {
-  console.log('gameboard', props);
   const [revealed, setRevealed] = useState(false);
 
   useEffect(() => {
@@ -25,7 +24,8 @@ export default function GameBoard(props) {
             const spaceContents = props.letterMatrix[r][s].contents;
             return <Space
               key={`${(r+1)}-${(s+1)}`}
-              id={`${(r+1)}-${(s+1)}`}
+              id={`${(r + 1)}-${(s + 1)}`}
+              locked={spaceContents && spaceContents.locked}
               targeted={props.targetedSpaceId === `${(r+1)}-${(s+1)}`}
               spaceData={space}
               backgroundColor={space.length ? specialSpaceData[space[0]].color : 'var(--board-color)'}

@@ -10,13 +10,7 @@ export default function Tile(props) {
   }, [revealed]);
 
   const tileClass =
-    `tile ${props.owner}
-    ${props.selected ? ' selected' : ''}
-    ${props.title ? ' title' : ''}
-    ${revealed ? ' revealed' : ''}
-    ${props.placed ? ' placed' : ''}
-    ${props.landed ? ' landed' : ''}
-    ${props.locked ? ' locked' : ''}`
+    `tile ${props.owner} ${props.selected ? ' selected' : ''} ${props.title ? ' title' : ''} ${revealed ? ' revealed' : ''} ${props.placed ? ' placed' : ''} ${props.landed ? ' landed' : ''} ${props.incongruent ? ' incongruent' : ''} ${props.locked ? ' locked' : ''}`
   ;
   const tileOffset = props.offset || { x: 0, y: 0 };
   return (
@@ -109,6 +103,10 @@ export default function Tile(props) {
             &.landed {
               opacity: 1;
               transition: opacity 150ms ease;
+
+              &.incongruent {
+                 background-color: rgb(241, 123, 171);
+              }
 
               
               &.locked {

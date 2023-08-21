@@ -1,6 +1,6 @@
 export default function Space(props) {
   return (
-    <div className={`space dropzone${props.targeted ? ' targeted' : ''}${props.onRack ? ' on-rack' : ''}${props.vacant ? ' vacant' : ''}`} id={props.id}>
+    <div className={`space dropzone${props.targeted ? ' targeted' : ''}${props.onRack ? ' on-rack' : ''}${props.vacant ? ' vacant' : ''}${props.locked ? ' locked' : ''}`} id={props.id}>
         {props.spaceData.length > 0 &&
           <>
             <div className='caret-trio top'>
@@ -83,6 +83,10 @@ export default function Space(props) {
           //   outline: 4px solid #33ff33;
           //   transition: all 300ms ease, outline 0ms, background 0ms;
           // }
+
+          &.locked {
+            transition: all 500ms ease;
+          }
         }
         .special-label {
           color: black;
@@ -99,6 +103,7 @@ export default function Space(props) {
           gap: calc(var(--caret-size) / 2);
           width: 100%;
           z-index: 1;
+          display: ${props.locked ? 'none' : 'flex'}
         }
         .caret-trio.top {
           top: calc(var(--caret-size) * -1);

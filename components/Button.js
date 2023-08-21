@@ -1,6 +1,6 @@
 export default function Button(props) {
   return (
-    <button className='button' type='button' onClick={props.clickAction}>
+    <button className={`button${props.disabled ? ' disabled' : ''}`} type='button' onClick={props.clickAction}>
       {props.label}
       <style jsx>{`
         .button {
@@ -42,6 +42,11 @@ export default function Button(props) {
             color: white;
             box-shadow: none;
             box-shadow: 0 0 0 calc(var(--button-height) / 128) #000000;
+          }
+
+          &.disabled {
+            opacity: 0.5;
+            pointer-events: none;
           }
         }
       `}</style>

@@ -33,6 +33,7 @@ export default function Home() {
   const [user, setUser] = useState(null);
   const [opponent, setOpponent] = useState(defaultOpponent);
   const [gameStarted, setGameStarted] = useState(false);
+  const [submitReady, setSubmitReady] = useState(false);
   const [bag, setBag] = useState([]);
   const [playerRack, setPlayerRack] = useState([]);
   const [opponentRack, setOpponentRack] = useState([]);
@@ -174,9 +175,9 @@ export default function Home() {
   }, [loaded]);
 
   useEffect(() => {
-    console.warn('newLetterMatrix');
-    console.table('flat placed', [...letterMatrix].flat().filter(val => val.contents));
-    // scanPlacedTiles();
+    const cong = isCongruous();
+    console.warn('SETTING submitReady', cong)
+    setSubmitReady(cong);
   }, [letterMatrix]);
 
   async function startGame() {
@@ -190,6 +191,77 @@ export default function Home() {
     setOpponentRack(opponentOpeningLetters);
   }
 
+  function hasOccupiedNeighbor(space) {
+    const flatOccupiedSpaceArray = [...letterMatrix].flat().filter(val => val.contents);
+    const hasVerticalNeighbor = flatOccupiedSpaceArray.filter(occupiedSpace => {
+      const sameColumn = occupiedSpace.coords.x === space.coords.x;
+      const aboveOrBelow = occupiedSpace.coords.y === (space.coords.y - 1) || occupiedSpace.coords.y === (space.coords.y + 1);
+      return sameColumn && aboveOrBelow;
+    }).length > 0;
+    const hasHorizontalNeighbor = flatOccupiedSpaceArray.filter(occupiedSpace => {
+      const sameRow = occupiedSpace.coords.y === space.coords.y;
+      const toLeftOrRight = occupiedSpace.coords.x === (space.coords.x - 1) || occupiedSpace.coords.x === (space.coords.x + 1);
+      return sameRow && toLeftOrRight;
+    }).length > 0;
+
+    // console.log(space.contents.letter, 'vert', hasVerticalNeighbor);
+    // console.log(space.contents.letter, 'horiz', hasHorizontalNeighbor);
+
+    return hasVerticalNeighbor || hasHorizontalNeighbor;
+  }
+
+  function tileHasNeighbor(space) {
+    const flatOccupiedSpaceArray = [...letterMatrix].flat().filter(val => val.contents);
+    const hasVerticalNeighbor = flatOccupiedSpaceArray.filter(occupiedSpace => {
+      const sameColumn = occupiedSpace.coords.x === space.coords.x;
+      const aboveOrBelow = occupiedSpace.coords.y === (space.coords.y - 1) || occupiedSpace.coords.y === (space.coords.y + 1);
+      return sameColumn && aboveOrBelow;
+    }).length > 0;
+    const hasHorizontalNeighbor = flatOccupiedSpaceArray.filter(occupiedSpace => {
+      const sameRow = occupiedSpace.coords.y === space.coords.y;
+      const toLeftOrRight = occupiedSpace.coords.x === (space.coords.x - 1) || occupiedSpace.coords.x === (space.coords.x + 1);
+      return sameRow && toLeftOrRight;
+    }).length > 0;
+
+    // console.log(space.contents.letter, 'vert', hasVerticalNeighbor);
+    // console.log(space.contents.letter, 'horiz', hasHorizontalNeighbor);
+
+    return hasVerticalNeighbor || hasHorizontalNeighbor;
+  }
+
+  function getIncongruentTileIndexes() {
+    const indexes = [];
+    const flatOccupiedSpaceArray = [...letterMatrix].flat().filter(val => val.contents);
+    if (flatOccupiedSpaceArray.length === 1) { return undefined; }
+    flatOccupiedSpaceArray.forEach(space => {
+      if (!hasOccupiedNeighbor(space)) {
+        indexes.push(space.contents.rackIndex);
+      }
+    });
+    return indexes.length ? indexes : undefined;
+  }
+
+  function markIncongruentTiles() {
+    [...letterMatrix].flat().filter(space => space.contents).forEach(space => {
+      const neighbor = hasOccupiedNeighbor(space);
+      if (neighbor) {
+        console.log(space.contents.letter, 'has a neighbor', neighbor);
+
+      } else {
+        console.warn(space.contents.letter, ' has no neighbor!');
+      }
+    });
+    // console.log('isBoardCongruous flatOccupiedSpaceArray', flatOccupiedSpaceArray);
+    // if (flatOccupiedSpaceArray.length === 1) { return undefined; }
+    // flatOccupiedSpaceArray.forEach(space => {
+    //   let hasNeighbor = hasOccupiedNeighbor(space);
+    //   if (!hasNeighbor) {
+    //     incongruentTiles.push(space.contents);
+    //   }
+    // });
+    // return incongruentTiles.length ? incongruentTiles : undefined;
+  }
+
   function submitTiles() {
     let newPlayerRack = [...playerRack];
     const placedTiles = newPlayerRack.filter(tile => tile.placed);
@@ -199,22 +271,7 @@ export default function Home() {
     newPlayerRack = newPlayerRack.filter(tile => !tile.locked);
     const newLetters = getRandomLetters([...bag], 7 - newPlayerRack.length, 'user');
     const newFullRack = [...newPlayerRack, ...newLetters];
-    console.log('newFullRack', newFullRack)
     setPlayerRack(newFullRack);
-  }
-
-
-
-  function scanPlacedTiles() {
-    const placedTiles = [...document.getElementsByClassName('placed')];
-    const tileMatrix = [...letterMatrix].map(entry => entry.map(col => col.contents));
-    placedTiles.forEach(tileElement => {
-      const tileObj = playerRack.filter(tile => tile.id === tileElement.id)[0];
-      console.log('obj', tileObj);
-      const matrixX = parseInt(tileObj.placed.split('-')[0]) - 1;
-      const matrixY = parseInt(tileObj.placed.split('-')[1]) - 1;
-      console.log('matr', matrixX, matrixY);
-    });
   }
 
   function cursorOverBoard(touchX, touchY) {
@@ -324,7 +381,7 @@ export default function Home() {
             const targetedRackSpace = findTargetedRackSpace(touchX, touchY);
             const position = targetedRackSpace.position;
             const moveDirection = targetIndex > rackIndex ? 'right' : 'left';
-            insertRackTile(rackIndex, targetIndex, position, moveDirection); 
+            insertRackTile(rackIndex, targetIndex, position, moveDirection);
           }
           rackedTileObject.offset = { x: 0, y: 0 };
         }
@@ -344,12 +401,19 @@ export default function Home() {
   }
 
   function placeTile(tileObj) {
-    tileObj.placed = targetedSpaceId;
+    // tileObj.placed = targetedSpaceId;
+    tileObj.placed = {
+      x: targetedSpaceId.split('-')[0] - 1,
+      y: targetedSpaceId.split('-')[1] - 1,
+    };
+    console.log('placing at', tileObj.placed);
     const newPlayerRack = [...playerRack];
     const tileElement = document.getElementById(tileObj.id);
     const newLetterMatrix = [...letterMatrix];
-    const matrixX = parseInt(targetedSpaceId.split('-')[0]) - 1;
-    const matrixY = parseInt(targetedSpaceId.split('-')[1]) - 1;
+    // const matrixX = parseInt(targetedSpaceId.split('-')[0]) - 1;
+    // const matrixY = parseInt(targetedSpaceId.split('-')[1]) - 1;
+    const matrixX = tileObj.placed.x;
+    const matrixY = tileObj.placed.y;
     newLetterMatrix[matrixX][matrixY].contents = tileObj;
     const spaceElement = document.getElementById(targetedSpaceId);
     const spaceRect = spaceElement.getBoundingClientRect();
@@ -364,17 +428,59 @@ export default function Home() {
       tileObj.offset.x -= preTileDistance.x;
       tileObj.offset.y -= preTileDistance.y;
       tileObj.landed = true;
+
+      // const incongruentTiles = getIncongruentTileIndexes();
+      // const incongruent = incongruentTiles && incongruentTiles.filter(tile => tile.id === tileObj.id).length > 0;
+
+      // tileObj.incongruent = incongruent;
+
+      // const incongruentTileIndexes = getIncongruentTileIndexes();
+
+      // console.log('incongruentTileIndexes --------->', incongruentTileIndexes);
+      // if (incongruentTileIndexes) {
+      //   newPlayerRack.forEach((tile, t) => {
+      //     const incongruent = incongruentTileIndexes.includes(t);
+      //     console.log(tile.letter, 'incongruent', incongruent)
+      //     tile.incongruent = incongruent;
+      //   });
+      // } else {
+      //   newPlayerRack.forEach((tile, t) => {
+      //     tile.incongruent = false;
+      //   });
+      // }
+
       await pause(2);
       setPlayerRack(newPlayerRack);
       setLetterMatrix(newLetterMatrix);
     });
   }
 
+  function isCongruous() {
+    let congruous = true;
+    let lastTilePosition = undefined;
+    let checked = 0;
+    [...letterMatrix].forEach((row, r) => {
+      row.forEach((space, s) => {
+        if (space.contents) {
+          if (!tileHasNeighbor(space)) {
+            congruous = false;
+          }
+        }
+      });
+    });
+    console.log('board cong', congruous)
+    return congruous;
+  }
+
+  function changeTileAttribute(tileObj, attribute, newValue) {
+    tileObj[attribute] = newValue;
+    setPlayerRack(newPlayerRack);
+  }
+
   function unplaceTile(tileObj) {
-    const splitId = tileObj.placed.split('-');
+    const matrixX = tileObj.placed.x;
+    const matrixY = tileObj.placed.y;
     const newLetterMatrix = [...letterMatrix];
-    const matrixX = parseInt(splitId[0]) - 1;
-    const matrixY = parseInt(splitId[1]) - 1;
     tileObj.landed = false;
     tileObj.placed = false;
     newLetterMatrix[matrixX][matrixY].contents = null;
@@ -463,6 +569,8 @@ export default function Home() {
     });
   }
 
+  const placedTiles = [...playerRack].filter(tile => tile.placed);
+
   return (
     <div>
       <div className='debug'>
@@ -548,11 +656,11 @@ export default function Home() {
                 </div>
                 <div className='user-button-area'>
                   <Button label='Menu' clickAction={() => null} />
-                  <Button color='green' label='Submit' clickAction={submitTiles} />
+                  <Button disabled={!submitReady || placedTiles.length < 2} color='green' label='Submit' clickAction={submitTiles} />
                   {playerRack.every(tile => !tile.placed && !tile.selected) ?
                     <Button label='Shuffle' clickAction={shuffleUserTiles} />
                     :
-                    <Button label='Return' clickAction={returnUserTiles} />
+                    <Button label='&#8595;&#8595;' clickAction={returnUserTiles} />
                   }
                 </div>
               </div>
