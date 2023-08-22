@@ -5,8 +5,10 @@ export default function Button(props) {
       <style jsx>{`
         .button {
           --button-color: ${props.color ? props.color : 'var(--secondary-bg-color)'};
+          --height: ${props.size === 'small' ? 'calc(var(--button-height) / 1.5)' : 'var(--button-height)'};
+          --font-size: calc(var(--button-height) / ${props.color === 'green' ? 1.75 : props.size === 'small' ? 3.5 : 2.5});
           padding: 0 calc(var(--button-height) / 3);
-          height: var(--button-height);
+          height: var(--height);
           width: ${props.width || 'auto'};
           flex-grow: ${props.color === 'green' ? '1' : '0'};
           background-color: var(--button-color);
@@ -23,7 +25,7 @@ export default function Button(props) {
           font-family: 'Aladin';
           letter-spacing: 0.1rem;
           line-height: 2rem;
-          font-size: calc(var(--button-height) / ${props.color === 'green' ? 1.75 : 2.5});
+          font-size: var(--font-size);
           border-radius: calc(var(--button-height) / 10);
           cursor: pointer;
           pointer-events: all;

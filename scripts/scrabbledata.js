@@ -25,7 +25,7 @@ const tileData = {
   x: { quantity: 1, value: 8 },
   y: { quantity: 2, value: 4 },
   z: { quantity: 1, value: 10 },
-  '': { quantity: 2, value: '' },
+  'blank': { quantity: 200, value: '' },
 };
 
 const specialSpaceData = {

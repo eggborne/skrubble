@@ -13,6 +13,8 @@ import LoginModal from '../components/LoginModal';
 import UserIcon from '../components/UserIcon';
 import VersusScreen from '../components/VersusScreen';
 import { v4 } from 'uuid';
+import BagModal from '../components/BagModal';
+import BlankModal from '../components/BlankModal';
 
 const IS_MOBILE = isMobile();
 let LANDSCAPE;
@@ -42,6 +44,8 @@ export default function Home() {
   const [pointerPosition, setPointerPosition] = useState({ x: null, y: null });
   const [letterMatrix, setLetterMatrix] = useState([...emptyLetterMatrix]);
   const [dragStartPosition, setDragStartPosition] = useState(null);
+  const [modalShowing, setModalShowing] = useState(undefined);
+  const [editingBlank, setEditingBlank] = useState(undefined);
 
   function signInAsGuest() {
     signInAnonymously(getAuth())
@@ -96,6 +100,22 @@ export default function Home() {
       });
   }
 
+  function callModal(modalName) {
+    setModalShowing(modalName);
+  }
+  function toggleModal(modalName) {
+    const newValue = modalShowing === modalName ? 'undefined' : modalName;
+    setModalShowing(newValue);
+  }
+  function dismissModal(modalName) {
+    setModalShowing(undefined);
+  }
+
+  function callBlankModal() {
+    setModalShowing('blank');
+    setEditingBlank(selectedTileId);
+  }
+
   function createBag() {
     const newBag = [];
     for (const letter in tileData) {
@@ -121,6 +141,10 @@ export default function Home() {
       const drawnTile = nextBag.splice(randomInt(0, nextBag.length - 1), 1)[0];
       drawnTile.rackIndex = i;
       drawnTile.owner = owner;
+      console.log('drawn tile', drawnTile)
+      if (drawnTile.letter === 'BLANK') {
+        drawnTile.blank = true;
+      }
       letterArray.push(drawnTile);
     }
     setBag(nextBag);
@@ -188,7 +212,7 @@ export default function Home() {
     }
 
     document.getElementById('in-line-display').innerHTML = tilesInLine;
-    document.getElementById('touching-locked-display').innerHTML = touchingLocked;
+    document.getElementById('touching-locked-display').innerHTML = touchingLocked || (lockedTiles.length === 0 && centerTileFilled) ? 'true' : 'false';
     document.getElementById('contiguous-display').innerHTML = ready;
 
     setSubmitReady(ready);
@@ -269,7 +293,7 @@ export default function Home() {
     const touchX = e.pageX;
     const touchY = e.pageY;
 
-    const draggableTiles = [...document.querySelectorAll(`.tile:not(.opponent):not(.title):not(.locked)`)];
+    const draggableTiles = [...document.querySelectorAll(`.tile:not(.opponent):not(.title):not(.locked):not(.bag):not(.blank-selection)`)];
     draggableTiles.forEach((tileElement, t) => {
       const tileRect = tileElement.getBoundingClientRect();
       const xDistance = touchX - tileRect.left;
@@ -401,6 +425,10 @@ export default function Home() {
       y: spaceRect.top
     };
 
+    if (tileObj.letter === 'BLANK') {
+      callBlankModal();
+    }
+
     window.requestAnimationFrame(async () => {
       const tileRect = tileElement.getBoundingClientRect();
       const preTileDistance = getTileDistanceFromSpace(tileRect, spacePosition);
@@ -482,6 +510,9 @@ export default function Home() {
     const newLetterMatrix = [...letterMatrix];
     tileObj.landed = false;
     tileObj.placed = false;
+    if (tileObj.blank) {
+      tileObj.letter = 'BLANK';
+    }
     newLetterMatrix[matrixX][matrixY].contents = null;
     setLetterMatrix(newLetterMatrix);
   }
@@ -560,6 +591,16 @@ export default function Home() {
     setPlayerRack(newPlayerRack);
   }
 
+  function handleSelectBlankLetter(selectedLetter) {
+    console.log('you selected', selectedLetter);
+    const newPlayerRack = [...playerRack];
+    const blankTileObj = newPlayerRack.filter(tile => tile.id === editingBlank)[0];
+    blankTileObj.letter = selectedLetter;
+    setPlayerRack(newPlayerRack);
+    setEditingBlank(undefined);
+    dismissModal();
+  }
+
   function handleSignOut() {
     signOut(auth).then(() => {
       console.warn('--------------------> signed out!');
@@ -602,7 +643,7 @@ export default function Home() {
           <div id='in-line-display'></div>
         </div>
         <div className={'debug-row'}>
-          <div>Touching locked:</div>
+          <div>Touching/on center:</div>
           <div id='touching-locked-display'></div>
         </div>
         <div className={'debug-row'}>
@@ -679,8 +720,13 @@ export default function Home() {
                     :
                     <Button label='&#8595;&#8595;' clickAction={returnUserTiles} />
                   }
+                  <div></div>
+                  <div></div>
+                  <Button size='small' label={`Bag (${bag.length})`} clickAction={() => toggleModal('bag')} />
                 </div>
               </div>
+              <BagModal bag={bag} showing={modalShowing === 'bag'} dismissModal={() => toggleModal()} />
+              <BlankModal bag={bag} showing={modalShowing === 'blank'} dismissModal={handleSelectBlankLetter} />
             </>
             :
             user ?
@@ -758,6 +804,7 @@ export default function Home() {
               align-items: flex-start;
               padding-top: calc(var(--rack-height) / 1.5);
               height: 100%;
+
               &:before {
                 content: '';
                 position: absolute;
@@ -787,11 +834,12 @@ export default function Home() {
                 width: 95%;
                 display: grid;
                 grid-template-columns: 25% 1fr 25%;
+                grid-template-rows: 1fr 1fr;
                 align-items: center;
                 align-self: center;
                 margin-top: calc(var(--rack-height) / 1.25);
                 justify-content: center;
-                gap: 3%;
+                gap: 0 calc(var(--rack-height) / 4);
                 z-index: 1;
               }
             }
@@ -855,6 +903,7 @@ export default function Home() {
           --title-font-size: calc(var(--title-tile-size) / 1.5);
           --racked-tile-size: calc(var(--rack-width) / 7.5);
           --played-tile-size: calc(var(--board-size) / 16.5);
+          --bag-display-tile-size: calc(var(--played-tile-size) * 1.85);
           --rack-board-tile-ratio: 0.475;
           --racked-tile-gap-size: calc(var(--racked-tile-size) / 16);
           --grabbed-tile-scale: 1.4;
@@ -879,6 +928,12 @@ export default function Home() {
           color: var(--main-text-color);
           user-select: none;
         }
+
+        h1, h2, h3, h4 {
+          padding: 0;
+          margin: 0;
+        }
+
         a {
           text-decoration: none;
           color: #aa99aa;
@@ -899,6 +954,7 @@ export default function Home() {
           position: fixed;
           top: 0;
           right: 0;
+          min-width: 16rem;
           padding: 1rem;
           display: flex;
           flex-direction: column;
@@ -963,6 +1019,7 @@ export default function Home() {
             --board-size: calc((var(--actual-height) - var(--header-height)) - var(--main-padding));
             --title-tile-size: calc(var(--header-height) * 0.85);
             --title-font-size: calc(var(--title-tile-size) / 2);
+            --bag-display-tile-size: calc(var(--played-tile-size) * 1.5);
             --rack-height: calc(var(--board-size) / 12);
             --rack-width: calc(var(--rack-height) * 9);
             --rack-board-tile-ratio: 0.61;

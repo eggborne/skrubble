@@ -40,6 +40,8 @@ export default function Rack(props) {
                   selected={props.selectedTileId === tile.id}
                   rackSpaceId={`${props.owner}-rack-space-${t}`}
                   offset={tile.offset}
+                  blankPosition={tile.blankPosition}
+                  blank={tile.blank}
                   placed={tile.placed}
                   landed={tile.landed}
                   incongruent={tile.incongruent}

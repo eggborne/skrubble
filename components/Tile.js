@@ -10,8 +10,11 @@ export default function Tile(props) {
   }, [revealed]);
 
   const tileClass =
-    `tile ${props.owner} ${props.selected ? ' selected' : ''} ${props.title ? ' title' : ''} ${revealed ? ' revealed' : ''} ${props.placed ? ' placed' : ''} ${props.landed ? ' landed' : ''} ${props.incongruent ? ' incongruent' : ''} ${props.locked ? ' locked' : ''}`
-  ;
+    `tile ${props.owner} ${props.selected ? ' selected' : ''}${props.title ? ' title' : ''}${props.blank ? ' blank' : ''}${props.blankSelection ? ' blank-selection' : ''}${props.bag ? ' bag' : ''}${props.blank ? ' blank' : ''}${revealed ? ' revealed' : ''}${props.placed ? ' placed' : ''}${props.landed ? ' landed' : ''}${props.incongruent ? ' incongruent' : ''}${props.locked ? ' locked' : ''}`
+    ;
+  if (props.letter === 'blank') {
+    console.warn('is blank', props)
+  }
   const tileOffset = props.offset || { x: 0, y: 0 };
   return (
     <>
@@ -19,7 +22,7 @@ export default function Tile(props) {
         id={props.id}
         className={tileClass}
       >
-        <span className='letter'>{props.letter}</span>
+        <span className='letter'>{props.letter.toUpperCase() === 'BLANK' ? '' : props.letter}</span>
       </div>
       <style jsx>{`
         .tile {
@@ -75,6 +78,17 @@ export default function Tile(props) {
               transform: none;
               rotate: ${props.even ? '4deg' : '-4deg'};
             }
+          }
+
+          &.bag, &.blank-selection {
+            position: relative;
+            --current-size: var(--bag-display-tile-size);
+            pointer-events: none;
+          }
+
+          &.blank-selection {
+            border-radius: unset;
+            background-image: unset;
           }
 
           &.selected {
