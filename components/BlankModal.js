@@ -75,7 +75,6 @@ export default function BlankModal(props) {
             grid-template-columns: repeat(7, var(--bag-display-tile-size));
             padding: calc(var(--board-size) * 0.01);
             gap: calc(var(--board-size) * 0.015);
-             pointer-events: none;
 
             & > .blank-tile-cell {
               display: flex;
@@ -83,30 +82,12 @@ export default function BlankModal(props) {
               align-items: center;
               justify-content: center;
               cursor: pointer;
-              pointer-events: all;
               transition: all 100ms ease;
 
               &.selected {
                 box-sizing: border-box;
                 outline: calc(var(--bag-display-tile-size) * 0.08) solid green;
                 scale: 1.1;
-              }
-
-              &.depleted {
-                opacity: 0.25;
-              }
-
-              & > .tile-amount-label {
-                color: white;
-                width: min-content;
-                padding: 5% 15%;
-                font-size: calc(var(--bag-display-tile-size) * 0.35);
-                text-shadow: 
-                  1px 1px calc(var(--button-height) / 64) #000000,
-                  -1px 1px calc(var(--button-height) / 64) #000000,
-                  -1px -1px calc(var(--button-height) / 64) #000000,
-                  1px -1px calc(var(--button-height) / 64) #000000
-                ;
               }
             }
 

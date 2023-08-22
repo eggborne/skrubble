@@ -435,27 +435,6 @@ export default function Home() {
       tileObj.offset.x -= preTileDistance.x;
       tileObj.offset.y -= preTileDistance.y;
       tileObj.landed = true;
-
-      // const incongruentTiles = getIncongruentTileIndexes();
-      // const incongruent = incongruentTiles && incongruentTiles.filter(tile => tile.id === tileObj.id).length > 0;
-
-      // tileObj.incongruent = incongruent;
-
-      // const incongruentTileIndexes = getIncongruentTileIndexes();
-
-      // console.log('incongruentTileIndexes --------->', incongruentTileIndexes);
-      // if (incongruentTileIndexes) {
-      //   newPlayerRack.forEach((tile, t) => {
-      //     const incongruent = incongruentTileIndexes.includes(t);
-      //     console.log(tile.letter, 'incongruent', incongruent)
-      //     tile.incongruent = incongruent;
-      //   });
-      // } else {
-      //   newPlayerRack.forEach((tile, t) => {
-      //     tile.incongruent = false;
-      //   });
-      // }
-
       await pause(2);
       setPlayerRack(newPlayerRack);
       setLetterMatrix(newLetterMatrix);

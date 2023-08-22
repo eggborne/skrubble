@@ -72,7 +72,10 @@ export default function BagModal(props) {
             grid-template-columns: repeat(7, var(--bag-display-tile-size));
             padding: calc(var(--board-size) * 0.01);
             gap: calc(var(--board-size) * 0.01);
-            pointer-events: none;
+
+            & * {
+              cursor: unset;
+            }
 
             & > .bag-tile-cell {
               display: flex;
