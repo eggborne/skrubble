@@ -11,10 +11,7 @@ export default function Tile(props) {
 
   const tileClass =
     `tile ${props.owner} ${props.selected ? ' selected' : ''}${props.title ? ' title' : ''}${props.blank ? ' blank' : ''}${props.blankSelection ? ' blank-selection' : ''}${props.bag ? ' bag' : ''}${props.blank ? ' blank' : ''}${revealed ? ' revealed' : ''}${props.placed ? ' placed' : ''}${props.landed ? ' landed' : ''}${props.incongruent ? ' incongruent' : ''}${props.locked ? ' locked' : ''}`
-    ;
-  if (props.letter === 'blank') {
-    console.warn('is blank', props)
-  }
+  ;
   const tileOffset = props.offset || { x: 0, y: 0 };
   return (
     <>
@@ -145,7 +142,8 @@ export default function Tile(props) {
         }
 
         .tile:after {
-          content: '${props.value}';
+          // content: '${props.value}';
+          content: '${props.turnPlayed || 0}';
           position: absolute;
           bottom: 5%;
           right: 10%;

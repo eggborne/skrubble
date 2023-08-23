@@ -1,7 +1,6 @@
 import { useState } from "react";
 import Button from "./Button";
 import Tile from "./Tile";
-import { tileData } from "../scripts/scrabbledata";
 
 const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
 

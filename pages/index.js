@@ -7,7 +7,7 @@ import Header from '../components/Header';
 import Button from '../components/Button';
 import GameBoard from '../components/GameBoard';
 import Rack from '../components/Rack';
-import { emptyLetterMatrix, tileData } from '../scripts/scrabbledata';
+import { emptyLetterMatrix, fullBoard, tileData } from '../scripts/scrabbledata';
 import { pause, randomInt, shuffleArray } from '../scripts/util';
 import LoginModal from '../components/LoginModal';
 import UserIcon from '../components/UserIcon';
@@ -34,6 +34,7 @@ export default function Home() {
   const [loaded, setLoaded] = useState(false);
   const [user, setUser] = useState(null);
   const [opponent, setOpponent] = useState(defaultOpponent);
+  const [currentTurn, setCurrentTurn] = useState('user');
   const [gameStarted, setGameStarted] = useState(false);
   const [submitReady, setSubmitReady] = useState(false);
   const [bag, setBag] = useState([]);
@@ -46,6 +47,9 @@ export default function Home() {
   const [dragStartPosition, setDragStartPosition] = useState(null);
   const [modalShowing, setModalShowing] = useState(undefined);
   const [editingBlank, setEditingBlank] = useState(undefined);
+  const [wordsOnBoard, setWordsOnBoard] = useState({ horizontal: [], vertical: [] });
+  const [previousWordList, setPreviousWordList] = useState({ horizontal: [], vertical: [] });
+  const [turnHistory, setTurnHistory] = useState([]);
 
   function signInAsGuest() {
     signInAnonymously(getAuth())
@@ -141,7 +145,8 @@ export default function Home() {
       const drawnTile = nextBag.splice(randomInt(0, nextBag.length - 1), 1)[0];
       drawnTile.rackIndex = i;
       drawnTile.owner = owner;
-      console.log('drawn tile', drawnTile)
+      drawnTile.turnPlayed = 0;
+      console.log('drawn tile', drawnTile);
       if (drawnTile.letter === 'BLANK') {
         drawnTile.blank = true;
       }
@@ -199,24 +204,34 @@ export default function Home() {
   }, [loaded]);
 
   useEffect(() => {
-    const tilesNeighbored = allTilesNeighbored();
-    let ready = tilesNeighbored;
-    const placed = letterMatrix.flat().filter(space => space.contents && space.contents.placed);
-    const touchingLocked = placedTilesTouchingLocked(placed.filter(space => !space.contents.locked));
-    const tilesInLine = placedTilesAreAligned(placed.filter(space => !space.contents.locked));
-    const centerTileFilled = placed.filter(space => space.contents.placed.x === 7 && space.contents.placed.y === 7)[0];
-    const firstWordNotOnStart = (lockedTiles.length === 0 && !centerTileFilled);
+    if ([...playerRack].filter(tile => tile.placed)) {
+      const tilesNeighbored = allTilesNeighbored();
+      let ready = tilesNeighbored;
+      const placed = letterMatrix.flat().filter(space => space.contents && space.contents.placed);
+      const touchingLocked = placedTilesTouchingLocked(placed.filter(space => !space.contents.locked));
+      const tilesInLine = placedTilesAreAligned(placed.filter(space => !space.contents.locked));
+      const centerTileFilled = placed.filter(space => space.contents.placed.x === 7 && space.contents.placed.y === 7)[0];
+      const firstWordNotOnStart = (lockedTiles.length === 0 && !centerTileFilled);
 
-    if ((!tilesInLine || (tilesInLine && !tilesNeighbored)) || firstWordNotOnStart || (!touchingLocked && lockedTiles.length > 0)) {
-      ready = false;
+      if ((!tilesInLine || (tilesInLine && !tilesNeighbored)) || firstWordNotOnStart || (!touchingLocked && lockedTiles.length > 0)) {
+        ready = false;
+      }
+
+      document.getElementById('in-line-display').innerHTML = tilesInLine;
+      document.getElementById('touching-locked-display').innerHTML = touchingLocked || (lockedTiles.length === 0 && centerTileFilled) ? 'true' : 'false';
+      document.getElementById('submit-ready-display').innerHTML = ready;
+
+      getWordsFromBoard();
+
+      setSubmitReady(ready);
     }
 
-    document.getElementById('in-line-display').innerHTML = tilesInLine;
-    document.getElementById('touching-locked-display').innerHTML = touchingLocked || (lockedTiles.length === 0 && centerTileFilled) ? 'true' : 'false';
-    document.getElementById('contiguous-display').innerHTML = ready;
-
-    setSubmitReady(ready);
   }, [letterMatrix]);
+
+  useEffect(() => {
+    console.error('setting prev word list!');
+    setPreviousWordList(wordsOnBoard);
+  }, [currentTurn]);
 
   async function startGame() {
     setGameStarted(true);
@@ -270,11 +285,17 @@ export default function Home() {
     const placedTiles = newPlayerRack.filter(tile => tile.placed);
     placedTiles.map(tile => {
       tile.locked = true;
+      tile.turnPlayed = turnHistory.length;
     });
     newPlayerRack = newPlayerRack.filter(tile => !tile.locked);
     const newLetters = getRandomLetters([...bag], 7 - newPlayerRack.length, 'user');
     const newFullRack = [...newPlayerRack, ...newLetters];
     setPlayerRack(newFullRack);
+    const newTurn = currentTurn === 'user' ? 'opponent' : 'user';
+    const newTurnData = [...turnHistory, [...placedTiles]];
+    console.log('newTurnData', newTurnData);
+    setTurnHistory(newTurnData);
+    setCurrentTurn(newTurn);
   }
 
   function cursorOverBoard(touchX, touchY) {
@@ -571,13 +592,158 @@ export default function Home() {
   }
 
   function handleSelectBlankLetter(selectedLetter) {
-    console.log('you selected', selectedLetter);
     const newPlayerRack = [...playerRack];
     const blankTileObj = newPlayerRack.filter(tile => tile.id === editingBlank)[0];
     blankTileObj.letter = selectedLetter;
+    newPlayerRack[newPlayerRack.indexOf(blankTileObj)] = blankTileObj;
     setPlayerRack(newPlayerRack);
+    setLetterMatrix([...letterMatrix]);
     setEditingBlank(undefined);
     dismissModal();
+  }
+
+  function getRowsFromColumns(matrix) {
+    const newMatrix = [];
+    matrix.forEach((row, r) => {
+      row.forEach((item, i) => {
+        if (!newMatrix[i]) {
+          newMatrix[i] = [];
+        }
+        newMatrix[i][r] = item;
+      });
+    });
+    return newMatrix;
+  }
+
+  function extractWordsFromRow(row, rowIndex, rotate) {
+    const words = [];
+    let lastWordStartIndex = undefined;
+    row.forEach((space, s) => {
+      if (space.contents) {
+        if (!lastWordStartIndex) {
+          lastWordStartIndex = s;
+        }
+      } else {
+        if (lastWordStartIndex) {
+          const extractedWord = row.slice(lastWordStartIndex, s).map(tile => tile.contents.letter);
+          if (extractedWord.length > 1) {
+            const wordSpaceArray = [];
+            const specialSpaces = [];
+            const lockedData = [];
+            let wordId = [];
+            const scannedWords = rotate ? getRowsFromColumns([...letterMatrix]) : [...letterMatrix];
+            for (let i = 0; i < extractedWord.length; i++) {
+              const currentTileObj = scannedWords[rowIndex][lastWordStartIndex + i];
+              const currentSpaceSpecial = fullBoard[rowIndex][lastWordStartIndex + i][0];
+              let newTileObj = {...currentTileObj };
+              newTileObj = {
+                ...newTileObj,
+                specialSpace: !newTileObj.locked && currentSpaceSpecial,
+              };
+              console.warn('newTileObj', newTileObj);
+              wordSpaceArray.push(newTileObj);
+              wordId.push(currentTileObj.contents.id);
+              lockedData[i] = currentTileObj.contents.locked;
+              specialSpaces[i] = currentSpaceSpecial;
+            }
+            wordId = wordId.join('+');
+            console.warn('extracting word', extractedWord);
+            console.warn('lockedData', lockedData);
+            console.warn('specialSpaces', specialSpaces);
+            
+            const wordObj = {
+              word: extractedWord.join(''),
+              wordId: wordId,
+              specialSpaces: specialSpaces,
+              lockedData: lockedData,
+              spaces: wordSpaceArray,
+              startingSpace: {
+                row: rowIndex,
+                column: lastWordStartIndex,
+              },
+              endingSpace: {
+                row: rowIndex,
+                column: lastWordStartIndex + extractedWord.length - 1,
+              },
+            };
+            words.push(wordObj);
+          }
+          lastWordStartIndex = undefined;
+        }
+      }
+    });
+    const result = words.length ? words : undefined;
+    if (!result) {
+      console.warn('no words found');
+    }
+    return result;
+  }
+
+  function getArrayFromColumn(columnIndex, arr) {
+    const columnArray = [];
+    const totalRows = arr.length;
+    for (let i = 0; i < totalRows; i++) {
+      columnArray[i] = arr[i][columnIndex];
+    }
+    return columnArray;
+  }
+
+  function getWordsFromBoard() {
+    const matrixCopy = [...letterMatrix];
+    // const turnedMatrixCopy = getRowsFromColumns(matrixCopy);
+    const horizontalWords = [];
+    const verticalWords = [];
+    matrixCopy.forEach((row, r) => {
+      const rowWords = extractWordsFromRow(row, r);
+      if (rowWords) {
+        console.log('pushing rowWords', rowWords);
+        horizontalWords.push(...rowWords);
+      }
+      const columnArray = getArrayFromColumn(r, matrixCopy);
+      console.log('colarr', columnArray)
+      const columnWords = extractWordsFromRow(columnArray, r, true);
+      if (columnWords) {
+        console.log('pushing columnWords', columnWords);
+        verticalWords.push(...columnWords);
+      }
+    });
+    console.log('horizontal words:');
+    console.table(horizontalWords);
+    // turnedMatrixCopy.forEach((row, r) => {
+    //   const rowWords = extractWordsFromRow(row, r);
+    //   if (rowWords) {
+    //     verticalWords.push(...rowWords);
+    //   }
+    // });
+    console.log('vertical words:');
+    console.table(verticalWords);
+
+    const newWordList = {
+      horizontal: horizontalWords,
+      vertical: verticalWords,
+    };
+
+    setWordsOnBoard(newWordList);
+  }
+
+  function getNewWords() {
+    if (wordsOnBoard.horizontal.length) {
+      const boardWordsCopy = { ...wordsOnBoard };
+      const currentWordIdArray = boardWordsCopy.horizontal.map(wordObj => wordObj.wordId);
+      const previousWordIdArray = {...previousWordList}.horizontal.map(wordObj => wordObj.wordId);
+      const newHorizontal = boardWordsCopy.horizontal.length ? boardWordsCopy.horizontal.filter((wordObj, w) =>
+        !previousWordIdArray.includes(wordObj.wordId)
+      ) : [];
+      console.warn('newHorizontal', newHorizontal);
+      const newVertical = boardWordsCopy.vertical.length ? boardWordsCopy.vertical.filter(word => !previousWordList.vertical.includes(word)) : [];
+      const newWords = [...newHorizontal.map(wordObj => wordObj.word), ...newVertical.map(wordObj => wordObj.word)];
+      return newWords;
+    }
+    return [];
+  }
+
+  function scoreWord() {
+
   }
 
   function handleSignOut() {
@@ -590,6 +756,11 @@ export default function Home() {
 
   const placedTiles = [...playerRack].filter(tile => tile.placed);
   const lockedTiles = [...letterMatrix].flat().filter(space => space.contents && space.contents.locked);
+
+  const horizontalWordList = Object.values(wordsOnBoard.horizontal).map(wordObj => wordObj.word);
+  const verticalWordList = Object.values(wordsOnBoard.vertical).map(wordObj => wordObj.word);
+
+  const newWords = getNewWords();
 
   return (
     <div>
@@ -627,7 +798,20 @@ export default function Home() {
         </div>
         <div className={'debug-row'}>
           <div style={{ fontWeight: 'bold' }} >Submit ready:</div>
-          <div style={{ fontWeight: 'bold' }} id='contiguous-display'></div>
+          <div style={{ fontWeight: 'bold' }} id='submit-ready-display'></div>
+        </div>
+        <p>&nbsp;</p>
+        <div className={'debug-row'}>
+          <div>Horiz. words:</div>
+          <div>{horizontalWordList.join(' ')}</div>
+        </div>
+        <div className={'debug-row'}>
+          <div>Vert. words:</div>
+          <div>{verticalWordList.join(' ')}</div>
+        </div>
+        <div className={'debug-row'}>
+          <div style={{ fontWeight: 'bold' }} >New words:</div>
+          <div style={{ fontWeight: 'bold' }} >{newWords.join(' ')}</div>
         </div>
       </div>
       <Head>
@@ -658,11 +842,11 @@ export default function Home() {
           {gameStarted ?
             <>
               <div className='turn-display-area'>
-                <div className='player-turn-area user current-turn'>
+                <div className={`player-turn-area user${currentTurn === 'user' ? ' current-turn' : ''}`}>
                   <UserIcon user={user} size='large' />
                   <div className='player-score'>0</div>
                 </div>
-                <div className='player-turn-area opponent'>
+                <div className={`player-turn-area opponent${currentTurn === 'opponent' ? ' current-turn' : ''}`}>
                   <UserIcon user={opponent} size='large' />
                   <div className='player-score'>0</div>
                 </div>

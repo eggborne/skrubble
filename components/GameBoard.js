@@ -23,10 +23,10 @@ export default function GameBoard(props) {
           row.map((space, s) => {
             const spaceContents = props.letterMatrix[r][s].contents;
             return <Space
-              key={`${(r+1)}-${(s+1)}`}
+              key={`${(r + 1)}-${(s + 1)}`}
               id={`${(r + 1)}-${(s + 1)}`}
               locked={spaceContents && spaceContents.locked}
-              targeted={props.targetedSpaceId === `${(r+1)}-${(s+1)}`}
+              targeted={props.targetedSpaceId === `${(r + 1)}-${(s + 1)}`}
               spaceData={space}
               backgroundColor={space.length ? specialSpaceData[space[0]].color : 'var(--board-color)'}
               label={
@@ -34,32 +34,34 @@ export default function GameBoard(props) {
                   <div className='star'></div>
                   :
                   space.length ?
-                  specialSpaceData[space[0]].legend
-                  :
-                  ''
+                    specialSpaceData[space[0]].legend
+                    :
+                    ''
               }
               contents={
                 spaceContents ?
                   spaceContents.locked ?
-                  <Tile
-                    owner={spaceContents.owner}
-                    letter={spaceContents.letter}
-                    value={spaceContents.value}
-                    key={spaceContents.id}
-                    id={spaceContents.id}
-                    offset={{x: 0, y: 0}}
-                    placed={spaceContents.placed}
-                    landed={spaceContents.landed}
-                    locked={spaceContents.locked}
-                    rackIndex={spaceContents.rackIndex}
-                    bgPosition={spaceContents.bgPosition}
-                  />
-                  :
+                    <Tile
+                      owner={spaceContents.owner}
+                      letter={spaceContents.letter}
+                      value={spaceContents.value}
+                      key={spaceContents.id}
+                      id={spaceContents.id}
+                      offset={{ x: 0, y: 0 }}
+                      placed={spaceContents.placed}
+                      landed={spaceContents.landed}
+                      locked={spaceContents.locked}
+                      turnPlayed={spaceContents.turnPlayed}
+                      rackIndex={spaceContents.rackIndex}
+                      bgPosition={spaceContents.bgPosition}
+                    />
+                    :
                     spaceContents.letter
                   :
                   ''
               }
-            />}
+            />;
+          }
           )
         )}
       </div>

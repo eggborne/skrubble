@@ -37,6 +37,7 @@ export default function Rack(props) {
                   value={tile.value}
                   key={tile.id}
                   id={tile.id}
+                  turnPlayed={tile.turnPlayed}
                   selected={props.selectedTileId === tile.id}
                   rackSpaceId={`${props.owner}-rack-space-${t}`}
                   offset={tile.offset}
