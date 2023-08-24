@@ -1,34 +1,34 @@
 export default function Space(props) {
   return (
     <div className={`space dropzone${props.targeted ? ' targeted' : ''}${props.onRack ? ' on-rack' : ''}${props.vacant ? ' vacant' : ''}${props.locked ? ' locked' : ''}`} id={props.id}>
-        {props.spaceData.length > 0 &&
-          <>
-            <div className='caret-trio top'>
-              <div className='space-caret'></div>
-              <div className='space-caret'></div>
-              <div className='space-caret'></div>
-            </div>
-            <div className='caret-trio bottom'>
-              <div className='space-caret'></div>
-              <div className='space-caret'></div>
-              <div className='space-caret'></div>
-            </div>
-            <div className='caret-trio left'>
-              <div className='space-caret'></div>
-              <div className='space-caret'></div>
-              <div className='space-caret'></div>
-            </div>
-            <div className='caret-trio right'>
-              <div className='space-caret'></div>
-              <div className='space-caret'></div>
-              <div className='space-caret'></div>
-            </div>
-          </>
-        }
-        <div className='special-label'>{props.label}</div>
-        <div className='contents'>
-          {props.contents}
-        </div>
+      {props.spaceData.length > 0 &&
+        <>
+          <div className='caret-trio top'>
+            <div className='space-caret'></div>
+            <div className='space-caret'></div>
+            <div className='space-caret'></div>
+          </div>
+          <div className='caret-trio bottom'>
+            <div className='space-caret'></div>
+            <div className='space-caret'></div>
+            <div className='space-caret'></div>
+          </div>
+          <div className='caret-trio left'>
+            <div className='space-caret'></div>
+            <div className='space-caret'></div>
+            <div className='space-caret'></div>
+          </div>
+          <div className='caret-trio right'>
+            <div className='space-caret'></div>
+            <div className='space-caret'></div>
+            <div className='space-caret'></div>
+          </div>
+        </>
+      }
+      <div className='special-label'>{props.label}</div>
+      <div className='contents'>
+        {props.contents}
+      </div>
       <style jsx>{`
         .space {
           --caret-size: calc(var(--board-size) / 100);

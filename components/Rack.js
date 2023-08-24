@@ -19,7 +19,7 @@ export default function Rack(props) {
   return (
     <div className={`rack ${props.owner}`} id={`${props.owner}-rack`}>
       <div className='tile-container'>
-        {props.tiles.map((tile, t) => {
+        {props.tiles.map((tile, t, arr) => {
           return (
             <Space
               key={`${props.owner}-rack-space-${t}`}
@@ -50,6 +50,9 @@ export default function Rack(props) {
                   rackIndex={tile.rackIndex}
                   bgPosition={tile.bgPosition}
                   homeSpaceCoords={homeSpaceCoords[t]}
+                  // displayingWordScore={props.wordScoreTileId === tile.id}
+                  // pendingTurnScore={props.pendingTurnScore}
+                  // submitReady={props.submitReady}
                 />
               }
             >

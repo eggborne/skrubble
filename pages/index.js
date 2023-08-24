@@ -15,6 +15,7 @@ import VersusScreen from '../components/VersusScreen';
 import { v4 } from 'uuid';
 import BagModal from '../components/BagModal';
 import BlankModal from '../components/BlankModal';
+import WordScoreDisplay from '../components/WordScoreDisplay';
 
 const IS_MOBILE = isMobile();
 let LANDSCAPE;
@@ -33,8 +34,12 @@ const guestUser = {
 export default function Home() {
   const [loaded, setLoaded] = useState(false);
   const [user, setUser] = useState(null);
+  const [userScore, setUserScore] = useState(0);
+  const [opponentScore, setOpponentScore] = useState(0);
   const [opponent, setOpponent] = useState(defaultOpponent);
   const [currentTurn, setCurrentTurn] = useState('user');
+  const [pendingTurnScore, setPendingTurnScore] = useState(0);
+  const [wordScoreTileId, setWordScoreTileId] = useState(undefined);
   const [gameStarted, setGameStarted] = useState(false);
   const [submitReady, setSubmitReady] = useState(false);
   const [bag, setBag] = useState([]);
@@ -49,6 +54,7 @@ export default function Home() {
   const [editingBlank, setEditingBlank] = useState(undefined);
   const [wordsOnBoard, setWordsOnBoard] = useState({ horizontal: [], vertical: [] });
   const [previousWordList, setPreviousWordList] = useState({ horizontal: [], vertical: [] });
+  const [newWords, setNewWords] = useState([]);
   const [turnHistory, setTurnHistory] = useState([]);
 
   function signInAsGuest() {
@@ -221,7 +227,10 @@ export default function Home() {
       document.getElementById('touching-locked-display').innerHTML = touchingLocked || (lockedTiles.length === 0 && centerTileFilled) ? 'true' : 'false';
       document.getElementById('submit-ready-display').innerHTML = ready;
 
+
       getWordsFromBoard();
+      // const newlyPlacedWords = getNewWords();
+      // setNewWords(newlyPlacedWords);
 
       setSubmitReady(ready);
     }
@@ -243,6 +252,16 @@ export default function Home() {
     await pause(800);
     setOpponentRack(opponentOpeningLetters);
   }
+
+  useEffect(() => {
+    if (!selectedTileId) {
+      let totalNewPoints = 0;
+      newWords.forEach(wordObj => {
+        totalNewPoints += scoreWord(wordObj);
+      });
+      setPendingTurnScore(totalNewPoints);
+    }
+  }, [newWords]);
 
   // function hasOccupiedNeighbor(space) {
   //   const flatOccupiedSpaceArray = [...letterMatrix].flat().filter(val => val.contents);
@@ -294,6 +313,9 @@ export default function Home() {
     const newTurn = currentTurn === 'user' ? 'opponent' : 'user';
     const newTurnData = [...turnHistory, [...placedTiles]];
     console.log('newTurnData', newTurnData);
+    setUserScore(userScore + pendingTurnScore);
+    setPendingTurnScore(0);
+    setNewWords([]);
     setTurnHistory(newTurnData);
     setCurrentTurn(newTurn);
   }
@@ -346,6 +368,10 @@ export default function Home() {
 
         if (tileElement.classList.contains('placed')) {
           unplaceTile(rackedTileObject);
+          if (placedTiles.length === 1) {
+            setWordScoreTileId(undefined);
+            setPendingTurnScore(0);
+          }
           const newTargetedSpaceId = findTargetedBoardSpaceId(touchX, touchY);
           if (newTargetedSpaceId) {
             setTargetedSpaceId(newTargetedSpaceId);
@@ -412,6 +438,7 @@ export default function Home() {
       } else {
         if (targetedSpaceId) {
           placeTile(rackedTileObject);
+          // setWordScoreTileId(selectedTileId);
         }
       }
       if (!targetedSpaceId) {
@@ -430,12 +457,9 @@ export default function Home() {
       x: targetedSpaceId.split('-')[0] - 1,
       y: targetedSpaceId.split('-')[1] - 1,
     };
-    console.log('placing at', tileObj.placed);
     const newPlayerRack = [...playerRack];
     const tileElement = document.getElementById(tileObj.id);
     const newLetterMatrix = [...letterMatrix];
-    // const matrixX = parseInt(targetedSpaceId.split('-')[0]) - 1;
-    // const matrixY = parseInt(targetedSpaceId.split('-')[1]) - 1;
     const matrixX = tileObj.placed.x;
     const matrixY = tileObj.placed.y;
     newLetterMatrix[matrixX][matrixY].contents = tileObj;
@@ -515,6 +539,7 @@ export default function Home() {
     }
     newLetterMatrix[matrixX][matrixY].contents = null;
     setLetterMatrix(newLetterMatrix);
+    // setWordScoreTileId(undefined);
   }
 
   function getTileDistanceFromSpace(tileRect, spacePosition) {
@@ -630,15 +655,26 @@ export default function Home() {
             const wordSpaceArray = [];
             const specialSpaces = [];
             const lockedData = [];
+            let wordScoreMultiplier = 1;
             let wordId = [];
-            const scannedWords = rotate ? getRowsFromColumns([...letterMatrix]) : [...letterMatrix];
             for (let i = 0; i < extractedWord.length; i++) {
-              const currentTileObj = scannedWords[rowIndex][lastWordStartIndex + i];
-              const currentSpaceSpecial = fullBoard[rowIndex][lastWordStartIndex + i][0];
-              let newTileObj = {...currentTileObj };
+              let currentTileObj, currentSpaceSpecial;
+              if (rotate) {
+                currentTileObj = getRowsFromColumns([...letterMatrix])[rowIndex][lastWordStartIndex + i];
+                currentSpaceSpecial = fullBoard[rowIndex][lastWordStartIndex + i][0];
+              } else {
+                currentTileObj = [...letterMatrix][rowIndex][lastWordStartIndex + i];
+                currentSpaceSpecial = fullBoard[rowIndex][lastWordStartIndex + i][0];
+              }
+              let newTileObj = { ...currentTileObj };
+              if (newTileObj.contents.locked) {
+                currentSpaceSpecial = undefined;
+              }
+              if (currentSpaceSpecial === 'dw') { wordScoreMultiplier >= 2 ? wordScoreMultiplier += 2 : wordScoreMultiplier = 2; }
+              if (currentSpaceSpecial === 'tw') { wordScoreMultiplier >= 3 ? wordScoreMultiplier += 3 : wordScoreMultiplier = 3; }
               newTileObj = {
                 ...newTileObj,
-                specialSpace: !newTileObj.locked && currentSpaceSpecial,
+                specialSpace: currentSpaceSpecial,
               };
               console.warn('newTileObj', newTileObj);
               wordSpaceArray.push(newTileObj);
@@ -647,16 +683,15 @@ export default function Home() {
               specialSpaces[i] = currentSpaceSpecial;
             }
             wordId = wordId.join('+');
-            console.warn('extracting word', extractedWord);
-            console.warn('lockedData', lockedData);
-            console.warn('specialSpaces', specialSpaces);
-            
+            console.warn('extracting word', extractedWord, 'word mult', wordScoreMultiplier);
+
             const wordObj = {
               word: extractedWord.join(''),
               wordId: wordId,
               specialSpaces: specialSpaces,
               lockedData: lockedData,
               spaces: wordSpaceArray,
+              wordScoreMultiplier: wordScoreMultiplier,
               startingSpace: {
                 row: rowIndex,
                 column: lastWordStartIndex,
@@ -700,7 +735,7 @@ export default function Home() {
         horizontalWords.push(...rowWords);
       }
       const columnArray = getArrayFromColumn(r, matrixCopy);
-      console.log('colarr', columnArray)
+      console.log('colarr', columnArray);
       const columnWords = extractWordsFromRow(columnArray, r, true);
       if (columnWords) {
         console.log('pushing columnWords', columnWords);
@@ -709,12 +744,6 @@ export default function Home() {
     });
     console.log('horizontal words:');
     console.table(horizontalWords);
-    // turnedMatrixCopy.forEach((row, r) => {
-    //   const rowWords = extractWordsFromRow(row, r);
-    //   if (rowWords) {
-    //     verticalWords.push(...rowWords);
-    //   }
-    // });
     console.log('vertical words:');
     console.table(verticalWords);
 
@@ -722,28 +751,68 @@ export default function Home() {
       horizontal: horizontalWords,
       vertical: verticalWords,
     };
-
     setWordsOnBoard(newWordList);
+    const nextNewWords = getNewWords(newWordList);
+    setNewWords(nextNewWords);
+    const newWordScoreTile = getWordScoreTile(nextNewWords);
+    if (newWordScoreTile) {
+      setWordScoreTileId(newWordScoreTile.contents.id);
+    }
   }
 
-  function getNewWords() {
-    if (wordsOnBoard.horizontal.length) {
-      const boardWordsCopy = { ...wordsOnBoard };
-      const currentWordIdArray = boardWordsCopy.horizontal.map(wordObj => wordObj.wordId);
-      const previousWordIdArray = {...previousWordList}.horizontal.map(wordObj => wordObj.wordId);
+  function getNewWords(wordList) {
+    if (wordList.horizontal.length) {
+      const boardWordsCopy = { ...wordList };
+      const previousHorizontalWordIdArray = { ...previousWordList }.horizontal.map(wordObj => wordObj.wordId);
       const newHorizontal = boardWordsCopy.horizontal.length ? boardWordsCopy.horizontal.filter((wordObj, w) =>
-        !previousWordIdArray.includes(wordObj.wordId)
+        !previousHorizontalWordIdArray.includes(wordObj.wordId)
+      ) : [];
+      const previousVerticalWordIdArray = { ...previousWordList }.vertical.map(wordObj => wordObj.wordId);
+      const newVertical = boardWordsCopy.vertical.length ? boardWordsCopy.vertical.filter((wordObj, w) =>
+        !previousVerticalWordIdArray.includes(wordObj.wordId)
       ) : [];
       console.warn('newHorizontal', newHorizontal);
-      const newVertical = boardWordsCopy.vertical.length ? boardWordsCopy.vertical.filter(word => !previousWordList.vertical.includes(word)) : [];
-      const newWords = [...newHorizontal.map(wordObj => wordObj.word), ...newVertical.map(wordObj => wordObj.word)];
+      console.warn('newVertical', newVertical);
+      const newWords = [...newHorizontal, ...newVertical];
+      console.log('newWords', newWords);
       return newWords;
     }
     return [];
   }
 
-  function scoreWord() {
+  function getWordScoreTile(wordSpaceArr) {
+    let furthestRightLowerSpace;
+    let highestCoordTotal = 0;
+    wordSpaceArr.forEach(wordObj => {
+      const lastLetterSpace = wordObj.spaces[wordObj.spaces.length - 1];
+      const totalCoords = lastLetterSpace.coords.x + lastLetterSpace.coords.y;
+      if (totalCoords > highestCoordTotal) {
+        highestCoordTotal = totalCoords;
+        furthestRightLowerSpace = lastLetterSpace;
+      }
+    });
+    return furthestRightLowerSpace;
+  }
 
+  function scoreWord(wordObj) {
+    const multipliers = {
+      'dl': 2,
+      'tl': 3,
+      'dw': 1,
+      'tw': 1,
+    };
+    console.warn('scoring word', wordObj.word);
+    let score = 0;
+    wordObj.spaces.forEach(spaceObj => {
+      let multiplier = spaceObj.specialSpace ? multipliers[spaceObj.specialSpace] : 1;
+      const tileScore = spaceObj.contents.value * multiplier;
+      console.log('score for letter', spaceObj.contents.letter, tileScore, ' -- ', spaceObj.contents.value, 'times', multiplier);
+      score += tileScore;
+    });
+    const subTotal = score;
+    const finalScore = score *= wordObj.wordScoreMultiplier;
+    console.warn('score for word', wordObj.word, finalScore, ' -- ', subTotal, 'times', wordObj.wordScoreMultiplier);
+    return finalScore;
   }
 
   function handleSignOut() {
@@ -760,7 +829,7 @@ export default function Home() {
   const horizontalWordList = Object.values(wordsOnBoard.horizontal).map(wordObj => wordObj.word);
   const verticalWordList = Object.values(wordsOnBoard.vertical).map(wordObj => wordObj.word);
 
-  const newWords = getNewWords();
+  const newWordList = newWords.map(wordObj => `${wordObj.word} (${scoreWord(wordObj)})`);
 
   return (
     <div>
@@ -811,7 +880,12 @@ export default function Home() {
         </div>
         <div className={'debug-row'}>
           <div style={{ fontWeight: 'bold' }} >New words:</div>
-          <div style={{ fontWeight: 'bold' }} >{newWords.join(' ')}</div>
+          <div style={{ fontWeight: 'bold' }} >{newWordList.join(' ')}</div>
+        </div>
+        <p>&nbsp;</p>
+        <div className={'debug-row'}>
+          <div>Pending score:</div>
+          <div>{pendingTurnScore}</div>
         </div>
       </div>
       <Head>
@@ -844,11 +918,11 @@ export default function Home() {
               <div className='turn-display-area'>
                 <div className={`player-turn-area user${currentTurn === 'user' ? ' current-turn' : ''}`}>
                   <UserIcon user={user} size='large' />
-                  <div className='player-score'>0</div>
+                  <div className='player-score'>{userScore}</div>
                 </div>
                 <div className={`player-turn-area opponent${currentTurn === 'opponent' ? ' current-turn' : ''}`}>
                   <UserIcon user={opponent} size='large' />
-                  <div className='player-score'>0</div>
+                  <div className='player-score'>{opponentScore}</div>
                 </div>
               </div>
 
@@ -865,6 +939,12 @@ export default function Home() {
                 letterMatrix={letterMatrix}
                 targetedSpaceId={targetedSpaceId}
               />
+              {/* {(submitReady && !selectedTileId) ? <WordScoreDisplay */}
+              {true ? <WordScoreDisplay
+                pendingTurnScore={pendingTurnScore}
+                targetTileObj={[...playerRack].filter(tile => tile.id === wordScoreTileId)[0]}
+                submitReady={submitReady}
+              /> : null}
 
               <div className='player-area user'>
                 <div className='rack-area'>
@@ -1118,6 +1198,7 @@ export default function Home() {
           top: 0;
           right: 0;
           min-width: 16rem;
+          max-width: 16rem;
           padding: 1rem;
           display: flex;
           flex-direction: column;

@@ -20,6 +20,7 @@ export default function Tile(props) {
         className={tileClass}
       >
         <span className='letter'>{props.letter.toUpperCase() === 'BLANK' ? '' : props.letter}</span>
+        {/* {props.displayingWordScore && props.pendingTurnScore > 0 && <div className='word-score-display'>{props.pendingTurnScore}</div>} */}
       </div>
       <style jsx>{`
         .tile {
@@ -142,8 +143,7 @@ export default function Tile(props) {
         }
 
         .tile:after {
-          // content: '${props.value}';
-          content: '${props.turnPlayed || 0}';
+          content: '${props.value}';
           position: absolute;
           bottom: 5%;
           right: 10%;
@@ -156,6 +156,22 @@ export default function Tile(props) {
 
         // .tile.opponent > .letter, .tile.opponent:after {
         //   opacity: 0;
+        // }
+
+        // .tile > .word-score-display {
+        //   position: absolute;
+        //   display: flex;
+        //   align-items: center;
+        //   justify-content: center;
+        //   font-size: calc(var(--played-tile-size) / 2);
+        //   bottom: -35%;
+        //   right: -25%;
+        //   border-radius: 50%;
+        //   color: white;
+        //   background-color: green;
+        //   width: calc(var(--played-tile-size));
+        //   height: calc(var(--played-tile-size));
+        //   z-index: 6;
         // }
       `}</style>
     </>
