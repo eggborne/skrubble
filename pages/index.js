@@ -210,30 +210,30 @@ export default function Home() {
   }, [loaded]);
 
   useEffect(() => {
-    if ([...playerRack].filter(tile => tile.placed)) {
-      const tilesNeighbored = allTilesNeighbored();
-      let ready = tilesNeighbored;
-      const placed = letterMatrix.flat().filter(space => space.contents && space.contents.placed);
-      const touchingLocked = placedTilesTouchingLocked(placed.filter(space => !space.contents.locked));
-      const tilesInLine = placedTilesAreAligned(placed.filter(space => !space.contents.locked));
-      const centerTileFilled = placed.filter(space => space.contents.placed.x === 7 && space.contents.placed.y === 7)[0];
-      const firstWordNotOnStart = (lockedTiles.length === 0 && !centerTileFilled);
+    // if ([...playerRack].filter(tile => tile.placed)) {
+    console.log('================================================================================================ LETTERMATRIX USEEFFECT');
+    const tilesNeighbored = allTilesNeighbored();
+    let ready = tilesNeighbored;
+    const placed = letterMatrix.flat().filter(space => space.contents && space.contents.placed);
+    const touchingLocked = placedTilesTouchingLocked(placed.filter(space => !space.contents.locked));
+    const tilesInLine = placedTilesAreAligned(placed.filter(space => !space.contents.locked));
+    const centerTileFilled = placed.filter(space => space.contents.placed.x === 7 && space.contents.placed.y === 7)[0];
+    const firstWordNotOnStart = (lockedTiles.length === 0 && !centerTileFilled);
 
-      if ((!tilesInLine || (tilesInLine && !tilesNeighbored)) || firstWordNotOnStart || (!touchingLocked && lockedTiles.length > 0)) {
-        ready = false;
-      }
-
-      document.getElementById('in-line-display').innerHTML = tilesInLine;
-      document.getElementById('touching-locked-display').innerHTML = touchingLocked || (lockedTiles.length === 0 && centerTileFilled) ? 'true' : 'false';
-      document.getElementById('submit-ready-display').innerHTML = ready;
-
-
-      getWordsFromBoard();
-      // const newlyPlacedWords = getNewWords();
-      // setNewWords(newlyPlacedWords);
-
-      setSubmitReady(ready);
+    if ((!tilesInLine || (tilesInLine && !tilesNeighbored)) || firstWordNotOnStart || (!touchingLocked && lockedTiles.length > 0)) {
+      ready = false;
     }
+
+    document.getElementById('in-line-display').innerHTML = tilesInLine;
+    document.getElementById('touching-locked-display').innerHTML = touchingLocked || (lockedTiles.length === 0 && centerTileFilled) ? 'true' : 'false';
+    document.getElementById('submit-ready-display').innerHTML = ready;
+
+
+    getWordsFromBoard();
+    // const newlyPlacedWords = getNewWords();
+    // setNewWords(newlyPlacedWords);
+    setSubmitReady(ready);
+    // }
 
   }, [letterMatrix]);
 
@@ -254,13 +254,13 @@ export default function Home() {
   }
 
   useEffect(() => {
-    if (!selectedTileId) {
+    // if (!selectedTileId) {
       let totalNewPoints = 0;
       newWords.forEach(wordObj => {
         totalNewPoints += scoreWord(wordObj);
       });
       setPendingTurnScore(totalNewPoints);
-    }
+    // }
   }, [newWords]);
 
   // function hasOccupiedNeighbor(space) {
@@ -725,6 +725,7 @@ export default function Home() {
 
   function getWordsFromBoard() {
     const matrixCopy = [...letterMatrix];
+    console.log('================================================================= GETWORDSFROMBOARD matrixCopy', matrixCopy);
     // const turnedMatrixCopy = getRowsFromColumns(matrixCopy);
     const horizontalWords = [];
     const verticalWords = [];
@@ -761,23 +762,26 @@ export default function Home() {
   }
 
   function getNewWords(wordList) {
-    if (wordList.horizontal.length) {
-      const boardWordsCopy = { ...wordList };
-      const previousHorizontalWordIdArray = { ...previousWordList }.horizontal.map(wordObj => wordObj.wordId);
-      const newHorizontal = boardWordsCopy.horizontal.length ? boardWordsCopy.horizontal.filter((wordObj, w) =>
-        !previousHorizontalWordIdArray.includes(wordObj.wordId)
-      ) : [];
-      const previousVerticalWordIdArray = { ...previousWordList }.vertical.map(wordObj => wordObj.wordId);
-      const newVertical = boardWordsCopy.vertical.length ? boardWordsCopy.vertical.filter((wordObj, w) =>
-        !previousVerticalWordIdArray.includes(wordObj.wordId)
-      ) : [];
-      console.warn('newHorizontal', newHorizontal);
-      console.warn('newVertical', newVertical);
-      const newWords = [...newHorizontal, ...newVertical];
-      console.log('newWords', newWords);
-      return newWords;
-    }
-    return [];
+    console.log('==================================================================== getNewWords', wordList);
+    let newWords = [];
+    const boardWordsCopy = { ...wordList };
+    const previousWordsCopy = { ...previousWordList };
+    const previousHorizontalWordIdArray = previousWordsCopy.horizontal.map(wordObj => wordObj.wordId);
+    const newHorizontal = boardWordsCopy.horizontal.length ? boardWordsCopy.horizontal.filter((wordObj, w) =>
+      !previousHorizontalWordIdArray.includes(wordObj.wordId)
+    ) : [];
+    const previousVerticalWordIdArray = previousWordsCopy.vertical.map(wordObj => wordObj.wordId);
+    const newVertical = boardWordsCopy.vertical.length ? boardWordsCopy.vertical.filter((wordObj, w) =>
+      !previousVerticalWordIdArray.includes(wordObj.wordId)
+    ) : [];
+    console.warn('newWords newHorizontal', newHorizontal);
+    console.warn('newWords previousVerticalWordIdArray', previousVerticalWordIdArray);
+    console.warn('newWords boardWordsCopy.vertical', boardWordsCopy.vertical);
+    console.warn('newWords newVertical', newVertical);
+    newWords = [...newHorizontal, ...newVertical];
+    console.log('newWords', newWords);
+
+    return newWords;
   }
 
   function getWordScoreTile(wordSpaceArr) {
@@ -1197,8 +1201,8 @@ export default function Home() {
           position: fixed;
           top: 0;
           right: 0;
-          min-width: 16rem;
-          max-width: 16rem;
+          min-width: 12rem;
+          max-width: 12rem;
           padding: 1rem;
           display: flex;
           flex-direction: column;
@@ -1208,6 +1212,7 @@ export default function Home() {
           color: black;
           z-index: 4;
           pointer-events: none;
+          font-size: 0.8rem;
 
           & > .debug-row {
             display: flex;
