@@ -57,6 +57,8 @@ export default function Home() {
   const [newWords, setNewWords] = useState([]);
   const [turnHistory, setTurnHistory] = useState([]);
 
+  const [debugMode, setDebugMode] = useState(true);
+
   function signInAsGuest() {
     signInAnonymously(getAuth())
       .then(() => {
@@ -152,7 +154,6 @@ export default function Home() {
       drawnTile.rackIndex = i;
       drawnTile.owner = owner;
       drawnTile.turnPlayed = 0;
-      console.log('drawn tile', drawnTile);
       if (drawnTile.letter === 'BLANK') {
         drawnTile.blank = true;
       }
@@ -205,13 +206,20 @@ export default function Home() {
       //     const errorMessage = error.message;
       //     console.error('SETPERSISTENCE ERROR!', errorCode, errorMessage);
       //   });
+
+      // window.addEventListener('keydown', e => {
+      //   if (e.code === 'Space') {
+      //     toggleDebug();
+      //   }
+      // });
+
       setLoaded(true);
     }
+
   }, [loaded]);
 
   useEffect(() => {
     // if ([...playerRack].filter(tile => tile.placed)) {
-    console.log('================================================================================================ LETTERMATRIX USEEFFECT');
     const tilesNeighbored = allTilesNeighbored();
     let ready = tilesNeighbored;
     const placed = letterMatrix.flat().filter(space => space.contents && space.contents.placed);
@@ -242,6 +250,11 @@ export default function Home() {
     setPreviousWordList(wordsOnBoard);
   }, [currentTurn]);
 
+  function toggleDebug() {
+    console.log('toggling debug');
+    setDebugMode(!debugMode);
+  }
+
   async function startGame() {
     setGameStarted(true);
     const nextBag = createBag();
@@ -254,33 +267,9 @@ export default function Home() {
   }
 
   useEffect(() => {
-    // if (!selectedTileId) {
-      let totalNewPoints = 0;
-      newWords.forEach(wordObj => {
-        totalNewPoints += scoreWord(wordObj);
-      });
-      setPendingTurnScore(totalNewPoints);
-    // }
+    let totalNewPoints = newWords.reduce((acc, curr) => scoreWord(curr) + acc, 0);
+    setPendingTurnScore(totalNewPoints);
   }, [newWords]);
-
-  // function hasOccupiedNeighbor(space) {
-  //   const flatOccupiedSpaceArray = [...letterMatrix].flat().filter(val => val.contents);
-  //   const hasVerticalNeighbor = flatOccupiedSpaceArray.filter(occupiedSpace => {
-  //     const sameColumn = occupiedSpace.coords.x === space.coords.x;
-  //     const aboveOrBelow = occupiedSpace.coords.y === (space.coords.y - 1) || occupiedSpace.coords.y === (space.coords.y + 1);
-  //     return sameColumn && aboveOrBelow;
-  //   }).length > 0;
-  //   const hasHorizontalNeighbor = flatOccupiedSpaceArray.filter(occupiedSpace => {
-  //     const sameRow = occupiedSpace.coords.y === space.coords.y;
-  //     const toLeftOrRight = occupiedSpace.coords.x === (space.coords.x - 1) || occupiedSpace.coords.x === (space.coords.x + 1);
-  //     return sameRow && toLeftOrRight;
-  //   }).length > 0;
-
-  //   // console.log(space.contents.letter, 'vert', hasVerticalNeighbor);
-  //   // console.log(space.contents.letter, 'horiz', hasHorizontalNeighbor);
-
-  //   return hasVerticalNeighbor || hasHorizontalNeighbor;
-  // }
 
   function tileHasNeighbor(space) {
     const flatOccupiedSpaceArray = [...letterMatrix].flat().filter(val => val.contents);
@@ -457,12 +446,14 @@ export default function Home() {
       x: targetedSpaceId.split('-')[0] - 1,
       y: targetedSpaceId.split('-')[1] - 1,
     };
+    console.log('placing', tileObj.letter, 'at', tileObj.placed)
     const newPlayerRack = [...playerRack];
     const tileElement = document.getElementById(tileObj.id);
     const newLetterMatrix = [...letterMatrix];
     const matrixX = tileObj.placed.x;
     const matrixY = tileObj.placed.y;
-    newLetterMatrix[matrixX][matrixY].contents = tileObj;
+    // newLetterMatrix[matrixX][matrixY].contents = tileObj;
+    newLetterMatrix[matrixY][matrixX].contents = tileObj;
     const spaceElement = document.getElementById(targetedSpaceId);
     const spaceRect = spaceElement.getBoundingClientRect();
     const spacePosition = {
@@ -497,7 +488,6 @@ export default function Home() {
         }
       });
     });
-    console.log('allTilesNeighbored returning board cong');
     document.getElementById('neigbored-display').innerText = congruous;
     return congruous;
   }
@@ -505,8 +495,6 @@ export default function Home() {
   function placedTilesAreAligned(placedTileSpaces) {
     const horizontallyAligned = placedTileSpaces.every(space => space.coords.x === placedTileSpaces[0].coords.x);
     const verticallyAligned = placedTileSpaces.every(space => space.coords.y === placedTileSpaces[0].coords.y);
-    console.log('horiz', horizontallyAligned);
-    console.log('vert', verticallyAligned);
     const tilesInLine = horizontallyAligned || verticallyAligned;
     return tilesInLine;
   }
@@ -537,7 +525,8 @@ export default function Home() {
     if (tileObj.blank) {
       tileObj.letter = 'BLANK';
     }
-    newLetterMatrix[matrixX][matrixY].contents = null;
+    // newLetterMatrix[matrixX][matrixY].contents = null;
+    newLetterMatrix[matrixY][matrixX].contents = null;
     setLetterMatrix(newLetterMatrix);
     // setWordScoreTileId(undefined);
   }
@@ -591,7 +580,8 @@ export default function Home() {
       const spaceRect = spaceElement.getBoundingClientRect();
       const matrixX = parseInt(spaceElement.id.split('-')[0]) - 1;
       const matrixY = parseInt(spaceElement.id.split('-')[1]) - 1;
-      const occupied = letterMatrix[matrixX][matrixY].contents !== null;
+      // const occupied = letterMatrix[matrixX][matrixY].contents !== null;
+      const occupied = letterMatrix[matrixY][matrixX].contents !== null;
 
       if (spaceElement) {
         const targetedX = cursorPositionX > spaceRect.x && cursorPositionX < (spaceRect.x + spaceRect.width);
@@ -676,14 +666,12 @@ export default function Home() {
                 ...newTileObj,
                 specialSpace: currentSpaceSpecial,
               };
-              console.warn('newTileObj', newTileObj);
               wordSpaceArray.push(newTileObj);
               wordId.push(currentTileObj.contents.id);
               lockedData[i] = currentTileObj.contents.locked;
               specialSpaces[i] = currentSpaceSpecial;
             }
             wordId = wordId.join('+');
-            console.warn('extracting word', extractedWord, 'word mult', wordScoreMultiplier);
 
             const wordObj = {
               word: extractedWord.join(''),
@@ -708,9 +696,6 @@ export default function Home() {
       }
     });
     const result = words.length ? words : undefined;
-    if (!result) {
-      console.warn('no words found');
-    }
     return result;
   }
 
@@ -725,45 +710,37 @@ export default function Home() {
 
   function getWordsFromBoard() {
     const matrixCopy = [...letterMatrix];
-    console.log('================================================================= GETWORDSFROMBOARD matrixCopy', matrixCopy);
     // const turnedMatrixCopy = getRowsFromColumns(matrixCopy);
     const horizontalWords = [];
     const verticalWords = [];
     matrixCopy.forEach((row, r) => {
       const rowWords = extractWordsFromRow(row, r);
       if (rowWords) {
-        console.log('pushing rowWords', rowWords);
         horizontalWords.push(...rowWords);
       }
       const columnArray = getArrayFromColumn(r, matrixCopy);
-      console.log('colarr', columnArray);
       const columnWords = extractWordsFromRow(columnArray, r, true);
       if (columnWords) {
-        console.log('pushing columnWords', columnWords);
         verticalWords.push(...columnWords);
       }
     });
-    console.log('horizontal words:');
-    console.table(horizontalWords);
-    console.log('vertical words:');
-    console.table(verticalWords);
-
     const newWordList = {
       horizontal: horizontalWords,
       vertical: verticalWords,
     };
     setWordsOnBoard(newWordList);
     const nextNewWords = getNewWords(newWordList);
-    setNewWords(nextNewWords);
-    const newWordScoreTile = getWordScoreTile(nextNewWords);
+    setNewWords(nextNewWords);    
+    console.log('nextNewWords', nextNewWords);
+    const playerTileWords = nextNewWords.filter(wordObj => !wordObj.spaces.every(spaceObj => spaceObj.contents.locked));
+    console.log('playerTileWords', playerTileWords);
+    const newWordScoreTile = getWordScoreTile(playerTileWords);
     if (newWordScoreTile) {
       setWordScoreTileId(newWordScoreTile.contents.id);
     }
   }
 
   function getNewWords(wordList) {
-    console.log('==================================================================== getNewWords', wordList);
-    let newWords = [];
     const boardWordsCopy = { ...wordList };
     const previousWordsCopy = { ...previousWordList };
     const previousHorizontalWordIdArray = previousWordsCopy.horizontal.map(wordObj => wordObj.wordId);
@@ -774,20 +751,17 @@ export default function Home() {
     const newVertical = boardWordsCopy.vertical.length ? boardWordsCopy.vertical.filter((wordObj, w) =>
       !previousVerticalWordIdArray.includes(wordObj.wordId)
     ) : [];
-    console.warn('newWords newHorizontal', newHorizontal);
-    console.warn('newWords previousVerticalWordIdArray', previousVerticalWordIdArray);
-    console.warn('newWords boardWordsCopy.vertical', boardWordsCopy.vertical);
-    console.warn('newWords newVertical', newVertical);
-    newWords = [...newHorizontal, ...newVertical];
-    console.log('newWords', newWords);
-
-    return newWords;
+    return [...newHorizontal, ...newVertical];
   }
 
   function getWordScoreTile(wordSpaceArr) {
     let furthestRightLowerSpace;
     let highestCoordTotal = 0;
     wordSpaceArr.forEach(wordObj => {
+      console.log('finding last letter of word', wordObj);
+      wordObj.spaces.forEach(spaceObj => {
+        console.log('checking', spaceObj.contents.letter)
+      })
       const lastLetterSpace = wordObj.spaces[wordObj.spaces.length - 1];
       const totalCoords = lastLetterSpace.coords.x + lastLetterSpace.coords.y;
       if (totalCoords > highestCoordTotal) {
@@ -795,6 +769,7 @@ export default function Home() {
         furthestRightLowerSpace = lastLetterSpace;
       }
     });
+    furthestRightLowerSpace && console.log('found last space', furthestRightLowerSpace.coords , 'with contents', furthestRightLowerSpace.contents.letter);
     return furthestRightLowerSpace;
   }
 
@@ -805,17 +780,16 @@ export default function Home() {
       'dw': 1,
       'tw': 1,
     };
-    console.warn('scoring word', wordObj.word);
     let score = 0;
     wordObj.spaces.forEach(spaceObj => {
       let multiplier = spaceObj.specialSpace ? multipliers[spaceObj.specialSpace] : 1;
       const tileScore = spaceObj.contents.value * multiplier;
-      console.log('score for letter', spaceObj.contents.letter, tileScore, ' -- ', spaceObj.contents.value, 'times', multiplier);
+      console.log('score for', spaceObj.contents.letter, tileScore, '(', spaceObj.contents.value, ' x ', multiplier, ')');
       score += tileScore;
     });
     const subTotal = score;
     const finalScore = score *= wordObj.wordScoreMultiplier;
-    console.warn('score for word', wordObj.word, finalScore, ' -- ', subTotal, 'times', wordObj.wordScoreMultiplier);
+    console.warn('final score', finalScore, `(${subTotal} x ${wordObj.wordScoreMultiplier})`)
     return finalScore;
   }
 
@@ -834,10 +808,11 @@ export default function Home() {
   const verticalWordList = Object.values(wordsOnBoard.vertical).map(wordObj => wordObj.word);
 
   const newWordList = newWords.map(wordObj => `${wordObj.word} (${scoreWord(wordObj)})`);
+  // const newWordList = newWords.map(wordObj => `${wordObj.word}`);
 
   return (
     <div>
-      <div className='debug'>
+      {debugMode && <div className={'debug'}>
         <div className={'debug-row'}>
           <div>Selected:</div>
           <div>
@@ -891,7 +866,7 @@ export default function Home() {
           <div>Pending score:</div>
           <div>{pendingTurnScore}</div>
         </div>
-      </div>
+      </div>}
       <Head>
         <title>Skrubble.live</title>
         <link rel="icon" href="/favicon.ico" />
@@ -944,11 +919,12 @@ export default function Home() {
                 targetedSpaceId={targetedSpaceId}
               />
               {/* {(submitReady && !selectedTileId) ? <WordScoreDisplay */}
-              {true ? <WordScoreDisplay
+              <WordScoreDisplay
                 pendingTurnScore={pendingTurnScore}
-                targetTileObj={[...playerRack].filter(tile => tile.id === wordScoreTileId)[0]}
+                // targetTileObj={[...playerRack].filter(tile => tile.id === wordScoreTileId)[0]}
+                wordScoreTileId={wordScoreTileId}
                 submitReady={submitReady}
-              /> : null}
+              />
 
               <div className='player-area user'>
                 <div className='rack-area'>
@@ -1201,8 +1177,8 @@ export default function Home() {
           position: fixed;
           top: 0;
           right: 0;
-          min-width: 12rem;
-          max-width: 12rem;
+          min-width: 14rem;
+          max-width: 14rem;
           padding: 1rem;
           display: flex;
           flex-direction: column;
@@ -1212,7 +1188,6 @@ export default function Home() {
           color: black;
           z-index: 4;
           pointer-events: none;
-          font-size: 0.8rem;
 
           & > .debug-row {
             display: flex;

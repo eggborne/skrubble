@@ -22,11 +22,15 @@ export default function GameBoard(props) {
         {fullBoard.map((row, r) =>
           row.map((space, s) => {
             const spaceContents = props.letterMatrix[r][s].contents;
+            // const spaceContents = props.letterMatrix[s][r].contents;
             return <Space
-              key={`${(r + 1)}-${(s + 1)}`}
-              id={`${(r + 1)}-${(s + 1)}`}
+              // key={`${(r + 1)}-${(s + 1)}`}
+              // id={`${(r + 1)}-${(s + 1)}`}
+              key={`${(s + 1)}-${(r + 1)}`}
+              id={`${(s + 1)}-${(r + 1)}`}
               locked={spaceContents && spaceContents.locked}
-              targeted={props.targetedSpaceId === `${(r + 1)}-${(s + 1)}`}
+              // targeted={props.targetedSpaceId === `${(r + 1)}-${(s + 1)}`}
+              targeted={props.targetedSpaceId === `${(s + 1)}-${(r + 1)}`}
               spaceData={space}
               backgroundColor={space.length ? specialSpaceData[space[0]].color : 'var(--board-color)'}
               label={

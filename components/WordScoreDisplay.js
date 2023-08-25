@@ -4,17 +4,31 @@ export default function WordScoreDisplay(props) {
   const [position, setPosition] = useState('calc(var(--played-tile-size) / 1.75)');
   const [fontSize, setFontSize] = useState()
 
+  // useEffect(() => {
+  //   if (props.targetTileObj) {
+  //     console.warn('score tile letter is', props.targetTileObj.letter, props.targetTileObj.placed)
+  //     const spaceElement = document.getElementById(`${props.targetTileObj.placed.x + 1}-${props.targetTileObj.placed.y + 1}`);
+  //     const spaceRect = spaceElement.getBoundingClientRect();
+  //     const position = {
+  //       left: spaceRect.left,
+  //       top: spaceRect.top,
+  //     };
+  //     setPosition(position);
+  //   }
+  // }, [props.targetTileObj]);
+
   useEffect(() => {
-    if (props.targetTileObj) {
-      const spaceElement = document.getElementById(`${props.targetTileObj.placed.x+1}-${props.targetTileObj.placed.y+1}`);
-      const spaceRect = spaceElement.getBoundingClientRect();
+    if (props.wordScoreTileId) {
+      const tileElement = document.getElementById(props.wordScoreTileId);
+      console.warn('score tile is', tileElement.innerText)
+      const tileRect = tileElement.getBoundingClientRect();
       const position = {
-        left: spaceRect.left,
-        top: spaceRect.top,
+        left: tileRect.left,
+        top: tileRect.top,
       };
       setPosition(position);
     }
-  }, [props.targetTileObj]);
+  }, [props.wordScoreTileId]);
 
   useEffect(() => {
     const scoreLength = props.pendingTurnScore.toString().length;
