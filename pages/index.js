@@ -207,11 +207,11 @@ export default function Home() {
       //     console.error('SETPERSISTENCE ERROR!', errorCode, errorMessage);
       //   });
 
-      // window.addEventListener('keydown', e => {
-      //   if (e.code === 'Space') {
-      //     toggleDebug();
-      //   }
-      // });
+      window.addEventListener('keydown', e => {
+        if (e.code === 'Space') {
+          e.preventDefault();
+        }
+      });
 
       setLoaded(true);
     }
@@ -446,7 +446,7 @@ export default function Home() {
       x: targetedSpaceId.split('-')[0] - 1,
       y: targetedSpaceId.split('-')[1] - 1,
     };
-    console.log('placing', tileObj.letter, 'at', tileObj.placed)
+    console.log('placing', tileObj.letter, 'at', tileObj.placed);
     const newPlayerRack = [...playerRack];
     const tileElement = document.getElementById(tileObj.id);
     const newLetterMatrix = [...letterMatrix];
@@ -633,15 +633,19 @@ export default function Home() {
   function extractWordsFromRow(row, rowIndex, rotate) {
     const words = [];
     let lastWordStartIndex = undefined;
+    console.warn(rotate ? 'column' : 'row', rowIndex);
     row.forEach((space, s) => {
-      if (space.contents) {
-        if (!lastWordStartIndex) {
+      console.log('slic on', rotate ? 'column' : 'row', rowIndex, 'lastWordStartIndex:', lastWordStartIndex, ' - checking space', s, space.contents ? space.contents.letter : 'empty', space);
+      if (space.contents && s < 14) {
+        if (lastWordStartIndex === undefined) {
+          console.warn('SETTING lastWordStartIndex', s);
           lastWordStartIndex = s;
         }
-      } else {
-        if (lastWordStartIndex) {
-          const extractedWord = row.slice(lastWordStartIndex, s).map(tile => tile.contents.letter);
+      } else if (!space.contents || (space.contents && (s === 14))) {
+        if (lastWordStartIndex !== undefined) {
+          const extractedWord = row.slice(lastWordStartIndex, s+1).filter(tile => tile.contents).map(tile => tile.contents.letter);
           if (extractedWord.length > 1) {
+            console.warn('slice from', lastWordStartIndex, 'to', (s+1), 'extractedWord', extractedWord, row, row.slice(lastWordStartIndex, s));
             const wordSpaceArray = [];
             const specialSpaces = [];
             const lockedData = [];
@@ -690,6 +694,10 @@ export default function Home() {
               },
             };
             words.push(wordObj);
+          } else {
+            if (lastWordStartIndex) {
+              console.warn(rotate ? 'column' : 'row', rowIndex, 'did not slice single letter', extractedWord, lastWordStartIndex, 'to', s);
+            }
           }
           lastWordStartIndex = undefined;
         }
@@ -730,7 +738,7 @@ export default function Home() {
     };
     setWordsOnBoard(newWordList);
     const nextNewWords = getNewWords(newWordList);
-    setNewWords(nextNewWords);    
+    setNewWords(nextNewWords);
     console.log('nextNewWords', nextNewWords);
     const playerTileWords = nextNewWords.filter(wordObj => !wordObj.spaces.every(spaceObj => spaceObj.contents.locked));
     console.log('playerTileWords', playerTileWords);
@@ -760,8 +768,8 @@ export default function Home() {
     wordSpaceArr.forEach(wordObj => {
       console.log('finding last letter of word', wordObj);
       wordObj.spaces.forEach(spaceObj => {
-        console.log('checking', spaceObj.contents.letter)
-      })
+        console.log('checking', spaceObj.contents.letter);
+      });
       const lastLetterSpace = wordObj.spaces[wordObj.spaces.length - 1];
       const totalCoords = lastLetterSpace.coords.x + lastLetterSpace.coords.y;
       if (totalCoords > highestCoordTotal) {
@@ -769,7 +777,7 @@ export default function Home() {
         furthestRightLowerSpace = lastLetterSpace;
       }
     });
-    furthestRightLowerSpace && console.log('found last space', furthestRightLowerSpace.coords , 'with contents', furthestRightLowerSpace.contents.letter);
+    furthestRightLowerSpace && console.log('found last space', furthestRightLowerSpace.coords, 'with contents', furthestRightLowerSpace.contents.letter);
     return furthestRightLowerSpace;
   }
 
@@ -784,12 +792,12 @@ export default function Home() {
     wordObj.spaces.forEach(spaceObj => {
       let multiplier = spaceObj.specialSpace ? multipliers[spaceObj.specialSpace] : 1;
       const tileScore = spaceObj.contents.value * multiplier;
-      console.log('score for', spaceObj.contents.letter, tileScore, '(', spaceObj.contents.value, ' x ', multiplier, ')');
+      // console.log('score for', spaceObj.contents.letter, tileScore, '(', spaceObj.contents.value, ' x ', multiplier, ')');
       score += tileScore;
     });
     const subTotal = score;
     const finalScore = score *= wordObj.wordScoreMultiplier;
-    console.warn('final score', finalScore, `(${subTotal} x ${wordObj.wordScoreMultiplier})`)
+    // console.warn('final score', finalScore, `(${subTotal} x ${wordObj.wordScoreMultiplier})`)
     return finalScore;
   }
 
@@ -1188,6 +1196,7 @@ export default function Home() {
           color: black;
           z-index: 4;
           pointer-events: none;
+          // opacity: 0;
 
           & > .debug-row {
             display: flex;
@@ -1222,8 +1231,15 @@ export default function Home() {
         @media screen and (orientation: portrait) and (min-aspect-ratio: 0.55) {
           :root {
             --board-size: 49vh;
-            --racked-tile-size: 7vh;
+            // --racked-tile-size: 7vh;
+            --racked-tile-size: 13vw;
             --large-icon-size: calc(var(--racked-tile-size) * 1);
+            --header-height: calc(var(--racked-tile-size) * 0.5);
+          }
+
+          header {
+            // display: none !important;
+            padding: 1% !important;
           }
 
           #user-rack {

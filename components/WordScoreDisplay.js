@@ -1,21 +1,8 @@
 import { useEffect, useState } from "react";
 
 export default function WordScoreDisplay(props) {
-  const [position, setPosition] = useState('calc(var(--played-tile-size) / 1.75)');
-  const [fontSize, setFontSize] = useState()
-
-  // useEffect(() => {
-  //   if (props.targetTileObj) {
-  //     console.warn('score tile letter is', props.targetTileObj.letter, props.targetTileObj.placed)
-  //     const spaceElement = document.getElementById(`${props.targetTileObj.placed.x + 1}-${props.targetTileObj.placed.y + 1}`);
-  //     const spaceRect = spaceElement.getBoundingClientRect();
-  //     const position = {
-  //       left: spaceRect.left,
-  //       top: spaceRect.top,
-  //     };
-  //     setPosition(position);
-  //   }
-  // }, [props.targetTileObj]);
+  const [position, setPosition] = useState({});
+  const [fontSize, setFontSize] = useState('calc(var(--played-tile-size) / 3)')
 
   useEffect(() => {
     if (props.wordScoreTileId) {

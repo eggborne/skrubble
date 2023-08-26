@@ -26,7 +26,7 @@ export default function BlankModal(props) {
 
       </div>
       <div className='button-area'>
-        <Button width={'8rem'} label={'OK'} clickAction={handleClickOkay} />
+        <Button width={'8rem'} label={'OK'} clickAction={handleClickOkay} disabled={!props.showing} />
       </div>
       <style jsx>{`
         .blank-modal {
