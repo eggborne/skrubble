@@ -17,7 +17,9 @@ import BagModal from '../components/BagModal';
 import BlankModal from '../components/BlankModal';
 import WordScoreDisplay from '../components/WordScoreDisplay';
 import { getAllRulesets } from '../scripts/db';
-import { checkFollowers, getViolations } from '../scripts/validator';
+import { getViolations } from '../scripts/validator';
+import RulesModal from '../components/RulesModal';
+import ViolationsModal from '../components/ViolationsModal';
 
 const IS_MOBILE = isMobile();
 let LANDSCAPE;
@@ -174,10 +176,28 @@ export default function Home() {
     };
   }
 
+  async function getWordRules() {
+    const rulesets = await getAllRulesets();
+    const rawWordRules = rulesets.data[0].filter(set => set.dialect === "Pronouncable")[0];
+    const newWordRules = {};
+    for (let attribute in rawWordRules) {
+      const firstRawChar = rawWordRules[attribute][0];
+      const needsParsing = firstRawChar === '[' || firstRawChar === '{';
+      newWordRules[attribute] = needsParsing ? JSON.parse(rawWordRules[attribute]) : rawWordRules[attribute];
+    }
+    console.warn('newWordRules', newWordRules);
+    return newWordRules;
+  }
+
   useEffect(() => {
     if (!loaded) {
       establishScreenAttributes();
       document.getElementById('home-container').addEventListener('touchmove', e => e.preventDefault(), false);
+      window.addEventListener('keydown', e => {
+        if (e.code === 'Space') {
+          e.preventDefault();
+        }
+      });
       // getRedirectResult(auth)
       //   .then((result) => {
       //     setUser(result.user);
@@ -208,25 +228,12 @@ export default function Home() {
       //     const errorMessage = error.message;
       //     console.error('SETPERSISTENCE ERROR!', errorCode, errorMessage);
       //   });
-
-      window.addEventListener('keydown', e => {
-        if (e.code === 'Space') {
-          e.preventDefault();
-        }
-      });
-      getAllRulesets().then((rulesets) => { 
-        const attrObjects = ['']
-        const rawWordRules = rulesets.data[0].filter(set => set.dialect === "Pronouncable")[0];
-        const newWordRules = {};
-        for (let attribute in rawWordRules) {
-          const rawAttr = rawWordRules[attribute];
-          const needsParsing = rawAttr[0] === '[' || rawAttr[0] === '{';
-          newWordRules[attribute] = needsParsing ? JSON.parse(rawAttr) : rawAttr;
-        }
-        console.warn('newWordRules', newWordRules);
+      let startTime = Date.now();
+      getWordRules().then(newWordRules => {
+        console.warn('got rules in', (Date.now() - startTime));
         setWordRules(newWordRules);
-        console.log(getViolations('chickens', newWordRules));
-      })
+        getViolations('chickens', newWordRules);
+      });
       setLoaded(true);
     }
 
@@ -235,10 +242,11 @@ export default function Home() {
   useEffect(() => {
     const tilesNeighbored = allTilesNeighbored();
     let ready = tilesNeighbored;
-    const placed = letterMatrix.flat().filter(space => space.contents && space.contents.placed);
-    const touchingLocked = placedTilesTouchingLocked(placed.filter(space => !space.contents.locked));
-    const tilesInLine = placedTilesAreAligned(placed.filter(space => !space.contents.locked));
-    const centerTileFilled = placed.filter(space => space.contents.placed.x === 7 && space.contents.placed.y === 7)[0];
+    const filledSpaces = letterMatrix.flat().filter(space => space.contents && space.contents.placed);
+
+    const touchingLocked = placedTilesTouchingLocked(filledSpaces.filter(space => !space.contents.locked));
+    const tilesInLine = placedTilesAreAligned(filledSpaces.filter(space => !space.contents.locked));
+    const centerTileFilled = filledSpaces.filter(space => space.contents.placed.x === 7 && space.contents.placed.y === 7)[0];
     const firstWordNotOnStart = (lockedTiles.length === 0 && !centerTileFilled);
 
     const wordsToAnalyze = getWordsFromBoard();
@@ -653,7 +661,7 @@ export default function Home() {
         }
       } else if (!space.contents || (space.contents && (s === 14))) {
         if (lastWordStartIndex !== undefined) {
-          const extractedWord = row.slice(lastWordStartIndex, s+1).filter(tile => tile.contents).map(tile => tile.contents.letter);
+          const extractedWord = row.slice(lastWordStartIndex, s + 1).filter(tile => tile.contents).map(tile => tile.contents.letter);
           if (extractedWord.length > 1) {
             const wordSpaceArray = [];
             const specialSpaces = [];
@@ -816,6 +824,12 @@ export default function Home() {
 
   const newWordList = newWords.map(wordObj => `${wordObj.word} (${scoreWord(wordObj)})`);
   // const newWordList = newWords.map(wordObj => `${wordObj.word}`);
+  let totalViolations = 0;
+  unpronouncableWords.forEach(violationObj => {
+    totalViolations += violationObj.violations.violations.length;
+  });
+  console.log('unpronouncableWords', unpronouncableWords);
+  console.log('totalViolations', totalViolations);
 
   return (
     <div>
@@ -954,13 +968,15 @@ export default function Home() {
                     :
                     <Button label='&#8595;&#8595;' clickAction={returnUserTiles} />
                   }
-                  <div></div>
-                  <div></div>
+                  <Button size='small' label={`Word Rules`} clickAction={() => toggleModal('rules')} />
+                  <Button disabled={!unpronouncableWords.length} size='small' label={`See Violations${totalViolations ? ' (' + totalViolations + ')' : ''}`} clickAction={() => toggleModal('violations')} />
                   <Button size='small' label={`Bag (${bag.length})`} clickAction={() => toggleModal('bag')} />
                 </div>
               </div>
               <BagModal bag={bag} showing={modalShowing === 'bag'} dismissModal={() => toggleModal()} />
               <BlankModal bag={bag} showing={modalShowing === 'blank'} dismissModal={handleSelectBlankLetter} />
+              <RulesModal wordRules={wordRules} showing={modalShowing === 'rules'} dismissModal={() => toggleModal()} />
+              <ViolationsModal wordRules={wordRules} unpronouncableWords={unpronouncableWords} showing={modalShowing === 'violations'} dismissModal={() => toggleModal()} />
             </>
             :
             user ?
