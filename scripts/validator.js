@@ -14,53 +14,98 @@ function findRegexIndices(text, needle) {
 }
 
 function validateInitialUnit(word, wordRules) {
-  const unitArray = [...wordRules.onsets, ...wordRules.nuclei, ...wordRules.codas].sort((a, b) => b.length - a.length);;
-  for (let unit of unitArray) {
-    if (word.indexOf(unit) === 0) {
-      return {
-        type: wordRules.nuclei.indexOf(unit) !== -1 ? 'nucleus' : wordRules.onsets.indexOf(unit) !== -1 ? 'onset' : 'coda',
-        string: unit
-      };
+  let string = '';
+  const types = [];
+  const unitArrays = {
+    onset: [...wordRules.onsets].sort((a, b) => b.length - a.length),
+    nucleus: [...wordRules.nuclei].sort((a, b) => b.length - a.length),
+    coda: [...wordRules.codas].sort((a, b) => b.length - a.length),
+  }
+  for (let type in unitArrays) {
+    const unitArray = unitArrays[type];
+    for (let unit of unitArray) {
+      if (word.indexOf(unit) === 0) {
+        if (unit.length > string.length) {
+          console.log('setting initial to', unit)
+          string = unit;
+        }
+        types.push(type);
+      }
     }
   }
+  return {
+    string,
+    types,
+  };
 }
 
 function validateWordUnits(word, wordRules) {
   const validated = [];
   const initialUnit = validateInitialUnit(word, wordRules);
-  if (initialUnit && initialUnit.type !== 'coda') {
+  let partialRemainingWord;
+  if (initialUnit && initialUnit.types.includes('onset') || initialUnit.types.includes('nucleus')) {
+    console.warn('initial unit is', initialUnit);
     validated.push(initialUnit);
-    let lastType = initialUnit.type;
+    let lastTypes = initialUnit.types;
     let startingPartialIndex = initialUnit.string.length;
-    let partialRemainingWord = word.substr(startingPartialIndex, word.length - startingPartialIndex);
+    partialRemainingWord = word.substr(startingPartialIndex);
     let cycleCount = 0;
     while (cycleCount < 100) {
       const nextUnit = validateInitialUnit(partialRemainingWord, wordRules);
+      console.warn('nextUnit is', nextUnit);
       if (nextUnit) {
-        if (lastType === 'onset' || lastType === 'coda') {
-          if (nextUnit.type === 'nucleus' || nextUnit.string === 's') {
+        if (lastTypes.includes('onset') || lastTypes.includes('coda')) {
+          if (nextUnit.types.includes('nucleus') || nextUnit.string === 's') {
             validated.push(nextUnit);
+            lastTypes = nextUnit.types;
+            startingPartialIndex += nextUnit.string.length;
+            partialRemainingWord = word.substr(startingPartialIndex);
+            if (!partialRemainingWord) {
+              break;
+            }
+          } else {
+            console.warn('last one had onset or coda but next did not have nucleus')
           }
         } else {
-          if (nextUnit.type !== 'nucleus') {
+          if (nextUnit.types.includes('onset') || nextUnit.types.includes('coda')) {
             validated.push(nextUnit);
+            lastTypes = nextUnit.types;
+            startingPartialIndex += nextUnit.string.length;
+            partialRemainingWord = word.substr(startingPartialIndex);
+            if (!partialRemainingWord) {
+              break;
+            }
+          }
+          else {
+            console.warn('last did not have onset or coda and next HAD onset or coda');
           }
         }
-        lastType = nextUnit.type;
-        startingPartialIndex += nextUnit.string.length;
-        partialRemainingWord = word.substr(startingPartialIndex, word.length - startingPartialIndex);
       } else {
+        console.error('no new unit begins', partialRemainingWord);
         break;
       }
       cycleCount++;
     }
-    const validatedSyllables = validated.map(unit => unit.string).join('');
-    if (validatedSyllables === word) {
-      return true;
-    } else {
-      return false;
-    }
   }
+  const validatedSyllables = validated.map(unit => unit.string).join('');
+  console.log('validated', validated)
+  console.log('val - word |', validatedSyllables, '-', word);
+  let finalValidity = validatedSyllables === word;
+  let details = validatedSyllables + ' /== ' + word;
+  if (validated.length === 1) {
+    finalValidity = false;
+    details = 'only one unit';
+  }
+  if (validated.length && validated[validated.length - 1].types.includes('onset') && !validated[validated.length - 1].types.includes('coda')) {
+    finalValidity = false;
+    details = 'ends with onset';
+  }
+
+  return {
+    valid: finalValidity,
+    unvalidatedString: partialRemainingWord,
+    details,
+  };
 }
 
 function checkFollowers(word, wordRules) {
@@ -127,27 +172,31 @@ function getViolations(word, wordRules) {
           } else {
             invalid = true;
           }
+          const invalidDetails = 'bad string in word';
           const violation = {
             rule: ruleType,
             invalidString: {
               value: invalidString,
               index: word.toLowerCase().indexOf(invalidString)
-            }
+            },
+            details: invalidDetails,
           };
           violations.push(violation);
         }
       }
     };
   }
-  const unitsOkay = validateWordUnits(word, wordRules);
-  if (!unitsOkay) {
+  const unitValidation = validateWordUnits(word, wordRules);
+  if (!unitValidation.valid) {
     invalid = true;
     const violation = {
-      rule: 'syllables'
+      rule: 'syllables',
+      invalidString: unitValidation.unvalidatedString,
+      details: unitValidation.details,
     };
     violations.push(violation);
   }
-  
+
   const followerViolations = checkFollowers(word, wordRules);
   if (followerViolations.length) {
     invalid = true;

@@ -59,7 +59,8 @@ export default function Home() {
   const [newWords, setNewWords] = useState([]);
   const [turnHistory, setTurnHistory] = useState([]);
   const [wordRules, setWordRules] = useState({});
-  const [debugMode, setDebugMode] = useState(false);
+  const [unpronouncableWords, setUnpronouncableWords] = useState([]);
+  const [debugMode, setDebugMode] = useState(true);
 
   function signInAsGuest() {
     signInAnonymously(getAuth())
@@ -232,7 +233,6 @@ export default function Home() {
   }, [loaded]);
 
   useEffect(() => {
-    // if ([...playerRack].filter(tile => tile.placed)) {
     const tilesNeighbored = allTilesNeighbored();
     let ready = tilesNeighbored;
     const placed = letterMatrix.flat().filter(space => space.contents && space.contents.placed);
@@ -241,7 +241,21 @@ export default function Home() {
     const centerTileFilled = placed.filter(space => space.contents.placed.x === 7 && space.contents.placed.y === 7)[0];
     const firstWordNotOnStart = (lockedTiles.length === 0 && !centerTileFilled);
 
-    if ((!tilesInLine || (tilesInLine && !tilesNeighbored)) || firstWordNotOnStart || (!touchingLocked && lockedTiles.length > 0)) {
+    const wordsToAnalyze = getWordsFromBoard();
+    const newViolatingWords = [];
+    wordsToAnalyze.forEach(wordObj => {
+      const violations = getViolations(wordObj.word, wordRules);
+      if (violations.banned || violations.invalid) {
+        const newViolatorObj = {
+          wordObj,
+          violations,
+        };
+        newViolatingWords.push(newViolatorObj);
+      }
+    });
+    setUnpronouncableWords(newViolatingWords);
+    const allWordsOkay = newViolatingWords.length === 0;
+    if (!allWordsOkay || (!tilesInLine || (tilesInLine && !tilesNeighbored)) || firstWordNotOnStart || (!touchingLocked && lockedTiles.length > 0)) {
       ready = false;
     }
 
@@ -249,21 +263,7 @@ export default function Home() {
     document.getElementById('touching-locked-display').innerHTML = touchingLocked || (lockedTiles.length === 0 && centerTileFilled) ? 'true' : 'false';
     document.getElementById('submit-ready-display').innerHTML = ready;
 
-
-    const wordsToAnalyze = getWordsFromBoard();
-    let wordsOkay = true;
-    wordsToAnalyze.forEach(wordObj => {
-      const violations = getViolations(wordObj.word, wordRules);
-      if (violations.banned || violations.invalid) {
-        wordsOkay = false;
-      }
-    });
-    if (!wordsOkay) {
-      console.error('INVALID WORD(S)!!!!!!!!!!!!!!!!!!!!!!!!!!!!')
-    }
-    setSubmitReady(wordsOkay && ready);
-    // }
-
+    setSubmitReady(ready);
   }, [letterMatrix]);
 
   useEffect(() => {
@@ -867,6 +867,10 @@ export default function Home() {
         <div className={'debug-row'}>
           <div style={{ fontWeight: 'bold' }} >New words:</div>
           <div style={{ fontWeight: 'bold' }} >{newWordList.join(' ')}</div>
+        </div>
+        <div className={'debug-row'}>
+          <div style={{ fontWeight: 'bold' }} >Violating words:</div>
+          <div style={{ fontWeight: 'bold' }} >{unpronouncableWords.map(violatorObj => violatorObj.wordObj.word + '').join(' ')}</div>
         </div>
         <p>&nbsp;</p>
         <div className={'debug-row'}>
