@@ -6,6 +6,7 @@
     "start": "next start"
   },
   "dependencies": {
+    "axios": "^1.4.0",
     "firebase": "^9.22.2",
     "is-mobile": "^4.0.0",
     "next": "latest",

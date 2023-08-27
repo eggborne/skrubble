@@ -16,6 +16,8 @@ import { v4 } from 'uuid';
 import BagModal from '../components/BagModal';
 import BlankModal from '../components/BlankModal';
 import WordScoreDisplay from '../components/WordScoreDisplay';
+import { getAllRulesets } from '../scripts/db';
+import { checkFollowers, getViolations } from '../scripts/validator';
 
 const IS_MOBILE = isMobile();
 let LANDSCAPE;
@@ -56,8 +58,8 @@ export default function Home() {
   const [previousWordList, setPreviousWordList] = useState({ horizontal: [], vertical: [] });
   const [newWords, setNewWords] = useState([]);
   const [turnHistory, setTurnHistory] = useState([]);
-
-  const [debugMode, setDebugMode] = useState(true);
+  const [wordRules, setWordRules] = useState({});
+  const [debugMode, setDebugMode] = useState(false);
 
   function signInAsGuest() {
     signInAnonymously(getAuth())
@@ -142,7 +144,6 @@ export default function Home() {
         });
       }
     }
-    console.warn('created bag!', newBag);
     setBag(newBag);
     return newBag;
   }
@@ -212,7 +213,19 @@ export default function Home() {
           e.preventDefault();
         }
       });
-
+      getAllRulesets().then((rulesets) => { 
+        const attrObjects = ['']
+        const rawWordRules = rulesets.data[0].filter(set => set.dialect === "Pronouncable")[0];
+        const newWordRules = {};
+        for (let attribute in rawWordRules) {
+          const rawAttr = rawWordRules[attribute];
+          const needsParsing = rawAttr[0] === '[' || rawAttr[0] === '{';
+          newWordRules[attribute] = needsParsing ? JSON.parse(rawAttr) : rawAttr;
+        }
+        console.warn('newWordRules', newWordRules);
+        setWordRules(newWordRules);
+        console.log(getViolations('chickens', newWordRules));
+      })
       setLoaded(true);
     }
 
@@ -237,23 +250,25 @@ export default function Home() {
     document.getElementById('submit-ready-display').innerHTML = ready;
 
 
-    getWordsFromBoard();
-    // const newlyPlacedWords = getNewWords();
-    // setNewWords(newlyPlacedWords);
-    setSubmitReady(ready);
+    const wordsToAnalyze = getWordsFromBoard();
+    let wordsOkay = true;
+    wordsToAnalyze.forEach(wordObj => {
+      const violations = getViolations(wordObj.word, wordRules);
+      if (violations.banned || violations.invalid) {
+        wordsOkay = false;
+      }
+    });
+    if (!wordsOkay) {
+      console.error('INVALID WORD(S)!!!!!!!!!!!!!!!!!!!!!!!!!!!!')
+    }
+    setSubmitReady(wordsOkay && ready);
     // }
 
   }, [letterMatrix]);
 
   useEffect(() => {
-    console.error('setting prev word list!');
     setPreviousWordList(wordsOnBoard);
   }, [currentTurn]);
-
-  function toggleDebug() {
-    console.log('toggling debug');
-    setDebugMode(!debugMode);
-  }
 
   async function startGame() {
     setGameStarted(true);
@@ -301,7 +316,6 @@ export default function Home() {
     setPlayerRack(newFullRack);
     const newTurn = currentTurn === 'user' ? 'opponent' : 'user';
     const newTurnData = [...turnHistory, [...placedTiles]];
-    console.log('newTurnData', newTurnData);
     setUserScore(userScore + pendingTurnScore);
     setPendingTurnScore(0);
     setNewWords([]);
@@ -446,7 +460,6 @@ export default function Home() {
       x: targetedSpaceId.split('-')[0] - 1,
       y: targetedSpaceId.split('-')[1] - 1,
     };
-    console.log('placing', tileObj.letter, 'at', tileObj.placed);
     const newPlayerRack = [...playerRack];
     const tileElement = document.getElementById(tileObj.id);
     const newLetterMatrix = [...letterMatrix];
@@ -633,19 +646,15 @@ export default function Home() {
   function extractWordsFromRow(row, rowIndex, rotate) {
     const words = [];
     let lastWordStartIndex = undefined;
-    console.warn(rotate ? 'column' : 'row', rowIndex);
     row.forEach((space, s) => {
-      console.log('slic on', rotate ? 'column' : 'row', rowIndex, 'lastWordStartIndex:', lastWordStartIndex, ' - checking space', s, space.contents ? space.contents.letter : 'empty', space);
       if (space.contents && s < 14) {
         if (lastWordStartIndex === undefined) {
-          console.warn('SETTING lastWordStartIndex', s);
           lastWordStartIndex = s;
         }
       } else if (!space.contents || (space.contents && (s === 14))) {
         if (lastWordStartIndex !== undefined) {
           const extractedWord = row.slice(lastWordStartIndex, s+1).filter(tile => tile.contents).map(tile => tile.contents.letter);
           if (extractedWord.length > 1) {
-            console.warn('slice from', lastWordStartIndex, 'to', (s+1), 'extractedWord', extractedWord, row, row.slice(lastWordStartIndex, s));
             const wordSpaceArray = [];
             const specialSpaces = [];
             const lockedData = [];
@@ -694,10 +703,6 @@ export default function Home() {
               },
             };
             words.push(wordObj);
-          } else {
-            if (lastWordStartIndex) {
-              console.warn(rotate ? 'column' : 'row', rowIndex, 'did not slice single letter', extractedWord, lastWordStartIndex, 'to', s);
-            }
           }
           lastWordStartIndex = undefined;
         }
@@ -739,13 +744,12 @@ export default function Home() {
     setWordsOnBoard(newWordList);
     const nextNewWords = getNewWords(newWordList);
     setNewWords(nextNewWords);
-    console.log('nextNewWords', nextNewWords);
     const playerTileWords = nextNewWords.filter(wordObj => !wordObj.spaces.every(spaceObj => spaceObj.contents.locked));
-    console.log('playerTileWords', playerTileWords);
     const newWordScoreTile = getWordScoreTile(playerTileWords);
     if (newWordScoreTile) {
       setWordScoreTileId(newWordScoreTile.contents.id);
     }
+    return nextNewWords;
   }
 
   function getNewWords(wordList) {
@@ -766,10 +770,6 @@ export default function Home() {
     let furthestRightLowerSpace;
     let highestCoordTotal = 0;
     wordSpaceArr.forEach(wordObj => {
-      console.log('finding last letter of word', wordObj);
-      wordObj.spaces.forEach(spaceObj => {
-        console.log('checking', spaceObj.contents.letter);
-      });
       const lastLetterSpace = wordObj.spaces[wordObj.spaces.length - 1];
       const totalCoords = lastLetterSpace.coords.x + lastLetterSpace.coords.y;
       if (totalCoords > highestCoordTotal) {
@@ -777,7 +777,6 @@ export default function Home() {
         furthestRightLowerSpace = lastLetterSpace;
       }
     });
-    furthestRightLowerSpace && console.log('found last space', furthestRightLowerSpace.coords, 'with contents', furthestRightLowerSpace.contents.letter);
     return furthestRightLowerSpace;
   }
 
@@ -820,7 +819,7 @@ export default function Home() {
 
   return (
     <div>
-      {debugMode && <div className={'debug'}>
+      {<div className={'debug'}>
         <div className={'debug-row'}>
           <div>Selected:</div>
           <div>
@@ -1196,6 +1195,7 @@ export default function Home() {
           color: black;
           z-index: 4;
           pointer-events: none;
+          display: ${debugMode ? 'flex' : 'none'};
           // opacity: 0;
 
           & > .debug-row {
