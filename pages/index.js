@@ -17,7 +17,7 @@ import BagModal from '../components/BagModal';
 import BlankModal from '../components/BlankModal';
 import WordScoreDisplay from '../components/WordScoreDisplay';
 import { getAllRulesets } from '../scripts/db';
-import { getViolations } from '../scripts/validator';
+import { checkFollowers, extractSyllables, validateSyllableSequence } from '../scripts/validator';
 import RulesModal from '../components/RulesModal';
 import ViolationsModal from '../components/ViolationsModal';
 
@@ -232,7 +232,7 @@ export default function Home() {
       getWordRules().then(newWordRules => {
         console.warn('got rules in', (Date.now() - startTime));
         setWordRules(newWordRules);
-        // getViolations('chickens', newWordRules);
+        extractSyllables('chickenfucker', newWordRules);
       });
       setLoaded(true);
     }
@@ -251,19 +251,65 @@ export default function Home() {
 
     const wordsToAnalyze = getWordsFromBoard();
     const newViolatingWords = [];
-    wordsToAnalyze.forEach(wordObj => {
-      const violations = getViolations(wordObj.word, wordRules);
-      if (violations.banned || violations.invalid) {
+
+    const syllabizedWords = syllabizeWords(wordsToAnalyze);
+    const syllableViolations = [];
+    syllabizedWords.forEach(wordObj => {
+      const sequenceValidation = validateSyllableSequence(wordObj.syllables);
+      console.warn('sequenceValidation', sequenceValidation);
+      if (sequenceValidation.rule) {
         const newViolatorObj = {
           wordObj,
-          violations,
+          ...sequenceValidation,
         };
-        newViolatingWords.push(newViolatorObj);
+        console.log('newViolatorObj', newViolatorObj);
+        syllableViolations.push(newViolatorObj);
+        newViolatingWords.push(newViolatorObj)
       }
+      const followerViolations = checkFollowers(wordObj.word, wordRules);
+      console.warn('followerViolations', followerViolations);
     });
+    if (syllableViolations.length) {
+      console.error('SYLLABLE SEQUENCE INVALID!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!');
+    } else {
+      console.warn('--------------------> syllables OK!');
+    }
+
+    // syllabizedWords.forEach(wordObj => {
+    //   const newViolatorObj = {
+    //     wordObj,
+    //     syllables: [],
+    //   };
+    //   wordObj.syllables.forEach((syllable, s) => {
+    //     console.warn('getViolations >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> syllable', syllable);
+    //     const syllableViolations = getViolations(syllable, wordRules);
+    //     if (syllableViolations.violations.length) {
+    //       console.log('syllableViolations', syllableViolations);
+    //       newViolatorObj.syllables.push({
+    //         string: syllable,
+    //         syllableIndex: s,
+    //         violations: syllableViolations.violations
+    //       });
+    //       newViolatingWords.push(newViolatorObj);
+    //     } else {
+    //       console.log('---------------------------------------------------------------------------------- syllable', syllable, 'OK!');
+    //     }
+    //   });
+    // });
+
+    // wordsToAnalyze.forEach(wordObj => {
+    //   const violations = getViolations(wordObj.word, wordRules);
+    //   if (violations.banned || violations.invalid) {
+    //     const newViolatorObj = {
+    //       wordObj,
+    //       violations,
+    //     };
+    //     newViolatingWords.push(newViolatorObj);
+    //   }
+    // });
     setUnpronouncableWords(newViolatingWords);
     const allWordsOkay = newViolatingWords.length === 0;
-    if (!allWordsOkay || (!tilesInLine || (tilesInLine && !tilesNeighbored)) || firstWordNotOnStart || (!touchingLocked && lockedTiles.length > 0)) {
+    if ((!allWordsOkay || (!tilesInLine || (tilesInLine && !tilesNeighbored)) || firstWordNotOnStart || (!touchingLocked && lockedTiles.length > 0))) {
       ready = false;
     }
 
@@ -277,6 +323,21 @@ export default function Home() {
   useEffect(() => {
     setPreviousWordList(wordsOnBoard);
   }, [currentTurn]);
+
+  function syllabizeWords(wordArray) {
+    const syllabizedWords = [...wordArray];
+    syllabizedWords.forEach((wordObj) => {
+      console.log('syllabizing', wordObj.word);
+      wordObj.syllables = [];
+      const syllables = extractSyllables(wordObj.word, wordRules);
+      syllables.forEach((syllableObj) => {
+        wordObj.syllables.push(syllableObj);
+        console.log('&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&& syllable?', syllableObj.map(unit => unit.string).join('-'))
+      });
+
+    });
+    return syllabizedWords;
+  }
 
   async function startGame() {
     setGameStarted(true);
@@ -824,10 +885,11 @@ export default function Home() {
 
   const newWordList = newWords.map(wordObj => `${wordObj.word} (${scoreWord(wordObj)})`);
   // const newWordList = newWords.map(wordObj => `${wordObj.word}`);
-  let totalViolations = 0;
-  unpronouncableWords.forEach(violationObj => {
-    totalViolations += violationObj.violations.violations.length;
-  });
+  let totalViolations = unpronouncableWords.length;
+  // unpronouncableWords.forEach(violationObj => {
+    // console.log('violationObj', violationObj);
+    // totalViolations += violationObj.violations.violations.length;
+  // });
 
   return (
     <div>
@@ -967,7 +1029,7 @@ export default function Home() {
                     <Button label='&#8595;&#8595;' clickAction={returnUserTiles} />
                   }
                   <Button size='small' label={`Word Rules`} clickAction={() => toggleModal('rules')} />
-                  <Button disabled={!unpronouncableWords.length} size='small' label={`See Violations${totalViolations ? ' (' + totalViolations + ')' : ''}`} clickAction={() => toggleModal('violations')} />
+                  <Button disabled={!unpronouncableWords.length} size='small' label={`Violations${totalViolations ? ' (' + totalViolations + ')' : ''}`} clickAction={() => toggleModal('violations')} />
                   <Button size='small' label={`Bag (${bag.length})`} clickAction={() => toggleModal('bag')} />
                 </div>
               </div>

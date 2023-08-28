@@ -13,24 +13,187 @@ function findRegexIndices(text, needle) {
   return indices;
 }
 
+function extractSyllables(word, wordRules) {
+  console.warn('extractSyllables from', word);
+  let syllables = [];
+  let remainingWord = word;
+  let currentStartingIndex = 0;
+  let currentSyllable = [];
+  let previousUnit;
+  while (remainingWord.length) {
+    const newUnit = validateInitialUnit(remainingWord, wordRules);
+    if (newUnit.string) {
+      const nextRemainingWord = remainingWord.substring(newUnit.string.length);
+      const nextUnit = nextRemainingWord ? validateInitialUnit(nextRemainingWord, wordRules) : undefined;
+      if (newUnit.string.length === word.length) {
+        currentSyllable.push(newUnit);
+        syllables.push(currentSyllable);
+        remainingWord = '';
+        break;
+      }
+      if (remainingWord) {
+        if (!previousUnit) {
+          currentSyllable.push(newUnit);
+        } else {
+          currentSyllable.push(newUnit);
+          console.log('adding unit', newUnit, 'to syllables');
+          const endOfSyllable = previousUnit.types.includes('nucleus') && (newUnit.types.includes('coda') || newUnit.types.includes('onset'));
+          const endOfWord = nextRemainingWord.length === 0;
+          const endingOnProperType = endOfWord && (newUnit.types.includes('nucleus') || newUnit.types.includes('coda'));
+          if (endOfSyllable || endingOnProperType) {
+            console.log('pushing complete syllable', currentSyllable);
+            console.log('endOfSyllable', endOfSyllable);
+            console.log('endingOnProperType', endingOnProperType);
+            syllables.push(currentSyllable);
+            currentSyllable = [];
+          }
+        }        
+        previousUnit = newUnit;
+      } else {
+        break;
+      }
+      currentStartingIndex = newUnit.string.length;
+      remainingWord = remainingWord.substr(currentStartingIndex);
+    } else {
+
+      remainingWord = '';
+    }
+  }
+  console.log('SYLLABLES ----------', syllables);
+
+  return syllables;
+}
+
+function validateSyllableSequence(syllableArray) {
+  console.warn('??????????????? validating', syllableArray);
+  let violation = {};
+  const isSingleSyllableWord = syllableArray.length === 1;
+  for (let s = 0; s < syllableArray.length; s++) {
+    const unitObjArray = syllableArray[s];
+    const syllableString = unitObjArray.map(syllObj => syllObj.string).join('');
+    console.log('unitObjArray', unitObjArray);
+    let consecutiveSingleLetterConsonants = 0;
+    const isSingleUnitSyllable = unitObjArray.length === 1;
+    const isFinalSyllable = !isSingleUnitSyllable && s === syllableArray.length - 1;
+    const firstUnit = unitObjArray[0];
+    const secondUnit = unitObjArray[1];
+    const lastUnit = unitObjArray[unitObjArray.length - 1];
+    const previousSyllable = syllableArray[s - 1];
+    const finalUnitOfPreviousSyllable = s > 0 && !isSingleSyllableWord ? previousSyllable[previousSyllable.length - 1] : undefined;
+
+    const startsWithRestrictiveCoda =
+      firstUnit.types.includes('coda')
+      && !firstUnit.types.includes('onset')
+    ;
+    const endsWithRestrictiveOnset =
+      lastUnit.types.includes('onset')
+      && !lastUnit.types.includes('coda')
+    ;
+    const incompleteSyllableAsOnlyUnit =
+      isSingleSyllableWord
+      && isSingleUnitSyllable
+      && !firstUnit.types.includes('nucleus')
+    ; 
+    const noNucleusFirstOrSecond =
+      unitObjArray.length > 1
+      && !firstUnit.types.includes('nucleus')
+      && !secondUnit.types.includes('nucleus')
+    ; 
+    const endsWordWithTwoConsonants =
+      syllableArray.length > 1
+      // && isFinalSyllable
+      && unitObjArray.length === 1
+      && !firstUnit.types.includes('nucleus')
+      && !finalUnitOfPreviousSyllable.types.includes('nucleus')
+    ; 
+    const disqualified =
+      startsWithRestrictiveCoda
+      || endsWithRestrictiveOnset
+      || incompleteSyllableAsOnlyUnit
+      || noNucleusFirstOrSecond
+      || endsWordWithTwoConsonants
+    ;
+    
+    if (disqualified) {
+      if (startsWithRestrictiveCoda) {
+        violation.syllable = syllableString;
+        violation.rule = 'syllable sequence';
+        violation.string = firstUnit.string;
+        violation.details = 'starts with restrictive coda';
+        break;
+      }
+      if (endsWithRestrictiveOnset) {
+        violation.syllable = syllableString;
+        violation.rule = 'syllable sequence';
+        violation.string = firstUnit.string;
+        violation.details = 'ends with restrictive onset';
+        break;
+      }
+      if (incompleteSyllableAsOnlyUnit) {
+        violation.syllable = syllableString;
+        violation.rule = 'syllable sequence';
+        violation.string = syllableString;
+        violation.details = 'consonant unit as only syllable';
+        break;
+      }
+      if (noNucleusFirstOrSecond) {
+        violation.syllable = syllableString;
+        violation.rule = 'syllable sequence';
+        violation.string = firstUnit.string + secondUnit.string;
+        violation.details = 'no nucleus in first or second position';
+        break;
+      }
+      if (endsWordWithTwoConsonants) {
+        violation.syllable = syllableString;
+        violation.rule = 'syllable sequence';
+        violation.string = firstUnit.string;
+        violation.details = 'ends word with two consonant units';
+        break;
+      }
+    } else {
+      console.warn('------------------------------------------------------------------------------', syllableArray[s].map(unit => unit.string).join(''), 'OK!')
+      // let doubleConsonants;
+      // for (let i = 0; i < unitObjArray.length; i++) {
+      //   const unitObj = unitObjArray[i];
+      //   if ((unitObj.string.length === 1) && !unitObj.types.includes('nucleus')) {
+      //     consecutiveSingleLetterConsonants++;
+      //     console.warn(unitObj.string, 'counted as consec single', consecutiveSingleLetterConsonants);
+      //     if (consecutiveSingleLetterConsonants === 2) {
+      //       doubleConsonants = {
+      //         offenders: [unitObj, unitObjArray[i - 1]],
+      //         index: unitObj.indexOf(),
+      //       };
+      //       doucles.push(doubleConsonants);
+      //     }
+      //   } else {
+      //     consecutiveSingleLetterConsonants = 0;
+      //   }
+      // }
+      // console.log('doubles', doubleConsonants);
+    }
+  }
+  return violation;
+}
+
 function validateInitialUnit(word, wordRules) {
+  word = word.toLowerCase();
   let string = '';
   const types = [];
   const unitArrays = {
-    onset: [...wordRules.onsets].sort((a, b) => b.length - a.length),
     nucleus: [...wordRules.nuclei].sort((a, b) => b.length - a.length),
     coda: [...wordRules.codas].sort((a, b) => b.length - a.length),
+    onset: [...wordRules.onsets].sort((a, b) => b.length - a.length),
   };
   for (let type in unitArrays) {
     const unitArray = unitArrays[type];
     for (let unit of unitArray) {
       if (word.indexOf(unit) === 0) {
-        if (unit.length > string.length) {
-          console.log('type', type, 'setting initial to', unit);
+        if (unit.length >= string.length) {
+          // console.log('type', type, 'setting unit string to', unit);
           string = unit;
-        }
-        if (!types.includes(type)) {
-          types.push(type);
+          if (!types.includes(type)) {
+            types.push(type);
+          }
         }
       }
     }
@@ -70,7 +233,7 @@ function validateUnitSequence(word, wordRules) {
             startingPartialIndex += nextUnit.string.length;
             partialRemainingWord = word.substr(startingPartialIndex);
             if (!partialRemainingWord) {
-              console.error('while breaking due to no partialRemainingWord', cycleCount)
+              console.error('while breaking due to no partialRemainingWord', cycleCount);
               break;
             }
           } else {
@@ -86,7 +249,7 @@ function validateUnitSequence(word, wordRules) {
             startingPartialIndex += nextUnit.string.length;
             partialRemainingWord = word.substr(startingPartialIndex);
             if (!partialRemainingWord) {
-              console.error('while breaking due to no partialRemainingWord', cycleCount)
+              console.error('while breaking due to no partialRemainingWord', cycleCount);
               break;
             }
           } else {
@@ -119,7 +282,7 @@ function validateUnitSequence(word, wordRules) {
     finalValidity = false;
     details = 'starts with coda';
   }
-  console.warn('VAL', validated)
+  console.warn('VAL', validated);
   if (!details && validated.length && !validated.some(validatedUnit => validatedUnit.types.includes('nucleus'))) {
     finalValidity = false;
     details = 'no nucleus';
@@ -151,7 +314,7 @@ function checkFollowers(word, wordRules) {
               invalidString: {
                 string: `${initialUnit}${follower}`,
                 index: indexPair.start,
-            },
+              },
               initial: {
                 string: initialUnit,
                 index: indexPair.start,
@@ -226,23 +389,23 @@ function getViolations(word, wordRules) {
     loneWord: wordRules.loneWord,
   };
 
-  const sequenceViolation = validateUnitSequence(word, wordRules);
-  if (sequenceViolation) {
-    const newViolation = {
-      rule: sequenceViolation.rule,
-      invalidString: { ...sequenceViolation.invalidString },
-      details: sequenceViolation.details,
-    };
-    violations.push(newViolation);
-  }
+  // const sequenceViolation = validateUnitSequence(word, wordRules);
+  // if (sequenceViolation) {
+  //   const newViolation = {
+  //     rule: sequenceViolation.rule,
+  //     invalidString: { ...sequenceViolation.invalidString },
+  //     details: sequenceViolation.details,
+  //   };
+  //   violations.push(newViolation);
+  // }
 
-  const followerViolations = checkFollowers(word, wordRules);
-  if (followerViolations.length) {
-    violations.push(...followerViolations);
-  }
+  // const followerViolations = checkFollowers(word, wordRules);
+  // if (followerViolations.length) {
+  //   violations.push(...followerViolations);
+  // }
 
-  const stringViolations = getStringViolations(word, invalidStrings);
-  violations.push(...stringViolations);
+  // const stringViolations = getStringViolations(word, invalidStrings);
+  // violations.push(...stringViolations);
 
   if (violations.length) {
     invalid = true;
@@ -256,4 +419,4 @@ function getViolations(word, wordRules) {
   };
 };
 
-export { getViolations };
+export { getViolations, extractSyllables, validateSyllableSequence, checkFollowers };

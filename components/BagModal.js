@@ -41,7 +41,7 @@ export default function BagModal(props) {
           background-color: var(--main-bg-color);
           border-radius: calc(var(--board-size) * 0.025);
           opacity: 0;
-          translate: 0 25%;
+          translate: 0 15%;
           pointer-events: none;
           transition: all 400ms ease;
           z-index: 5;

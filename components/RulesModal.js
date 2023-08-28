@@ -1,6 +1,9 @@
+import { useState } from "react";
 import Button from "./Button";
 
 export default function RulesModal(props) {
+  const [selectedUnit, setSelectedUnit] = useState(undefined);
+
   let onsetArrays = [[], [], [], [], []];
   let nucleusArrays = [[], [], [], [], []];
   let codaArrays = [[], [], [], [], []];
@@ -18,12 +21,42 @@ export default function RulesModal(props) {
   codaArrays = codaArrays.filter(arr => arr.length);
 
   let followersArray = [];
-  for (let initialUnit in props.wordRules.invalidFollowers) {
+  // for (let initialUnit in props.wordRules.invalidFollowers) {
+  //   const newObj = {
+  //     initialUnit,
+  //     followers: props.wordRules.invalidFollowers[initialUnit]
+  //   };
+  //   followersArray.push(newObj);
+  // }
+  const allUnits = [...props.wordRules.onsets, ...props.wordRules.nuclei, ...props.wordRules.codas];
+  const uniqueUnits = [...new Set(allUnits)].sort();;
+  for (let initialUnit of uniqueUnits) {
     const newObj = {
       initialUnit,
-      followers: props.wordRules.invalidFollowers[initialUnit]
+      followers: props.wordRules.invalidFollowers[initialUnit] || [],
     };
     followersArray.push(newObj);
+  }
+  followersArray = followersArray.sort((a, b) => a.initialUnit.length - b.initialUnit.length);
+
+  function handleClickUnit(e) {
+    const newUnitId = e.target.id;
+    console.log('setting unit', newUnitId);
+    setSelectedUnit(newUnitId);
+  }
+  function handleClickFollower(e) {
+    const newUnitId = e.target.id;
+    console.log('setting follower', newUnitId);
+    setSelectedUnit(newUnitId);
+  }
+  function handleClickBannedString(e) {
+    const newUnitId = e.target.id;
+    console.log('setting banned string', newUnitId);
+    setSelectedUnit(newUnitId);
+  }
+  function handleClickAddButton(e) {
+    
+    console.log('clicked ADD button!');
   }
   return (
     <div className={`rules-modal${props.showing ? ' showing' : ''}`}>
@@ -37,9 +70,12 @@ export default function RulesModal(props) {
                 <h3>Onsets</h3>
                 <div className='unit-list'>
                   {onsetArrays.map((arr, a) =>
-                    <div key={`onset-sublist-${a}`} className='unit-sublist'>{arr.map((unit, o) =>
-                      <div className='word-unit' key={`onset-${o}`}>{unit}</div>
-                    )}</div>
+                    <div key={`onset-sublist-${a}`} className='unit-sublist'>
+                      {arr.map((unit, o) =>
+                        <div onClick={handleClickUnit} className={`word-unit${selectedUnit === `onset-${a}-${o}` ? ' selected' : ''}`} id={`onset-${a}-${o}`} key={`onset-${a}-${o}`}>{unit}</div>
+                      )}
+                      <div onClick={handleClickAddButton} className='add-button'>ADD</div>
+                    </div>
                   )}
                 </div>
               </div>
@@ -47,9 +83,12 @@ export default function RulesModal(props) {
                 <h3>Nuclei</h3>
                 <div className='unit-list'>
                   {nucleusArrays.map((arr, a) =>
-                    <div key={`nucleus-sublist-${a}`} className='unit-sublist'>{arr.map((unit, o) =>
-                      <div className='word-unit' key={`nucleus-${o}`}>{unit}</div>
-                    )}</div>
+                    <div key={`nucleus-sublist-${a}`} className='unit-sublist'>
+                      {arr.map((unit, o) =>
+                        <div onClick={handleClickUnit} className={`word-unit${selectedUnit === `nucleus-${a}-${o}` ? ' selected' : ''}`} id={`nucleus-${a}-${o}`} key={`nucleus-${a}-${o}`}>{unit}</div>
+                      )}
+                      <div onClick={handleClickAddButton} className='add-button'>ADD</div>
+                    </div>
                   )}
                 </div>
               </div>
@@ -57,65 +96,73 @@ export default function RulesModal(props) {
                 <h3>Codas</h3>
                 <div className='unit-list'>
                   {codaArrays.map((arr, a) =>
-                    <div key={`coda-sublist-${a}`} className='unit-sublist'>{arr.map((unit, o) =>
-                      <div className='word-unit' key={`coda-${o}`}>{unit}</div>
-                    )}</div>
+                    <div key={`coda-sublist-${a}`} className='unit-sublist'>
+                      {arr.map((unit, o) =>
+                        <div onClick={handleClickUnit} className={`word-unit${selectedUnit === `coda-${a}-${o}` ? ' selected' : ''}`} id={`coda-${a}-${o}`} key={`coda-${a}-${o}`}>{unit}</div>
+                      )}
+                      <div onClick={handleClickAddButton} className='add-button'>ADD</div>
+                    </div>
                   )}
                 </div>
               </div>
             </div>
 
-            <div className='rule-type-area'>
+            {followersArray.length > 0 && <div className='rule-type-area'>
               <h2>Invalid Followers</h2>
               <div className='follower-area'>
                 {followersArray.map((followerSet, s) =>
                   <div key={`follower-entry-${s}`} className='follower-entry'>
                     <div>{followerSet.initialUnit}</div>
                     <div className='followers'>
-                      {followerSet.followers.map((follower, f) =>
-                        <div key={`follower-${f}`}>{follower}</div>
+                      {followerSet.followers.length > 0 && followerSet.followers.map((follower, f) =>
+                        <div onClick={handleClickFollower} className={`word-unit${selectedUnit === `follower-${s}-${f}` ? ' selected' : ''}`} id={`follower-${s}-${f}`} key={`follower-${s}-${f}`}>{follower}</div>
                       )}
+                      <div onClick={handleClickAddButton} className='add-button'>ADD</div>
                     </div>
                   </div>
                 )}
               </div>
-            </div>
+            </div>}
 
-            <div className='rule-type-area'>
+          {[...props.wordRules.startWord, ...props.wordRules.endWord, ...props.wordRules.universal, ...props.wordRules.loneWord].length > 0 && <div className='rule-type-area'>
               <h2>Banned strings</h2>
               <div className='unit-listing'>
-              <h3 className='sticky'>Beginning of word ({props.wordRules.startWord.length})</h3>
+                <h3 className='sticky'>Beginning of word ({props.wordRules.startWord.length})</h3>
                 <div className='unit-list long'>
                   {props.wordRules.startWord.map((segment, s) =>
-                    <div className='word-unit' key={`start-word-segment-${s}`}>{segment}</div>
+                    <div onClick={handleClickBannedString} className={`word-unit${selectedUnit === `start-word-segment-${s}` ? ' selected' : ``}`} id={`start-word-segment-${s}`}  key={`start-word-segment-${s}`}>{segment}</div>
                   )}
+                  <div onClick={handleClickAddButton} className='add-button'>ADD</div>
                 </div>
               </div>
               <div className='unit-listing'>
                 <h3 className='sticky'>End of word ({props.wordRules.endWord.length})</h3>
                 <div className='unit-list long'>
                   {props.wordRules.endWord.map((segment, s) =>
-                    <div className='word-unit' key={`end-word-segment-${s}`}>{segment}</div>
+                    <div onClick={handleClickBannedString} className={`word-unit${selectedUnit === `end-word-segment-${s}` ? ' selected' : ``}`} id={`end-word-segment-${s}`} key={`end-word-segment-${s}`}>{segment}</div>
                   )}
+                  <div onClick={handleClickAddButton} className='add-button'>ADD</div>
                 </div>
               </div>
               <div className='unit-listing'>
                 <h3 className='sticky'>Anywhere in word ({props.wordRules.universal.length})</h3>
                 <div className='unit-list long'>
                   {props.wordRules.universal.map((segment, s) =>
-                    <div className='word-unit' key={`universal-word-segment-${s}`}>{segment}</div>
+                    <div onClick={handleClickBannedString} className={`word-unit${selectedUnit === `universal-word-segment-${s}` ? ' selected' : ``}`} id={`universal-word-segment-${s}`} key={`universal-word-segment-${s}`}>{segment}</div>
                   )}
+                  <div onClick={handleClickAddButton} className='add-button'>ADD</div>
                 </div>
               </div>
               <div className='unit-listing'>
                 <h3 className='sticky'>Exact word ({props.wordRules.loneWord.length})</h3>
                 <div className='unit-list long'>
                   {props.wordRules.loneWord.map((segment, s) =>
-                    <div className='word-unit' key={`exact-word-segment-${s}`}>{segment}</div>
+                    <div onClick={handleClickBannedString} className={`word-unit${selectedUnit === `exact-word-segment-${s}` ? ' selected' : ``}`} id={`exact-word-segment-${s}`} key={`exact-word-segment-${s}`}>{segment}</div>
                   )}
+                  <div onClick={handleClickAddButton} className='add-button'>ADD</div>
                 </div>
               </div>
-            </div>
+            </div>}
           </div>
         </>
       }
@@ -141,7 +188,7 @@ export default function RulesModal(props) {
           background-color: var(--main-bg-color);
           border-radius: calc(var(--board-size) * 0.025);
           opacity: 0;
-          translate: 0 25%;
+          translate: 0 15%;
           pointer-events: none;
           transition: all 400ms ease;
           z-index: 5;
@@ -179,6 +226,7 @@ export default function RulesModal(props) {
             gap: calc(var(--board-size) * 0.03);
             overflow-y: scroll;
             margin-top: 3rem;
+            text-transform: uppercase;
 
             & h3.sticky {
               position: sticky;
@@ -221,12 +269,44 @@ export default function RulesModal(props) {
                     flex-wrap: wrap;
 
                   }
-                  & .word-unit {
-                    background-color: #ffffff33;
-                    padding: 0.25rem 0.5rem;
-                    min-width: 1.5rem;
-                    text-align: center;
-                  }
+                }
+              }
+
+              & .word-unit {
+                background-color: #ffffff33;
+                padding: 0.25rem 0.5rem;
+                min-width: 1.5rem;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                cursor: pointer;
+                border-radius: calc(var(--board-size) * 0.005);
+
+                &.selected {
+                  background-color: green;
+                }
+              }
+
+              & .add-button {
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                width: 3rem;
+                min-height: 1.5rem;
+                background-color: #aaffaa;
+                color: black;
+                font-weight: bold;
+                font-size: 0.8rem !important;
+                border-radius: calc(var(--board-size) * 0.005);
+                cursor: pointer;
+                transition: all 100ms ease;
+
+                &:hover {
+                  outline: 3px solid green;
+                }
+
+                &:active {
+                  scale: 0.9;
                 }
               }
 
@@ -238,8 +318,7 @@ export default function RulesModal(props) {
                   display: grid;
                   grid-template-columns: 2.5rem 1fr;
                   padding: 0.5rem;
-                  align-items: center;
-                  text-transform: uppercase;
+                  align-items: center;                  
                   font-weight: bold;
 
                   &:nth-of-type(odd) {
@@ -251,14 +330,6 @@ export default function RulesModal(props) {
                     display: flex;
                     flex-wrap: wrap;
                     gap: 0.25rem;
-
-                    & > div {
-                      background-color: #ffffff33;
-                      padding: 0.25rem;
-                      min-width: 1.5rem;
-                      text-align: center;
-                    }
-
                   }
                 }
               }
