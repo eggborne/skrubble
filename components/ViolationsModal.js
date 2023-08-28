@@ -21,7 +21,7 @@ export default function ViolationsModal(props) {
         )}
       </div>
       <div className='button-area'>
-        <Button width={'8rem'} label={'OK'} clickAction={props.dismissModal} />
+        <Button disabled={!props.showing} width={'8rem'} label={'OK'} clickAction={props.dismissModal} />
       </div>
       <style jsx>{`
         .violations-modal {
@@ -116,11 +116,6 @@ export default function ViolationsModal(props) {
               }
             }
           }
-        }
-
-        div button {
-          font-size: 1rem;
-          color: green;
         }
       `}</style>
     </div>

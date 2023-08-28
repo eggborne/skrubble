@@ -232,7 +232,7 @@ export default function Home() {
       getWordRules().then(newWordRules => {
         console.warn('got rules in', (Date.now() - startTime));
         setWordRules(newWordRules);
-        getViolations('chickens', newWordRules);
+        // getViolations('chickens', newWordRules);
       });
       setLoaded(true);
     }
@@ -828,8 +828,6 @@ export default function Home() {
   unpronouncableWords.forEach(violationObj => {
     totalViolations += violationObj.violations.violations.length;
   });
-  console.log('unpronouncableWords', unpronouncableWords);
-  console.log('totalViolations', totalViolations);
 
   return (
     <div>
