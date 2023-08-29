@@ -24,7 +24,7 @@ function extractSyllables(word, wordRules) {
     const newUnit = validateInitialUnit(remainingWord, wordRules);
     if (newUnit.string) {
       const nextRemainingWord = remainingWord.substring(newUnit.string.length);
-      const nextUnit = nextRemainingWord ? validateInitialUnit(nextRemainingWord, wordRules) : undefined;
+      // const nextUnit = nextRemainingWord ? validateInitialUnit(nextRemainingWord, wordRules) : undefined;
       if (newUnit.string.length === word.length) {
         currentSyllable.push(newUnit);
         syllables.push(currentSyllable);
@@ -49,13 +49,10 @@ function extractSyllables(word, wordRules) {
           }
         }        
         previousUnit = newUnit;
-      } else {
-        break;
       }
       currentStartingIndex = newUnit.string.length;
       remainingWord = remainingWord.substr(currentStartingIndex);
     } else {
-
       remainingWord = '';
     }
   }
@@ -90,8 +87,7 @@ function validateSyllableSequence(syllableArray) {
       && !lastUnit.types.includes('coda')
     ;
     const incompleteSyllableAsOnlyUnit =
-      isSingleSyllableWord
-      && isSingleUnitSyllable
+      isSingleUnitSyllable
       && !firstUnit.types.includes('nucleus')
     ; 
     const noNucleusFirstOrSecond =
@@ -99,41 +95,50 @@ function validateSyllableSequence(syllableArray) {
       && !firstUnit.types.includes('nucleus')
       && !secondUnit.types.includes('nucleus')
     ; 
+    const hasConsecutiveNuclei =
+      (
+        unitObjArray.length >= 2
+        && (firstUnit.types.includes('nucleus') && !firstUnit.types.includes('onset') && !firstUnit.types.includes('coda') )
+        && (secondUnit.types.includes('nucleus') && !secondUnit.types.includes('onset') && !secondUnit.types.includes('coda') )
+      )
+      ||
+      (
+        unitObjArray.length === 3
+        && (secondUnit.types.includes('nucleus') && !secondUnit.types.includes('onset') && !secondUnit.types.includes('coda') )
+        && (lastUnit.types.includes('nucleus') && !lastUnit.types.includes('onset') && !lastUnit.types.includes('coda') )
+      )
+    ; 
     const endsWordWithTwoConsonants =
       syllableArray.length > 1
-      // && isFinalSyllable
       && unitObjArray.length === 1
+      && !firstUnit.string === 's'
       && !firstUnit.types.includes('nucleus')
       && !finalUnitOfPreviousSyllable.types.includes('nucleus')
-    ; 
+    ;
+    const tooManyUnits = unitObjArray.length > 3;
     const disqualified =
-      startsWithRestrictiveCoda
-      || endsWithRestrictiveOnset
+      tooManyUnits
       || incompleteSyllableAsOnlyUnit
+      || startsWithRestrictiveCoda
       || noNucleusFirstOrSecond
+      || hasConsecutiveNuclei
+      || endsWithRestrictiveOnset
       || endsWordWithTwoConsonants
     ;
     
     if (disqualified) {
-      if (startsWithRestrictiveCoda) {
-        violation.syllable = syllableString;
-        violation.rule = 'syllable sequence';
-        violation.string = firstUnit.string;
-        violation.details = 'starts with restrictive coda';
-        break;
-      }
-      if (endsWithRestrictiveOnset) {
-        violation.syllable = syllableString;
-        violation.rule = 'syllable sequence';
-        violation.string = firstUnit.string;
-        violation.details = 'ends with restrictive onset';
-        break;
-      }
       if (incompleteSyllableAsOnlyUnit) {
         violation.syllable = syllableString;
         violation.rule = 'syllable sequence';
         violation.string = syllableString;
         violation.details = 'consonant unit as only syllable';
+        break;
+      }
+      if (startsWithRestrictiveCoda) {
+        violation.syllable = syllableString;
+        violation.rule = 'syllable sequence';
+        violation.string = firstUnit.string;
+        violation.details = 'starts with restrictive coda';
         break;
       }
       if (noNucleusFirstOrSecond) {
@@ -143,6 +148,20 @@ function validateSyllableSequence(syllableArray) {
         violation.details = 'no nucleus in first or second position';
         break;
       }
+      if (hasConsecutiveNuclei) {
+        violation.syllable = syllableString;
+        violation.rule = 'syllable sequence';
+        violation.string = syllableString;
+        violation.details = 'has two consecutive nucleii';
+        break;
+      }
+      if (endsWithRestrictiveOnset) {
+        violation.syllable = syllableString;
+        violation.rule = 'syllable sequence';
+        violation.string = firstUnit.string;
+        violation.details = 'ends with restrictive onset';
+        break;
+      }
       if (endsWordWithTwoConsonants) {
         violation.syllable = syllableString;
         violation.rule = 'syllable sequence';
@@ -150,32 +169,22 @@ function validateSyllableSequence(syllableArray) {
         violation.details = 'ends word with two consonant units';
         break;
       }
+      if (tooManyUnits) {
+        violation.syllable = syllableString;
+        violation.rule = 'syllable sequence';
+        violation.string = syllableString;
+        violation.details = 'contains too many units';
+        break;
+      }
     } else {
       console.warn('------------------------------------------------------------------------------', syllableArray[s].map(unit => unit.string).join(''), 'OK!')
-      // let doubleConsonants;
-      // for (let i = 0; i < unitObjArray.length; i++) {
-      //   const unitObj = unitObjArray[i];
-      //   if ((unitObj.string.length === 1) && !unitObj.types.includes('nucleus')) {
-      //     consecutiveSingleLetterConsonants++;
-      //     console.warn(unitObj.string, 'counted as consec single', consecutiveSingleLetterConsonants);
-      //     if (consecutiveSingleLetterConsonants === 2) {
-      //       doubleConsonants = {
-      //         offenders: [unitObj, unitObjArray[i - 1]],
-      //         index: unitObj.indexOf(),
-      //       };
-      //       doucles.push(doubleConsonants);
-      //     }
-      //   } else {
-      //     consecutiveSingleLetterConsonants = 0;
-      //   }
-      // }
-      // console.log('doubles', doubleConsonants);
     }
   }
   return violation;
 }
 
 function validateInitialUnit(word, wordRules) {
+  console.warn('validateInitialUnit ------------------->', word)
   word = word.toLowerCase();
   let string = '';
   const types = [];
@@ -187,11 +196,18 @@ function validateInitialUnit(word, wordRules) {
   for (let type in unitArrays) {
     const unitArray = unitArrays[type];
     for (let unit of unitArray) {
-      if (word.indexOf(unit) === 0) {
-        if (unit.length >= string.length) {
-          // console.log('type', type, 'setting unit string to', unit);
+      const sliceLength = unit.length;
+      const contestedLetters = word.slice(0, sliceLength);
+      const wordBeginsWithUnit = contestedLetters === unit;
+      if (wordBeginsWithUnit) {
+        const stringOverWritable = unit.length >= string.length;
+        if (stringOverWritable) {
+          if (unit.length > string.length) {
+            types.length = 0;
+          }
           string = unit;
-          if (!types.includes(type)) {
+          const typeOverwritable = !types.includes(type) && unitArrays[type].indexOf(unit) !== -1;
+          if (typeOverwritable) {
             types.push(type);
           }
         }
@@ -211,7 +227,6 @@ function validateUnitSequence(word, wordRules) {
   let details = '';
   let partialRemainingWord, startingPartialIndex;
   if (initialUnit && (initialUnit.types.includes('onset') || initialUnit.types.includes('nucleus'))) {
-    console.warn('initial unit is', initialUnit);
     validated.push(initialUnit);
     let lastTypes = initialUnit.types;
     startingPartialIndex = initialUnit.string.length;
@@ -219,7 +234,6 @@ function validateUnitSequence(word, wordRules) {
     let cycleCount = 0;
     while (cycleCount < 100) {
       const nextUnit = validateInitialUnit(partialRemainingWord, wordRules);
-      console.warn('nextUnit is', nextUnit);
       if (nextUnit) {
         const lastWasConsonantUnit = lastTypes.includes('onset') || lastTypes.includes('coda');
         const nextIsConsonantUnit = nextUnit.types.includes('onset') || nextUnit.types.includes('coda');
@@ -282,7 +296,6 @@ function validateUnitSequence(word, wordRules) {
     finalValidity = false;
     details = 'starts with coda';
   }
-  console.warn('VAL', validated);
   if (!details && validated.length && !validated.some(validatedUnit => validatedUnit.types.includes('nucleus'))) {
     finalValidity = false;
     details = 'no nucleus';

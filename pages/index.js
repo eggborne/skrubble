@@ -2,6 +2,7 @@ import { isMobile } from 'is-mobile';
 import { useEffect, useState } from 'react';
 import { auth, provider } from '../scripts/firebase';
 import { getAuth, signInWithPopup, GoogleAuthProvider, signInWithRedirect, signOut, signInAnonymously } from "firebase/auth";
+import { getAllRulesets } from '../scripts/db';
 import Head from 'next/head';
 import Header from '../components/Header';
 import Button from '../components/Button';
@@ -16,7 +17,6 @@ import { v4 } from 'uuid';
 import BagModal from '../components/BagModal';
 import BlankModal from '../components/BlankModal';
 import WordScoreDisplay from '../components/WordScoreDisplay';
-import { getAllRulesets } from '../scripts/db';
 import { checkFollowers, extractSyllables, validateSyllableSequence } from '../scripts/validator';
 import RulesModal from '../components/RulesModal';
 import ViolationsModal from '../components/ViolationsModal';
@@ -54,7 +54,7 @@ export default function Home() {
   const [pointerPosition, setPointerPosition] = useState({ x: null, y: null });
   const [letterMatrix, setLetterMatrix] = useState([...emptyLetterMatrix]);
   const [dragStartPosition, setDragStartPosition] = useState(null);
-  const [modalShowing, setModalShowing] = useState(undefined);
+  const [modalShowing, setModalShowing] = useState(undefined);  
   const [editingBlank, setEditingBlank] = useState(undefined);
   const [wordsOnBoard, setWordsOnBoard] = useState({ horizontal: [], vertical: [] });
   const [previousWordList, setPreviousWordList] = useState({ horizontal: [], vertical: [] });
@@ -62,7 +62,7 @@ export default function Home() {
   const [turnHistory, setTurnHistory] = useState([]);
   const [wordRules, setWordRules] = useState({});
   const [unpronouncableWords, setUnpronouncableWords] = useState([]);
-  const [debugMode, setDebugMode] = useState(true);
+  const [debugMode, setDebugMode] = useState(false);
 
   function signInAsGuest() {
     signInAnonymously(getAuth())
@@ -192,7 +192,8 @@ export default function Home() {
   useEffect(() => {
     if (!loaded) {
       establishScreenAttributes();
-      document.getElementById('home-container').addEventListener('touchmove', e => e.preventDefault(), false);
+      // document.getElementById('home-container').addEventListener('touchmove', e => e.preventDefault(), false);
+      // document.getElementById('home-container').addEventListener('touchmove', e => e.preventDefault());
       window.addEventListener('keydown', e => {
         if (e.code === 'Space') {
           e.preventDefault();
@@ -251,7 +252,6 @@ export default function Home() {
 
     const wordsToAnalyze = getWordsFromBoard();
     const newViolatingWords = [];
-
     const syllabizedWords = syllabizeWords(wordsToAnalyze);
     const syllableViolations = [];
     syllabizedWords.forEach(wordObj => {
@@ -792,7 +792,6 @@ export default function Home() {
 
   function getWordsFromBoard() {
     const matrixCopy = [...letterMatrix];
-    // const turnedMatrixCopy = getRowsFromColumns(matrixCopy);
     const horizontalWords = [];
     const verticalWords = [];
     matrixCopy.forEach((row, r) => {
@@ -875,6 +874,15 @@ export default function Home() {
     }).catch((error) => {
       console.error('--------------------> FAILED to sign out!');
     });
+  }
+
+  function handleClickAcceptRuleEdit(editInfoObj) {
+    console.log('clicked accept!', editInfoObj);
+    const newWordRules = { ...wordRules };
+    if (editInfoObj.ruleName === 'onsets' || editInfoObj.ruleName === 'nuclei' || editInfoObj.ruleName === 'codas') {
+      newWordRules[editInfoObj.ruleName].push(editInfoObj.rowEntry);
+    }
+    setWordRules(newWordRules);
   }
 
   const placedTiles = [...playerRack].filter(tile => tile.placed);
@@ -1029,14 +1037,14 @@ export default function Home() {
                     <Button label='&#8595;&#8595;' clickAction={returnUserTiles} />
                   }
                   <Button size='small' label={`Word Rules`} clickAction={() => toggleModal('rules')} />
-                  <Button disabled={!unpronouncableWords.length} size='small' label={`Violations${totalViolations ? ' (' + totalViolations + ')' : ''}`} clickAction={() => toggleModal('violations')} />
+                  <Button color='brown' disabled={!unpronouncableWords.length} size='small' label={`Violations${totalViolations ? ' (' + totalViolations + ')' : ''}`} clickAction={() => toggleModal('violations')} />
                   <Button size='small' label={`Bag (${bag.length})`} clickAction={() => toggleModal('bag')} />
                 </div>
               </div>
               <BagModal bag={bag} showing={modalShowing === 'bag'} dismissModal={() => toggleModal()} />
               <BlankModal bag={bag} showing={modalShowing === 'blank'} dismissModal={handleSelectBlankLetter} />
-              <RulesModal wordRules={wordRules} showing={modalShowing === 'rules'} dismissModal={() => toggleModal()} />
-              <ViolationsModal wordRules={wordRules} unpronouncableWords={unpronouncableWords} showing={modalShowing === 'violations'} dismissModal={() => toggleModal()} />
+              <RulesModal wordRules={wordRules} showing={modalShowing === 'rules'} handleClickAcceptRuleEdit={handleClickAcceptRuleEdit} dismissModal={() => toggleModal()} />
+              <ViolationsModal wordRules={wordRules} unpronouncableWords={unpronouncableWords} showing={modalShowing === 'violations'} dismissModal={() => toggleModal()} />             
             </>
             :
             user ?
@@ -1242,6 +1250,10 @@ export default function Home() {
         h1, h2, h3, h4 {
           padding: 0;
           margin: 0;
+        }
+
+        button {
+          cursor: pointer;
         }
 
         a {

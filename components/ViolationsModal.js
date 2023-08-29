@@ -11,7 +11,7 @@ export default function ViolationsModal(props) {
             <div className='violating-word-rules'>
               <div className={'word-rule-listing'}>
                 <div><p>Rule:</p><p>{violationsObj.rule.toUpperCase()}</p></div>
-                <div><p>Violating String:</p><p>{violationsObj.string.toUpperCase()}</p></div>
+                <div><p>Violating Syllable:</p><p>{violationsObj.string.toUpperCase()}</p></div>
                 <div><p>Details:</p><p>{violationsObj.details.toUpperCase()}</p></div>
               </div>
             </div>
@@ -26,7 +26,7 @@ export default function ViolationsModal(props) {
           position: fixed;
           top: 50%;
           left: 50%;
-          min-width: 40rem;
+          width: 40rem;
           max-width: 95vw;
           transform: translate(-50%, -50%);
           transform-origin: 50% 50%;
@@ -71,25 +71,25 @@ export default function ViolationsModal(props) {
             align-items: stretch;
             padding: calc(var(--board-size) * 0.01);
             gap: calc(var(--board-size) * 0.01);
-            width: 100%;
 
             & > .word-area {
               background-color: #00000022;
               display: grid;
-              grid-template-columns: 1fr 24rem;
+              grid-template-columns: auto auto;
               padding: calc(var(--board-size) * 0.01) calc(var(--board-size) * 0.02);
               gap: calc(var(--board-size) * 0.01) calc(var(--board-size) * 0.03);
 
               & > .violating-word {
                 font-size: 2rem;
                 align-self: center;
-                justify-self: center;
+                text-align: center;
+                padding: 0 0.5rem;
+                min-width: 6rem;
               }
               & > .violating-word-rules {
                 display: flex;
                 flex-direction: column;
                 
-
                 & > .word-rule-listing {
                   display: flex;
                   flex-direction: column;
