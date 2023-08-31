@@ -7,7 +7,6 @@ export default function WordScoreDisplay(props) {
   useEffect(() => {
     if (props.wordScoreTileId) {
       const tileElement = document.getElementById(props.wordScoreTileId);
-      console.warn('score tile is', tileElement)
       const tileRect = tileElement.getBoundingClientRect();
       const position = {
         left: tileRect.left,

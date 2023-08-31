@@ -1,7 +1,9 @@
 import { useState } from "react";
 import Button from "./Button";
-import ConfirmModal from "./ConfirmModal";
+import ConfirmAddUnitModal from "./ConfirmAddUnitModal";
 import { pause } from "../scripts/util";
+import { validateInitialUnit } from "../scripts/validator";
+import ConfirmAddFollowerModal from "./ConfirmAddFollowerModal";
 
 export default function RulesModal(props) {
   const [selectedUnit, setSelectedUnit] = useState({
@@ -9,8 +11,9 @@ export default function RulesModal(props) {
     string: '',
     rowEntry: '',
   });
-  const [currentlyAdding, setCurrentlyAdding] = useState(undefined);
-  const [confirmModalShowing, setConfirmModalShowing] = useState(false);
+  const [currentlyEditingType, setCurrentlyEditingType] = useState(undefined);
+  const [currentEditAction, setCurrentEditAction] = useState(undefined);
+  const [confirmModalShowing, setConfirmModalShowing] = useState('');
   const [errorShowing, setErrorShowing] = useState('');
 
   let onsetArrays = [[], [], [], [], []];
@@ -20,14 +23,17 @@ export default function RulesModal(props) {
     onsetArrays[unit.length - 1].push(unit);
   });
   onsetArrays = onsetArrays.filter(arr => arr.length);
+  onsetArrays.forEach(lengthArray => lengthArray.sort());
   props.wordRules.nuclei.forEach(unit => {
     nucleusArrays[unit.length - 1].push(unit);
   });
   nucleusArrays = nucleusArrays.filter(arr => arr.length);
+  nucleusArrays.forEach(lengthArray => lengthArray.sort());
   props.wordRules.codas.forEach(unit => {
     codaArrays[unit.length - 1].push(unit);
   });
   codaArrays = codaArrays.filter(arr => arr.length);
+  codaArrays.forEach(lengthArray => lengthArray.sort());
 
   let followersArray = [];
   const allUnits = [...props.wordRules.onsets, ...props.wordRules.nuclei, ...props.wordRules.codas];
@@ -48,16 +54,29 @@ export default function RulesModal(props) {
       string: e.target.innerHTML,
       rowEntry: e.target.innerHTML,
     });
-    setCurrentlyAdding(undefined);
+    setCurrentlyEditingType(undefined);
   }
   function handleClickFollower(e) {
+    const newUnitId = e.target.id;
+    const initialUnit = e.target.parentNode.parentNode.childNodes[0].innerHTML;
+    console.warn('init on click existing follower', initialUnit);
+    setSelectedUnit({
+      id: newUnitId,
+      string: e.target.innerHTML,
+      rowEntry: {
+        initialUnit,
+        newFollower: e.target.innerHTML
+      },
+    });
+    setCurrentlyEditingType(newUnitId.includes('follower') ? `invalidFollowers-${initialUnit}` : undefined);
+  }
+  function handleClickFollowerSelection(e) {
     const newUnitId = e.target.id;
     setSelectedUnit({
       id: newUnitId,
       string: e.target.innerHTML,
       rowEntry: e.target.innerHTML,
     });
-    setCurrentlyAdding(undefined);
   }
   function handleClickBannedString(e) {
     const newUnitId = e.target.id;
@@ -66,7 +85,7 @@ export default function RulesModal(props) {
       string: e.target.innerHTML,
       rowEntry: e.target.innerHTML,
     });
-    setCurrentlyAdding(undefined);
+    setCurrentlyEditingType(undefined);
   }
   function onClickAddUnitButton(e) {
     setSelectedUnit({
@@ -75,48 +94,72 @@ export default function RulesModal(props) {
       rowEntry: '',
     });
     const unitType = e.target.id.split('-')[1];
-    console.log('clicked ADD button!', unitType);
-    setCurrentlyAdding(unitType);
+    setCurrentlyEditingType(unitType);
+    setCurrentEditAction('add');
   }
   function onClickAddFollowerButton(e) {
+    console.log('88888888888888888888888888 ----------', 'selectedUnit', selectedUnit);
     setSelectedUnit({
       id: '',
       string: '',
       rowEntry: '',
     });
     const initialUnit = e.target.id.split('-')[0];
-    console.log('clicked ADD button!', initialUnit);
-    setCurrentlyAdding(initialUnit);
+    console.log('88888888888888888888888888 ----------', 'e.target.id', e.target.id);
+    console.log('88888888888888888888888888 ----------', 'currentlyEditingType', currentlyEditingType);
+    console.log('88888888888888888888888888 ----------', 'currentEditAction', currentEditAction);
+    setCurrentlyEditingType(`invalidFollowers-${initialUnit}`);
+    setCurrentEditAction('add');
   }
   function onClickEditButton(e) {
     console.log('clicked EDIT button!');
+    setCurrentEditAction('edit');
   }
-  function onClickDeleteButton(e) {
+  function onClickDeleteWordUnitButton(e) {
     console.log('clicked DELETE button!');
+    const unitType = e.target.id.split('-')[1];
+    setCurrentEditAction('delete');
+    setCurrentlyEditingType('unit');
+    console.log('selectedUnit', selectedUnit);
+    console.log('currentlyEditingType', currentlyEditingType);
+    console.log('currentEditAction', currentEditAction);
+    setConfirmModalShowing('unit-delete');
+  }
+  function onClickDeleteFollowerSetButton(initialUnit, newFollower) {
+    console.log('clicked DELETE button!');
+    console.log('selectedUnit', selectedUnit);
+    console.log('currentlyEditingType', currentlyEditingType);
+    console.log('currentEditAction', currentEditAction);
+    const newSelectedUnit = { ...selectedUnit };
+    newSelectedUnit.rowEntry = {
+      initialUnit,
+      newFollower,
+    };
+    console.log('newSelectedUnit', newSelectedUnit);
+    setSelectedUnit(newSelectedUnit);
+    setCurrentEditAction('delete');
+    setCurrentlyEditingType('invalidFollowers');
+    setConfirmModalShowing('follower-delete');
   }
   function handleSubmitAddUnitForm(e) {
     e.preventDefault();
-    const newUnit = e.target['submit-unit'].value.trim().toLowerCase();
-    const isAlpha = newUnit.split('').every(letter => letter.match(/[a-z]/i));
     let ruleName;
-    if (currentlyAdding === 'onset' || currentlyAdding === 'coda') {
-      ruleName = currentlyAdding + 's';
-    } else if (currentlyAdding === 'nucleus') {
+    if (currentlyEditingType === 'onset' || currentlyEditingType === 'coda') {
+      ruleName = currentlyEditingType + 's';
+    } else if (currentlyEditingType === 'nucleus') {
       ruleName = 'nuclei';
     }
+    const newUnit = e.target['submit-unit'].value.trim().toLowerCase();
+    const isAlpha = newUnit.split('').every(letter => letter.match(/[a-z]/i));
     const alreadyListed = props.wordRules[ruleName].includes(newUnit);
-    let inputValidated =
-      newUnit.length
-      && isAlpha
-      && !alreadyListed
-      ;
+    let inputValidated = newUnit.length && isAlpha && !alreadyListed;
     if (inputValidated) {
       setSelectedUnit({
-        id: `user-${currentlyAdding}`,
+        id: `user-${currentlyEditingType}`,
         string: newUnit,
         rowEntry: newUnit,
       });
-      setConfirmModalShowing(true);
+      setConfirmModalShowing('unit');
     } else {
       if (alreadyListed) {
         flashError(`${newUnit} already listed!`);
@@ -128,6 +171,20 @@ export default function RulesModal(props) {
     }
   }
 
+  function handleSubmitAddFollowerSet(initialUnit, newFollower) {
+    const newSelectedUnit = {
+      id: `user-${currentlyEditingType}`,
+      string: newFollower,
+      rowEntry: {
+        initialUnit,
+        newFollower,
+      },
+    };
+    console.warn('handleSubmitAddFollowerSet', newSelectedUnit);
+    setSelectedUnit(newSelectedUnit);
+    setConfirmModalShowing('follower');
+  }
+
   async function flashError(message, duration = 1000) {
     setErrorShowing(message);
     await pause(duration);
@@ -137,38 +194,98 @@ export default function RulesModal(props) {
   function handleAcceptRuleEdit() {
     setConfirmModalShowing(false);
     let ruleName;
-    if (currentlyAdding === 'onset' || currentlyAdding === 'coda') {
-      ruleName = currentlyAdding + 's';
-    } else if (currentlyAdding === 'nucleus') {
+    if (currentlyEditingType === 'onset' || currentlyEditingType === 'coda') {
+      ruleName = currentlyEditingType + 's';
+    } else if (currentlyEditingType === 'nucleus') {
       ruleName = 'nuclei';
+    } else if (currentlyEditingType.includes('invalidFollowers')) {
+      ruleName = 'invalidFollowers';
     }
     const editInfoObj = {
       ruleName,
       rowEntry: selectedUnit.rowEntry,
+      editAction: currentEditAction,
     };
+    console.log('sending', editInfoObj, 'back to index');
     props.handleClickAcceptRuleEdit(editInfoObj);
     setSelectedUnit({
       id: '',
       string: '',
       rowEntry: '',
     });
-    setCurrentlyAdding(undefined);
+    setCurrentlyEditingType(undefined);
+    setCurrentEditAction(undefined);
   }
 
   function handleCancelAddUnit() {
-    setCurrentlyAdding(undefined);
-
-  }
-
-  function handleDismissConfirmModal() {
-    setConfirmModalShowing(false);
-    setCurrentlyAdding(undefined);
+    setCurrentlyEditingType(undefined);
+    setCurrentEditAction(undefined);
     setSelectedUnit({
       id: '',
       string: '',
       rowEntry: '',
     });
   }
+
+  function handleDismissConfirmModal(keepType) {
+    setConfirmModalShowing(false);
+    !keepType && setCurrentlyEditingType(undefined);
+    !keepType && setCurrentEditAction(undefined);
+    setSelectedUnit({
+      id: '',
+      string: '',
+      rowEntry: '',
+    });
+  }
+
+  console.warn('0000000000000000000000000000000000000000000000');
+  console.warn('currentlyEditingType', currentlyEditingType);
+  console.warn('currentEditAction', currentEditAction);
+  console.warn('selectedUnit', selectedUnit);
+  console.warn('0000000000000000000000000000000000000000000000');
+
+  function getPotentialFollowers(initialUnit) {
+    const existingFollowers = props.wordRules.invalidFollowers[initialUnit] || [];
+    const potentialFollowers = [];
+    let validFollowerTypes = [];
+    const types = validateInitialUnit(initialUnit, props.wordRules).types.map(type => {
+      if (type === 'onset' || type === 'coda') {
+        return type + 's';
+      } else if (currentlyEditingType === 'nucleus') {
+        return 'nuclei';
+      }
+    });
+    const restrictiveOnset = types.includes('onsets') && !types.includes('codas');
+    const restrictiveCoda = !types.includes('onsets') && types.includes('codas');
+
+    types.forEach(type => {
+      if (type === 'onsets') {
+        if (restrictiveOnset) {
+          validFollowerTypes.push('nuclei');
+        } else {
+          validFollowerTypes.push('nuclei', 'onsets');
+        }
+      } else if (type === 'codas') {
+        if (restrictiveCoda) {
+          validFollowerTypes.push('nuclei', 'onsets');
+        } else {
+          validFollowerTypes.push('nuclei', 'onsets');
+        }
+      } else {
+        validFollowerTypes.push('onsets', 'codas');
+      }
+    });
+
+    validFollowerTypes = [...new Set(validFollowerTypes)];
+
+    validFollowerTypes.forEach(validType => {
+      potentialFollowers.push(props.wordRules[validType]);
+    });
+
+    const allFollowers = [...new Set(potentialFollowers.flat())];
+    return allFollowers.filter(follower => !existingFollowers.includes(follower));
+  }
+
   return (
     <div className={`rules-modal${props.showing ? ' showing' : ''}`}>
       <h1 className='modal-title'>Word Rules</h1>
@@ -188,12 +305,12 @@ export default function RulesModal(props) {
                       {(a === onsetArrays.length - 1) &&
                         <div className={'edit-delete-buttons'}>
                           <div
-                            onClick={currentlyAdding !== 'onset' ? onClickAddUnitButton : () => null}
+                            onClick={currentlyEditingType !== 'onset' ? onClickAddUnitButton : () => null}
                             id='add-onset-button'
-                            className={`add-button${currentlyAdding === 'onset' ? ' adding' : ''}`}
+                            className={`add-button${currentlyEditingType === 'onset' ? ' adding' : ''}`}
                           >
-                            {currentlyAdding === 'onset' ?
-                              <form onSubmitCapture={handleSubmitAddUnitForm} name='submit-unit' className='add-unit-form'>
+                            {currentlyEditingType === 'onset' ?
+                              !confirmModalShowing && <form onSubmitCapture={handleSubmitAddUnitForm} name='submit-unit' className='add-unit-form'>
                                 <input name='submit-unit' className='add-unit-input' type='text'></input>
                                 <button className={'confirm-button'} type='submit'>OK</button>
                                 <button className={'cancel-button'} type='button' onClick={handleCancelAddUnit}>Cancel</button>
@@ -202,17 +319,17 @@ export default function RulesModal(props) {
                               'ADD NEW ONSET'
                             }
                           </div>
-                          {!currentlyAdding && selectedUnit.id.includes(`onset`) &&
+                          {!currentlyEditingType && selectedUnit.id.includes(`onset`) &&
                             <>
                               <div onClick={onClickEditButton} id='edit-onset-button' className='edit-button'>{`EDIT "${selectedUnit.string}"`}</div>
-                              <div onClick={onClickDeleteButton} id='delete-onset-button' className='delete-button'>{`DELETE "${selectedUnit.string}"`}</div>
+                              <div onClick={onClickDeleteWordUnitButton} id='delete-onset-button' className='delete-button'>{`DELETE "${selectedUnit.string}"`}</div>
                             </>
                           }
                         </div>
                       }
                     </div>
                   )}
-                  {currentlyAdding === 'onset' && <div className={'error-display'}>{errorShowing}</div>}
+                  {currentlyEditingType === 'onset' && <div className={'error-display'}>{errorShowing}</div>}
                 </div>
               </div>
               <div className='unit-listing'>
@@ -226,11 +343,11 @@ export default function RulesModal(props) {
                       {(a === nucleusArrays.length - 1) &&
                         <div className='edit-delete-buttons'>
                           <div
-                            onClick={currentlyAdding !== 'nucleus' ? onClickAddUnitButton : () => null}
+                            onClick={currentlyEditingType !== 'nucleus' ? onClickAddUnitButton : () => null}
                             id='add-nucleus-button'
-                            className={`add-button${currentlyAdding === 'nucleus' ? ' adding' : ''}`}>
-                            {currentlyAdding === 'nucleus' ?
-                              <form onSubmitCapture={handleSubmitAddUnitForm} name='submit-unit' className='add-unit-form'>
+                            className={`add-button${currentlyEditingType === 'nucleus' ? ' adding' : ''}`}>
+                            {currentlyEditingType === 'nucleus' ?
+                              !confirmModalShowing && <form onSubmitCapture={handleSubmitAddUnitForm} name='submit-unit' className='add-unit-form'>
                                 <input name='submit-unit' className='add-unit-input' type='text'></input>
                                 <button className={'confirm-button'} type='submit'>OK</button>
                                 <button className={'cancel-button'} type='button' onClick={handleCancelAddUnit}>Cancel</button>
@@ -239,17 +356,17 @@ export default function RulesModal(props) {
                               'ADD NEW NUCLEUS'
                             }
                           </div>
-                          {!currentlyAdding && selectedUnit.id.includes(`nucleus`) &&
+                          {!currentlyEditingType && selectedUnit.id.includes(`nucleus`) &&
                             <>
                               <div onClick={onClickEditButton} id='edit-nucleus-button' className='edit-button'>{`EDIT "${selectedUnit.string}"`}</div>
-                              <div onClick={onClickDeleteButton} id='delete-nucleus-button' className='delete-button'>{`DELETE "${selectedUnit.string}"`}</div>
+                              <div onClick={onClickDeleteWordUnitButton} id='delete-nucleus-button' className='delete-button'>{`DELETE "${selectedUnit.string}"`}</div>
                             </>
                           }
                         </div>
                       }
                     </div>
                   )}
-                  {currentlyAdding === 'nucleus' && <div className={'error-display'}>{errorShowing}</div>}
+                  {currentlyEditingType === 'nucleus' && <div className={'error-display'}>{errorShowing}</div>}
                 </div>
               </div>
               <div className='unit-listing'>
@@ -263,11 +380,11 @@ export default function RulesModal(props) {
                       {(a === codaArrays.length - 1) &&
                         <div className='edit-delete-buttons'>
                           <div
-                            onClick={currentlyAdding !== 'coda' ? onClickAddUnitButton : () => null}
+                            onClick={currentlyEditingType !== 'coda' ? onClickAddUnitButton : () => null}
                             id='add-coda-button'
-                            className={`add-button${currentlyAdding === 'coda' ? ' adding' : ''}`}>
-                            {currentlyAdding === 'coda' ?
-                              <form onSubmitCapture={handleSubmitAddUnitForm} name='submit-unit' className='add-unit-form'>
+                            className={`add-button${currentlyEditingType === 'coda' ? ' adding' : ''}`}>
+                            {currentlyEditingType === 'coda' ?
+                              !confirmModalShowing && <form onSubmitCapture={handleSubmitAddUnitForm} name='submit-unit' className='add-unit-form'>
                                 <input name='submit-unit' className='add-unit-input' type='text'></input>
                                 <button className={'confirm-button'} type='submit'>OK</button>
                                 <button className={'cancel-button'} type='button' onClick={handleCancelAddUnit}>Cancel</button>
@@ -276,99 +393,149 @@ export default function RulesModal(props) {
                               'ADD NEW CODA'
                             }
                           </div>
-                          {!currentlyAdding && selectedUnit.id.includes(`coda`) &&
+                          {!currentlyEditingType && selectedUnit.id.includes(`coda`) &&
                             <>
                               <div onClick={onClickEditButton} id='edit-coda-button' className='edit-button'>{`EDIT "${selectedUnit.string}"`}</div>
-                              <div onClick={onClickDeleteButton} id='delete-coda-button' className='delete-button'>{`DELETE "${selectedUnit.string}"`}</div>
+                              <div onClick={onClickDeleteWordUnitButton} id='delete-coda-button' className='delete-button'>{`DELETE "${selectedUnit.string}"`}</div>
                             </>
                           }
                         </div>
                       }
                     </div>
                   )}
-                  {currentlyAdding === 'coda' && <div className={'error-display'}>{errorShowing}</div>}
+                  {currentlyEditingType === 'coda' && <div className={'error-display'}>{errorShowing}</div>}
                 </div>
               </div>
             </div>
 
-            {followersArray.length > 0 && <div className='rule-type-area'>
-              <h2>Invalid Followers</h2>
-              <div className='follower-area'>
-                {followersArray.map((followerSet, s) =>
-                  <div key={`follower-entry-${s}`} className='follower-entry'>
-                    <div>{followerSet.initialUnit}</div>
-                    <div className='followers'>
-                      {followerSet.followers.length > 0 && followerSet.followers.map((follower, f) =>
-                        <div onClick={handleClickFollower} className={`word-unit${selectedUnit.id === `follower-${s}-${f}` ? ' selected' : ''}`} id={`follower-${s}-${f}`} key={`follower-${s}-${f}`}>{follower}</div>
-                      )}
-                      <div onClick={onClickAddFollowerButton} id={`${followerSet.initialUnit}-add-follower-button`} className='add-button'>ADD</div>
-                      {!currentlyAdding && selectedUnit.id.includes(`follower-${s}`) &&
-                        <>
-                          <div onClick={onClickEditButton} className='edit-button'>{`EDIT "${selectedUnit.string}"`}</div>
-                          <div onClick={onClickDeleteButton} className='delete-button'>{`DELETE "${selectedUnit.string}"`}</div>
-                        </>}
-                    </div>
-                  </div>
-                )}
+            {followersArray.length > 0 &&
+              <div className='rule-type-area'>
+                <h2>Invalid Followers</h2>
+                <div className='follower-area'>
+                  {followersArray.map((followerSet, s) => {
+                    const editingCurrentPair = currentlyEditingType === `invalidFollowers-${followerSet.initialUnit}`;
+                    const showingPotentials = (currentEditAction === 'add') && editingCurrentPair;
+                    return (
+                      <div key={`follower-entry-${s}`} className={`follower-entry${showingPotentials ? ' expanded' : ''}${editingCurrentPair ? ' highlighted' : ''}`}>
+                        <div className='initial-unit'>{followerSet.initialUnit}</div>
+                        <div className={`followers`}>
+                          {followerSet.followers.length > 0 && followerSet.followers.map((follower, f) =>
+                            <div onClick={handleClickFollower} className={`word-unit established${selectedUnit.id === `follower-${followerSet.initialUnit}-${f}` ? ' selected' : ''}`} id={`follower-${followerSet.initialUnit}-${f}`} key={`follower-${followerSet.initialUnit}-${f}`}>{follower}</div>
+                          )}
+                          <div className={`follower-selection-units`}>
+                            {getPotentialFollowers(followerSet.initialUnit).map((follower, g) =>
+                              <div onClick={handleClickFollowerSelection} className={`word-unit potential${selectedUnit.id === `follower-selection-${s}-${g}` ? ' selected' : ''}`} id={`follower-selection-${s}-${g}`} key={`follower-selection-${s}-${g}`}>{follower}</div>
+                            )}
+                          </div>
+                          {<div className='add-follower-button-area'>
+                            {editingCurrentPair &&
+                              (currentEditAction !== 'add') && <>
+                                <div onClick={onClickEditButton} className='edit-button'>{`EDIT "NO ${followerSet.initialUnit}${selectedUnit.string}"`}</div>
+                              <div onClick={() => onClickDeleteFollowerSetButton(followerSet.initialUnit, selectedUnit.string)} className='delete-button'>{`DELETE "NO ${followerSet.initialUnit}${selectedUnit.string}"`}</div>
+                              <button className={'cancel-button small'} onClick={handleCancelAddUnit}>X</button>
+                              </>                                                            
+                            }
+                            {(currentlyEditingType !== `invalidFollowers-${followerSet.initialUnit}`) &&
+                              <div
+                                onClick={currentlyEditingType !== `invalidFollowers-${followerSet.initialUnit}` ? onClickAddFollowerButton : () => null}
+                                id={`${followerSet.initialUnit}-add-follower-button`}
+                                className={`add-button follower${currentlyEditingType === `invalidFollowers-${followerSet.initialUnit}` ? ' adding' : ''}`}
+                              >
+                                {'ADD'}
+                              </div>
+                            }
+                            {currentEditAction === 'add' && editingCurrentPair && <>
+                              <button onClick={() => handleSubmitAddFollowerSet(followerSet.initialUnit, selectedUnit.string)} className={'confirm-button'}>OK</button>
+                              <button className={'cancel-button'} onClick={handleCancelAddUnit}>Cancel</button>
+                            </>}
+                          </div>}
+                          {/* {selectedUnit.id.includes(`follower-${s}`) && <>
+                          <div onClick={onClickEditButton} className='edit-button'>{`EDIT "${followerSet.initialUnit}${selectedUnit.string}"`}</div>
+                          <div onClick={() => onClickDeleteFollowerSetButton(followerSet.initialUnit, selectedUnit.string)} className='delete-button'>{`DELETE "${followerSet.initialUnit}${selectedUnit.string}"`}</div>
+                        </>} */}
+                        </div>
+                      </div>
+                    );
+                  }
+                  )}
+                </div>
               </div>
-            </div>}
+            }
 
-            {[...props.wordRules.startWord, ...props.wordRules.endWord, ...props.wordRules.universal, ...props.wordRules.loneWord].length > 0 && <div className='rule-type-area'>
-              <h2>Banned strings</h2>
-              <div className='unit-listing'>
-                <h3 className='sticky'>Beginning of word ({props.wordRules.startWord.length})</h3>
-                <div className='unit-list long'>
-                  {props.wordRules.startWord.map((segment, s) =>
-                    <div onClick={handleClickBannedString} className={`word-unit${selectedUnit === `start-word-segment-${s}` ? ' selected' : ``}`} id={`start-word-segment-${s}`} key={`start-word-segment-${s}`}>{segment}</div>
-                  )}
-                  <div onClick={onClickAddUnitButton} className='add-button'>ADD</div>
-                  <div onClick={onClickEditButton} className='edit-button'>EDIT</div>
+            {[...props.wordRules.startWord, ...props.wordRules.endWord, ...props.wordRules.universal, ...props.wordRules.loneWord].length > 0 &&
+              <div className='rule-type-area'>
+                <h2>Banned strings</h2>
+                <div className='unit-listing'>
+                  <h3 className='sticky'>Beginning of word ({props.wordRules.startWord.length})</h3>
+                  <div className='unit-list long'>
+                    {props.wordRules.startWord.map((segment, s) =>
+                      <div onClick={handleClickBannedString} className={`word-unit${selectedUnit === `start-word-segment-${s}` ? ' selected' : ``}`} id={`start-word-segment-${s}`} key={`start-word-segment-${s}`}>{segment}</div>
+                    )}
+                    <div onClick={onClickAddUnitButton} className='add-button'>ADD</div>
+                    <div onClick={onClickEditButton} className='edit-button'>EDIT</div>
+                  </div>
+                </div>
+                <div className='unit-listing'>
+                  <h3 className='sticky'>End of word ({props.wordRules.endWord.length})</h3>
+                  <div className='unit-list long'>
+                    {props.wordRules.endWord.map((segment, s) =>
+                      <div onClick={handleClickBannedString} className={`word-unit${selectedUnit === `end-word-segment-${s}` ? ' selected' : ``}`} id={`end-word-segment-${s}`} key={`end-word-segment-${s}`}>{segment}</div>
+                    )}
+                    <div onClick={onClickAddUnitButton} className='add-button'>ADD</div>
+                    <div onClick={onClickEditButton} className='edit-button'>EDIT</div>
+                  </div>
+                </div>
+                <div className='unit-listing'>
+                  <h3 className='sticky'>Anywhere in word ({props.wordRules.universal.length})</h3>
+                  <div className='unit-list long'>
+                    {props.wordRules.universal.map((segment, s) =>
+                      <div onClick={handleClickBannedString} className={`word-unit${selectedUnit === `universal-word-segment-${s}` ? ' selected' : ``}`} id={`universal-word-segment-${s}`} key={`universal-word-segment-${s}`}>{segment}</div>
+                    )}
+                    <div onClick={onClickAddUnitButton} className='add-button'>ADD</div>
+                    <div onClick={onClickEditButton} className='edit-button'>EDIT</div>
+                  </div>
+                </div>
+                <div className='unit-listing'>
+                  <h3 className='sticky'>Exact word ({props.wordRules.loneWord.length})</h3>
+                  <div className='unit-list long'>
+                    {props.wordRules.loneWord.map((segment, s) =>
+                      <div onClick={handleClickBannedString} className={`word-unit${selectedUnit === `exact-word-segment-${s}` ? ' selected' : ``}`} id={`exact-word-segment-${s}`} key={`exact-word-segment-${s}`}>{segment}</div>
+                    )}
+                    <div onClick={onClickAddUnitButton} className='add-button'>ADD</div>
+                    <div onClick={onClickEditButton} className='edit-button'>EDIT</div>
+                  </div>
                 </div>
               </div>
-              <div className='unit-listing'>
-                <h3 className='sticky'>End of word ({props.wordRules.endWord.length})</h3>
-                <div className='unit-list long'>
-                  {props.wordRules.endWord.map((segment, s) =>
-                    <div onClick={handleClickBannedString} className={`word-unit${selectedUnit === `end-word-segment-${s}` ? ' selected' : ``}`} id={`end-word-segment-${s}`} key={`end-word-segment-${s}`}>{segment}</div>
-                  )}
-                  <div onClick={onClickAddUnitButton} className='add-button'>ADD</div>
-                  <div onClick={onClickEditButton} className='edit-button'>EDIT</div>
-                </div>
-              </div>
-              <div className='unit-listing'>
-                <h3 className='sticky'>Anywhere in word ({props.wordRules.universal.length})</h3>
-                <div className='unit-list long'>
-                  {props.wordRules.universal.map((segment, s) =>
-                    <div onClick={handleClickBannedString} className={`word-unit${selectedUnit === `universal-word-segment-${s}` ? ' selected' : ``}`} id={`universal-word-segment-${s}`} key={`universal-word-segment-${s}`}>{segment}</div>
-                  )}
-                  <div onClick={onClickAddUnitButton} className='add-button'>ADD</div>
-                  <div onClick={onClickEditButton} className='edit-button'>EDIT</div>
-                </div>
-              </div>
-              <div className='unit-listing'>
-                <h3 className='sticky'>Exact word ({props.wordRules.loneWord.length})</h3>
-                <div className='unit-list long'>
-                  {props.wordRules.loneWord.map((segment, s) =>
-                    <div onClick={handleClickBannedString} className={`word-unit${selectedUnit === `exact-word-segment-${s}` ? ' selected' : ``}`} id={`exact-word-segment-${s}`} key={`exact-word-segment-${s}`}>{segment}</div>
-                  )}
-                  <div onClick={onClickAddUnitButton} className='add-button'>ADD</div>
-                  <div onClick={onClickEditButton} className='edit-button'>EDIT</div>
-                </div>
-              </div>
-            </div>}
+            }
           </div>
         </>
       }
       <div className='button-area'>
-        <Button width={'8rem'} label={'OK'} clickAction={props.dismissModal} />
+        <Button width={'8rem'} label={'GO BACK'} clickAction={props.dismissModal} />
       </div>
-      <ConfirmModal
-        showing={confirmModalShowing}
-        handleClickAcceptRuleEdit={handleAcceptRuleEdit}
-        dismissModal={handleDismissConfirmModal}
-        selectedUnit={selectedUnit}
-        currentlyAdding={currentlyAdding}
-      />
+      {props.showing && currentlyEditingType && selectedUnit.string &&
+        <>
+          {!currentlyEditingType.includes('invalidFollowers') ?
+            <ConfirmAddUnitModal
+              action={currentEditAction}
+              showing={confirmModalShowing && confirmModalShowing.includes('unit')}
+              handleClickAcceptRuleEdit={handleAcceptRuleEdit}
+              dismissModal={handleDismissConfirmModal}
+              selectedUnit={selectedUnit}
+              currentlyEditingType={currentlyEditingType}
+            />
+            :
+            <ConfirmAddFollowerModal
+              action={currentEditAction}
+              showing={confirmModalShowing && confirmModalShowing.includes('follower')}
+              handleClickAcceptRuleEdit={handleAcceptRuleEdit}
+              dismissModal={() => handleDismissConfirmModal(true)}
+              selectedUnit={selectedUnit}
+              currentlyEditingType={currentlyEditingType}
+            />
+          }
+        </>
+      }
       <style jsx>{`
         .rules-modal {
           position: absolute;
@@ -393,7 +560,7 @@ export default function RulesModal(props) {
           pointer-events: none;
           transition: all 400ms ease;
           z-index: 6;
-
+        
           &.showing {
             opacity: 1;
             pointer-events: all;
@@ -428,6 +595,8 @@ export default function RulesModal(props) {
             overflow-y: scroll;
             margin-top: 3rem;
             text-transform: uppercase;
+            z-index: 6;
+            overscroll-behavior: none;
 
             & h3.sticky {
               position: sticky;
@@ -449,6 +618,7 @@ export default function RulesModal(props) {
                 gap: 0.5rem 0;
                 background-color: #00000033;
                 border-radius: calc(var(--board-size) * 0.01);
+
 
                 & > .unit-list {
                   position: relative;
@@ -488,14 +658,18 @@ export default function RulesModal(props) {
                 background-color: #ffffff33;
                 padding: 0.25rem 0.5rem;
                 min-width: 1.5rem;
+                height: 2rem;
                 display: flex;
                 align-items: center;
                 justify-content: center;
                 cursor: pointer;
                 border-radius: calc(var(--board-size) * 0.005);
+                transition: scale 100ms ease, opacity 100ms ease;
 
                 &.selected {
                   background-color: green;
+                  scale: 1.1;
+                  font-weight: bold;
                 }
               }
               
@@ -531,6 +705,10 @@ export default function RulesModal(props) {
 
               & .add-button {
 
+                &.follower {
+                  width: 6rem;                  
+                }
+
                 &.adding {
                   min-width: 9rem;
                   width: min-content;
@@ -547,7 +725,13 @@ export default function RulesModal(props) {
                 }
               }
 
-              & .add-unit-form {
+              & .edit-button, & .delete-button {
+                width: 9.5rem;
+                max-width: 18vw;
+                text-align: center;
+              }
+
+              & .add-unit-form, .add-follower-form {
                 width: 100%;
                 display: flex;
                 gap: 0.5rem;
@@ -557,21 +741,31 @@ export default function RulesModal(props) {
                   margin: 0;
                   width: 4rem;
                   font-size: 1.75rem;
-                  height: 2.5rem;
+                  height: 3rem;
                   text-transform: uppercase;
                   text-align: center;
-                }
-
-                & > button.confirm-button {
-                  background-color: #aaffaa;
-                }
-                & > button.cancel-button {
-                  background-color: #ffaaaa;
-                }
+                }                
               }
+
               & button {
                 width: 4rem;
+                min-height: 3rem;
                 border-radius: calc(var(--board-size) * 0.0075);
+
+                &.confirm-button {
+                  background-color: #aaffaa;
+                }
+                &.cancel-button {
+                  background-color: #ffaaaa;
+
+                  &.small {
+                    width: 3rem;
+                    font-weight: bold;
+                    font-size: 1.5rem;
+                    color: #eee;
+                    background-color: red;
+                  }
+                }
               }
 
               & .edit-button {
@@ -588,6 +782,10 @@ export default function RulesModal(props) {
                 display: flex;
                 flex-direction: column;
 
+                & .word-unit {
+                  font-size: 1.25rem;
+                }
+
                 & > .follower-entry {
                   display: grid;
                   grid-template-columns: 2.5rem 1fr;
@@ -595,8 +793,49 @@ export default function RulesModal(props) {
                   align-items: center;                  
                   font-weight: bold;
 
+                  & .follower-selection-units {
+                    display: none;
+                    flex-wrap: wrap;
+                    transition: all 1000ms ease;
+                    gap: inherit;
+                    padding: 0.5rem;
+                    padding-right: 1rem;
+                    margin-top: 1rem;
+
+                    & > .word-unit {
+                      opacity: 0.65;
+                      font-size: 1rem;
+
+                      &.selected {
+                        opacity: 1;
+                      }
+
+                    }
+                  }
+
+                  &.highlighted {
+                    outline: 2px solid blue;
+                  }
+
+                  &.expanded {
+
+                    & .word-unit.established {
+                      outline: 0.1rem solid green;
+                      pointer-events: none;                    
+                    }
+
+                    & .follower-selection-units {
+                      display: flex;
+                    }
+                  }
+
                   &:nth-of-type(odd) {
                     background-color: #00000011;
+                  }
+
+                  & > .initial-unit {
+                    font-size: 2.25rem;
+                    align-self: flex-start;
                   }
 
                   & > .followers {
@@ -604,10 +843,23 @@ export default function RulesModal(props) {
                     display: flex;
                     flex-wrap: wrap;
                     gap: 0.25rem;
+                    min-height: 3rem;                                                                                
                   }
+
+                  & .add-follower-button-area {
+                    display: flex;
+                    align-items: stretch;
+                    flex-grow: 1;
+                    justify-content: flex-end;
+                    gap: 0.5rem;
+                  }                  
                 }
               }
             }
+          }
+          & > .button-area {
+            width: 100%;
+            padding-left: 1rem;
           }
         }
       `}</style>

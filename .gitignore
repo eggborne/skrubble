@@ -34,3 +34,4 @@ pages/lagre-monitor-workspace.code-workspace
 .gitignore
 pages/laptop-screen-workspace.code-workspace
 public/env.js
+scripts/php/.htaccess

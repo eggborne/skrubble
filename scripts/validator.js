@@ -14,7 +14,7 @@ function findRegexIndices(text, needle) {
 }
 
 function extractSyllables(word, wordRules) {
-  console.warn('extractSyllables from', word);
+  // console.warn('extractSyllables from', word);
   let syllables = [];
   let remainingWord = word;
   let currentStartingIndex = 0;
@@ -36,14 +36,14 @@ function extractSyllables(word, wordRules) {
           currentSyllable.push(newUnit);
         } else {
           currentSyllable.push(newUnit);
-          console.log('adding unit', newUnit, 'to syllables');
+          // console.log('adding unit', newUnit, 'to syllables');
           const endOfSyllable = previousUnit.types.includes('nucleus') && (newUnit.types.includes('coda') || newUnit.types.includes('onset'));
           const endOfWord = nextRemainingWord.length === 0;
           const endingOnProperType = endOfWord && (newUnit.types.includes('nucleus') || newUnit.types.includes('coda'));
           if (endOfSyllable || endingOnProperType) {
-            console.log('pushing complete syllable', currentSyllable);
-            console.log('endOfSyllable', endOfSyllable);
-            console.log('endingOnProperType', endingOnProperType);
+            // console.log('pushing complete syllable', currentSyllable);
+            // console.log('endOfSyllable', endOfSyllable);
+            // console.log('endingOnProperType', endingOnProperType);
             syllables.push(currentSyllable);
             currentSyllable = [];
           }
@@ -56,19 +56,19 @@ function extractSyllables(word, wordRules) {
       remainingWord = '';
     }
   }
-  console.log('SYLLABLES ----------', syllables);
+  // console.log('SYLLABLES ----------', syllables);
 
   return syllables;
 }
 
 function validateSyllableSequence(syllableArray) {
-  console.warn('??????????????? validating', syllableArray);
+  // console.warn('??????????????? validating', syllableArray);
   let violation = {};
   const isSingleSyllableWord = syllableArray.length === 1;
   for (let s = 0; s < syllableArray.length; s++) {
     const unitObjArray = syllableArray[s];
     const syllableString = unitObjArray.map(syllObj => syllObj.string).join('');
-    console.log('unitObjArray', unitObjArray);
+    // console.log('unitObjArray', unitObjArray);
     let consecutiveSingleLetterConsonants = 0;
     const isSingleUnitSyllable = unitObjArray.length === 1;
     const isFinalSyllable = !isSingleUnitSyllable && s === syllableArray.length - 1;
@@ -177,14 +177,14 @@ function validateSyllableSequence(syllableArray) {
         break;
       }
     } else {
-      console.warn('------------------------------------------------------------------------------', syllableArray[s].map(unit => unit.string).join(''), 'OK!')
+      // console.warn('------------------------------------------------------------------------------', syllableArray[s].map(unit => unit.string).join(''), 'OK!')
     }
   }
   return violation;
 }
 
 function validateInitialUnit(word, wordRules) {
-  console.warn('validateInitialUnit ------------------->', word)
+  // console.warn('validateInitialUnit ------------------->', word)
   word = word.toLowerCase();
   let string = '';
   const types = [];
@@ -432,4 +432,4 @@ function getViolations(word, wordRules) {
   };
 };
 
-export { getViolations, extractSyllables, validateSyllableSequence, checkFollowers };
+export { getViolations, extractSyllables, validateSyllableSequence, checkFollowers, validateInitialUnit };

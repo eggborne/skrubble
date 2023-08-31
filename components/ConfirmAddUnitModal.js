@@ -1,15 +1,16 @@
-import { useState } from "react";
 import Button from "./Button";
 
-export default function EditConfirmModal(props) {
+export default function ConfirmAddUnitModal(props) {
 
   function onAcceptRuleEdit(e) {
     props.handleClickAcceptRuleEdit();
   }
+  console.log('prop', props)
+  const confirmMessage = `Really ${props.action} ${props.currentlyEditingType} ${props.selectedUnit.rowEntry.toUpperCase()}?`;
   
   return (
     <div className={`edit-confirm-modal${props.showing ? ' showing' : ''}`}>
-      <h1 className='modal-title'>{props.showing && `Really add ${props.currentlyAdding} ${props.selectedUnit.rowEntry.toUpperCase()}?`}</h1>
+      {props.currentlyEditingType && props.selectedUnit && <h1 className='modal-title'>{props.showing && confirmMessage}</h1>}
       
       <div className='button-area'>
         <Button disabled={!props.showing} color='green' width={'8rem'} label={'OK'} clickAction={onAcceptRuleEdit} />
@@ -29,14 +30,14 @@ export default function EditConfirmModal(props) {
           align-items: center;
           justify-content: space-between;
           gap: calc(var(--board-size) * 0.025);
-          padding: calc(var(--board-size) * 0.0325);
+          padding: calc(var(--board-size) * 0.05);
           background-color: #885577;
           border-radius: calc(var(--board-size) * 0.025);
           opacity: 0;
           translate: 0 15%;
           pointer-events: none;
           transition: all 400ms ease;
-          z-index: 5;
+          z-index: 6;
 
           &.showing {
             opacity: 1;

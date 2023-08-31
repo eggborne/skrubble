@@ -2,7 +2,7 @@ import { isMobile } from 'is-mobile';
 import { useEffect, useState } from 'react';
 import { auth, provider } from '../scripts/firebase';
 import { getAuth, signInWithPopup, GoogleAuthProvider, signInWithRedirect, signOut, signInAnonymously } from "firebase/auth";
-import { getAllRulesets } from '../scripts/db';
+import { getAllRulesets, sendNewRules } from '../scripts/db';
 import Head from 'next/head';
 import Header from '../components/Header';
 import Button from '../components/Button';
@@ -193,7 +193,12 @@ export default function Home() {
     if (!loaded) {
       establishScreenAttributes();
       // document.getElementById('home-container').addEventListener('touchmove', e => e.preventDefault(), false);
+      document.getElementsByTagName('main')[0].addEventListener('touchmove', e => e.preventDefault(), true);
       // document.getElementById('home-container').addEventListener('touchmove', e => e.preventDefault());
+      // document.getElementById('home-container').addEventListener('touchmove', e => {
+      //   console.log(e.target);
+      //   e.preventDefault();
+      // });
       window.addEventListener('keydown', e => {
         if (e.code === 'Space') {
           e.preventDefault();
@@ -256,24 +261,24 @@ export default function Home() {
     const syllableViolations = [];
     syllabizedWords.forEach(wordObj => {
       const sequenceValidation = validateSyllableSequence(wordObj.syllables);
-      console.warn('sequenceValidation', sequenceValidation);
+      // console.warn('sequenceValidation', sequenceValidation);
       if (sequenceValidation.rule) {
         const newViolatorObj = {
           wordObj,
           ...sequenceValidation,
         };
-        console.log('newViolatorObj', newViolatorObj);
+        // console.log('newViolatorObj', newViolatorObj);
         syllableViolations.push(newViolatorObj);
         newViolatingWords.push(newViolatorObj)
       }
       const followerViolations = checkFollowers(wordObj.word, wordRules);
       console.warn('followerViolations', followerViolations);
     });
-    if (syllableViolations.length) {
-      console.error('SYLLABLE SEQUENCE INVALID!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!');
-    } else {
-      console.warn('--------------------> syllables OK!');
-    }
+    // if (syllableViolations.length) {
+    //   console.error('SYLLABLE SEQUENCE INVALID!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!');
+    // } else {
+    //   console.warn('--------------------> syllables OK!');
+    // }
 
     // syllabizedWords.forEach(wordObj => {
     //   const newViolatorObj = {
@@ -327,12 +332,12 @@ export default function Home() {
   function syllabizeWords(wordArray) {
     const syllabizedWords = [...wordArray];
     syllabizedWords.forEach((wordObj) => {
-      console.log('syllabizing', wordObj.word);
+      // console.log('syllabizing', wordObj.word);
       wordObj.syllables = [];
       const syllables = extractSyllables(wordObj.word, wordRules);
       syllables.forEach((syllableObj) => {
         wordObj.syllables.push(syllableObj);
-        console.log('&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&& syllable?', syllableObj.map(unit => unit.string).join('-'))
+        // console.log('&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&& syllable?', syllableObj.map(unit => unit.string).join('-'))
       });
 
     });
@@ -354,6 +359,11 @@ export default function Home() {
     let totalNewPoints = newWords.reduce((acc, curr) => scoreWord(curr) + acc, 0);
     setPendingTurnScore(totalNewPoints);
   }, [newWords]);
+
+  // useEffect(() => {
+  //   console.log('new word rules effect', wordRules);
+  //   sendNewRules(guestUser.uid, wordRules);
+  // }, [wordRules]);
 
   function tileHasNeighbor(space) {
     const flatOccupiedSpaceArray = [...letterMatrix].flat().filter(val => val.contents);
@@ -876,13 +886,39 @@ export default function Home() {
     });
   }
 
-  function handleClickAcceptRuleEdit(editInfoObj) {
+  async function handleClickAcceptRuleEdit(editInfoObj) {
     console.log('clicked accept!', editInfoObj);
+
     const newWordRules = { ...wordRules };
     if (editInfoObj.ruleName === 'onsets' || editInfoObj.ruleName === 'nuclei' || editInfoObj.ruleName === 'codas') {
-      newWordRules[editInfoObj.ruleName].push(editInfoObj.rowEntry);
+      if (editInfoObj.editAction === 'add') {
+        newWordRules[editInfoObj.ruleName].push(editInfoObj.rowEntry);
+      } else if (editInfoObj.editAction === 'delete') {
+        console.log('we deleting', editInfoObj);
+        const doomedIndex = newWordRules[editInfoObj.ruleName].indexOf(editInfoObj.rowEntry);
+        newWordRules[editInfoObj.ruleName].splice(doomedIndex, 1);
+        console.log('deleted unit in', newWordRules[editInfoObj.ruleName]);
+      }
+    } else if (editInfoObj.ruleName === 'invalidFollowers') {
+      console.error('SEND');
+      if (editInfoObj.editAction === 'add') {
+        newWordRules[editInfoObj.ruleName][editInfoObj.rowEntry.initialUnit].push(editInfoObj.rowEntry.newFollower);
+      } else if (editInfoObj.editAction === 'delete') {
+        const doomedIndex = newWordRules[editInfoObj.ruleName][editInfoObj.rowEntry.initialUnit].indexOf(editInfoObj.rowEntry.newFollower);
+        newWordRules[editInfoObj.ruleName][editInfoObj.rowEntry.initialUnit].splice(doomedIndex, 1);
+        console.log('deleted pair in', newWordRules[editInfoObj.ruleName]);
+      }
     }
+
     setWordRules(newWordRules);
+    const ruleType = editInfoObj.ruleName;
+    const newList = newWordRules[editInfoObj.ruleName];
+
+    const startTime = Date.now();
+    console.log('sending', ruleType, newList)
+    await sendNewRules(ruleType, newList);
+    console.warn('>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> sending took', Date.now() - startTime);
+
   }
 
   const placedTiles = [...playerRack].filter(tile => tile.placed);
@@ -1043,7 +1079,6 @@ export default function Home() {
               </div>
               <BagModal bag={bag} showing={modalShowing === 'bag'} dismissModal={() => toggleModal()} />
               <BlankModal bag={bag} showing={modalShowing === 'blank'} dismissModal={handleSelectBlankLetter} />
-              <RulesModal wordRules={wordRules} showing={modalShowing === 'rules'} handleClickAcceptRuleEdit={handleClickAcceptRuleEdit} dismissModal={() => toggleModal()} />
               <ViolationsModal wordRules={wordRules} unpronouncableWords={unpronouncableWords} showing={modalShowing === 'violations'} dismissModal={() => toggleModal()} />             
             </>
             :
@@ -1059,6 +1094,7 @@ export default function Home() {
         </div>
         <footer><a href='https://github.com/eggborne/skrubble'>View source on GitHub</a></footer>
       </main>
+      {loaded && gameStarted && <RulesModal wordRules={wordRules} showing={modalShowing === 'rules'} handleClickAcceptRuleEdit={handleClickAcceptRuleEdit} dismissModal={() => toggleModal()} />}
 
       <style jsx>{`
         main {
@@ -1072,7 +1108,7 @@ export default function Home() {
           align-items: center;
           overflow: hidden;
           opacity: ${loaded ? 1 : 0};
-          transition: opacity 500ms ease;
+          transition: opacity 500ms ease;          
         }
         #home-container {
           position: relative;
