@@ -20,6 +20,7 @@ import WordScoreDisplay from '../components/WordScoreDisplay';
 import { checkFollowers, extractSyllables, validateSyllableSequence } from '../scripts/validator';
 import RulesModal from '../components/RulesModal';
 import ViolationsModal from '../components/ViolationsModal';
+import SaveMessage from '../components/SaveMessage';
 
 const IS_MOBILE = isMobile();
 let LANDSCAPE;
@@ -54,7 +55,7 @@ export default function Home() {
   const [pointerPosition, setPointerPosition] = useState({ x: null, y: null });
   const [letterMatrix, setLetterMatrix] = useState([...emptyLetterMatrix]);
   const [dragStartPosition, setDragStartPosition] = useState(null);
-  const [modalShowing, setModalShowing] = useState(undefined);  
+  const [modalShowing, setModalShowing] = useState(undefined);
   const [editingBlank, setEditingBlank] = useState(undefined);
   const [wordsOnBoard, setWordsOnBoard] = useState({ horizontal: [], vertical: [] });
   const [previousWordList, setPreviousWordList] = useState({ horizontal: [], vertical: [] });
@@ -62,7 +63,8 @@ export default function Home() {
   const [turnHistory, setTurnHistory] = useState([]);
   const [wordRules, setWordRules] = useState({});
   const [unpronouncableWords, setUnpronouncableWords] = useState([]);
-  const [debugMode, setDebugMode] = useState(false);
+  const [saveMessageShowing, setSaveMessageShowing] = useState('');
+  const [debugMode, setDebugMode] = useState(false); 1;
 
   function signInAsGuest() {
     signInAnonymously(getAuth())
@@ -131,6 +133,12 @@ export default function Home() {
   function callBlankModal() {
     setModalShowing('blank');
     setEditingBlank(selectedTileId);
+  }
+
+  async function flashSaveMessage(messageText, duration) {
+    setSaveMessageShowing(messageText);
+    await pause(duration);
+    setSaveMessageShowing('');
   }
 
   function createBag() {
@@ -236,9 +244,8 @@ export default function Home() {
       //   });
       let startTime = Date.now();
       getWordRules().then(newWordRules => {
-        console.warn('got rules in', (Date.now() - startTime));
+        flashSaveMessage(`Got ruleset "${newWordRules.dialect}" in ${(Date.now() - startTime)}ms`, 2000);
         setWordRules(newWordRules);
-        extractSyllables('chickenfucker', newWordRules);
       });
       setLoaded(true);
     }
@@ -269,7 +276,7 @@ export default function Home() {
         };
         // console.log('newViolatorObj', newViolatorObj);
         syllableViolations.push(newViolatorObj);
-        newViolatingWords.push(newViolatorObj)
+        newViolatingWords.push(newViolatorObj);
       }
       const followerViolations = checkFollowers(wordObj.word, wordRules);
       console.warn('followerViolations', followerViolations);
@@ -890,24 +897,23 @@ export default function Home() {
     console.log('clicked accept!', editInfoObj);
 
     const newWordRules = { ...wordRules };
+    let entryString;
     if (editInfoObj.ruleName === 'onsets' || editInfoObj.ruleName === 'nuclei' || editInfoObj.ruleName === 'codas') {
       if (editInfoObj.editAction === 'add') {
         newWordRules[editInfoObj.ruleName].push(editInfoObj.rowEntry);
       } else if (editInfoObj.editAction === 'delete') {
-        console.log('we deleting', editInfoObj);
         const doomedIndex = newWordRules[editInfoObj.ruleName].indexOf(editInfoObj.rowEntry);
         newWordRules[editInfoObj.ruleName].splice(doomedIndex, 1);
-        console.log('deleted unit in', newWordRules[editInfoObj.ruleName]);
       }
+      entryString = editInfoObj.rowEntry.toUpperCase();
     } else if (editInfoObj.ruleName === 'invalidFollowers') {
-      console.error('SEND');
       if (editInfoObj.editAction === 'add') {
         newWordRules[editInfoObj.ruleName][editInfoObj.rowEntry.initialUnit].push(editInfoObj.rowEntry.newFollower);
       } else if (editInfoObj.editAction === 'delete') {
         const doomedIndex = newWordRules[editInfoObj.ruleName][editInfoObj.rowEntry.initialUnit].indexOf(editInfoObj.rowEntry.newFollower);
         newWordRules[editInfoObj.ruleName][editInfoObj.rowEntry.initialUnit].splice(doomedIndex, 1);
-        console.log('deleted pair in', newWordRules[editInfoObj.ruleName]);
       }
+      entryString = `NO ${editInfoObj.rowEntry.initialUnit.toUpperCase()}-${editInfoObj.rowEntry.newFollower.toUpperCase()}`;
     }
 
     setWordRules(newWordRules);
@@ -915,9 +921,18 @@ export default function Home() {
     const newList = newWordRules[editInfoObj.ruleName];
 
     const startTime = Date.now();
-    console.log('sending', ruleType, newList)
-    await sendNewRules(ruleType, newList);
-    console.warn('>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> sending took', Date.now() - startTime);
+    console.log('sending', ruleType, newList);
+    const saveResult = await sendNewRules(ruleType, newList);
+    const saveDuration = Date.now() - startTime;
+    console.warn('>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> sending', saveResult, 'took', saveDuration);
+    let saveResultMessage;
+    if (saveResult.data !== 43) {
+      console.log('ERROR', saveResult.data);
+      saveResultMessage = `ERROR! ${saveResult.data}`;
+    } else {
+      saveResultMessage = `Saved "${editInfoObj.editAction} ${editInfoObj.ruleName} ${entryString}" to database "${wordRules.dialect}" in ${saveDuration}ms`;
+    }
+    flashSaveMessage(saveResultMessage, 4000);
 
   }
 
@@ -928,11 +943,10 @@ export default function Home() {
   const verticalWordList = Object.values(wordsOnBoard.vertical).map(wordObj => wordObj.word);
 
   const newWordList = newWords.map(wordObj => `${wordObj.word} (${scoreWord(wordObj)})`);
-  // const newWordList = newWords.map(wordObj => `${wordObj.word}`);
   let totalViolations = unpronouncableWords.length;
   // unpronouncableWords.forEach(violationObj => {
-    // console.log('violationObj', violationObj);
-    // totalViolations += violationObj.violations.violations.length;
+  // console.log('violationObj', violationObj);
+  // totalViolations += violationObj.violations.violations.length;
   // });
 
   return (
@@ -1079,7 +1093,7 @@ export default function Home() {
               </div>
               <BagModal bag={bag} showing={modalShowing === 'bag'} dismissModal={() => toggleModal()} />
               <BlankModal bag={bag} showing={modalShowing === 'blank'} dismissModal={handleSelectBlankLetter} />
-              <ViolationsModal wordRules={wordRules} unpronouncableWords={unpronouncableWords} showing={modalShowing === 'violations'} dismissModal={() => toggleModal()} />             
+              <ViolationsModal wordRules={wordRules} unpronouncableWords={unpronouncableWords} showing={modalShowing === 'violations'} dismissModal={() => toggleModal()} />
             </>
             :
             user ?
@@ -1091,6 +1105,7 @@ export default function Home() {
               :
               <LoginModal handleClickGoogleLogin={callGooglePopup} handleClickGuestLogin={signInAsGuest} />
           }
+          <SaveMessage showing={saveMessageShowing} messageText={saveMessageShowing} />
         </div>
         <footer><a href='https://github.com/eggborne/skrubble'>View source on GitHub</a></footer>
       </main>

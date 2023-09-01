@@ -59,7 +59,6 @@ export default function RulesModal(props) {
   function handleClickFollower(e) {
     const newUnitId = e.target.id;
     const initialUnit = e.target.parentNode.parentNode.childNodes[0].innerHTML;
-    console.warn('init on click existing follower', initialUnit);
     setSelectedUnit({
       id: newUnitId,
       string: e.target.innerHTML,
@@ -98,44 +97,29 @@ export default function RulesModal(props) {
     setCurrentEditAction('add');
   }
   function onClickAddFollowerButton(e) {
-    console.log('88888888888888888888888888 ----------', 'selectedUnit', selectedUnit);
     setSelectedUnit({
       id: '',
       string: '',
       rowEntry: '',
     });
     const initialUnit = e.target.id.split('-')[0];
-    console.log('88888888888888888888888888 ----------', 'e.target.id', e.target.id);
-    console.log('88888888888888888888888888 ----------', 'currentlyEditingType', currentlyEditingType);
-    console.log('88888888888888888888888888 ----------', 'currentEditAction', currentEditAction);
     setCurrentlyEditingType(`invalidFollowers-${initialUnit}`);
     setCurrentEditAction('add');
   }
   function onClickEditButton(e) {
-    console.log('clicked EDIT button!');
     setCurrentEditAction('edit');
   }
   function onClickDeleteWordUnitButton(e) {
-    console.log('clicked DELETE button!');
-    const unitType = e.target.id.split('-')[1];
     setCurrentEditAction('delete');
     setCurrentlyEditingType('unit');
-    console.log('selectedUnit', selectedUnit);
-    console.log('currentlyEditingType', currentlyEditingType);
-    console.log('currentEditAction', currentEditAction);
     setConfirmModalShowing('unit-delete');
   }
   function onClickDeleteFollowerSetButton(initialUnit, newFollower) {
-    console.log('clicked DELETE button!');
-    console.log('selectedUnit', selectedUnit);
-    console.log('currentlyEditingType', currentlyEditingType);
-    console.log('currentEditAction', currentEditAction);
     const newSelectedUnit = { ...selectedUnit };
     newSelectedUnit.rowEntry = {
       initialUnit,
       newFollower,
     };
-    console.log('newSelectedUnit', newSelectedUnit);
     setSelectedUnit(newSelectedUnit);
     setCurrentEditAction('delete');
     setCurrentlyEditingType('invalidFollowers');
@@ -180,7 +164,6 @@ export default function RulesModal(props) {
         newFollower,
       },
     };
-    console.warn('handleSubmitAddFollowerSet', newSelectedUnit);
     setSelectedUnit(newSelectedUnit);
     setConfirmModalShowing('follower');
   }
@@ -194,19 +177,21 @@ export default function RulesModal(props) {
   function handleAcceptRuleEdit() {
     setConfirmModalShowing(false);
     let ruleName;
-    if (currentlyEditingType === 'onset' || currentlyEditingType === 'coda') {
-      ruleName = currentlyEditingType + 's';
-    } else if (currentlyEditingType === 'nucleus') {
-      ruleName = 'nuclei';
-    } else if (currentlyEditingType.includes('invalidFollowers')) {
+    if (currentlyEditingType.includes('invalidFollowers')) {
       ruleName = 'invalidFollowers';
+    } else {
+      const subType = selectedUnit.id.split('-')[currentEditAction === 'add' ? 1 : 0];
+      if (subType === 'onset' || subType === 'coda') {
+        ruleName = subType + 's';
+      } else if (subType === 'nucleus') {
+        ruleName = 'nuclei';
+      }
     }
     const editInfoObj = {
       ruleName,
       rowEntry: selectedUnit.rowEntry,
       editAction: currentEditAction,
     };
-    console.log('sending', editInfoObj, 'back to index');
     props.handleClickAcceptRuleEdit(editInfoObj);
     setSelectedUnit({
       id: '',
@@ -237,12 +222,6 @@ export default function RulesModal(props) {
       rowEntry: '',
     });
   }
-
-  console.warn('0000000000000000000000000000000000000000000000');
-  console.warn('currentlyEditingType', currentlyEditingType);
-  console.warn('currentEditAction', currentEditAction);
-  console.warn('selectedUnit', selectedUnit);
-  console.warn('0000000000000000000000000000000000000000000000');
 
   function getPotentialFollowers(initialUnit) {
     const existingFollowers = props.wordRules.invalidFollowers[initialUnit] || [];
@@ -730,7 +709,7 @@ export default function RulesModal(props) {
                 max-width: 18vw;
                 text-align: center;
               }
-
+              
               & .add-unit-form, .add-follower-form {
                 width: 100%;
                 display: flex;
@@ -834,7 +813,7 @@ export default function RulesModal(props) {
                   }
 
                   & > .initial-unit {
-                    font-size: 2.25rem;
+                    font-size: 2rem;
                     align-self: flex-start;
                   }
 

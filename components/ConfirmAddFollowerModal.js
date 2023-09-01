@@ -1,11 +1,11 @@
 import Button from "./Button";
 
 export default function ConfirmAddFollowerModal(props) {
-
+  
   function onAcceptRuleEdit(e) {
     props.handleClickAcceptRuleEdit();
   }
-  console.log('pr', props)
+  
   return (
     <div className={`confirm-add-follower-modal${props.showing ? ' showing' : ''}`}>
       {props.currentlyEditingType && props.selectedUnit.rowEntry.newFollower && <h1 className='modal-title'>

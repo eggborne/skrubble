@@ -20,14 +20,6 @@ function getAllRulesets() {
 function sendNewRules(ruleType, newList) {
   console.log('sendNewRules ruleType is', ruleType);
   console.log('sendNewRules newList is', newList);
-  // let lastRulesIndex = undefined;
-  // if (rulesObj.usingRuleset > 99) {
-  //   lastRulesIndex = parseInt(rulesObj.usingRuleset);
-  // }
-  // let creatorName = rulesObj.creator;
-  // let changedRules = [];
-
-  // let ruleEntry = changedRules[0];
   let rawData = {
     rulesetID: 43,
     ruleType,

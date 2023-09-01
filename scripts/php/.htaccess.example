@@ -1,0 +1,5 @@
+
+SetEnv DB_HOST "localhost"
+SetEnv DB_USER "[YOUR_DB_USERNAME]"
+SetEnv DB_PASS "[YOUR_DB_PASSWORD]"
+SetEnv DB_NAME "[YOUR_DB_NAME]"
