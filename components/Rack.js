@@ -2,20 +2,8 @@ import { useEffect, useState } from "react";
 import Space from "./Space";
 import Tile from "./Tile";
 
-export default function Rack(props) {
-  const [homeSpaceCoords, setHomeSpaceCoords] = useState([]);
-  useEffect(() => {
-    const newHomeSpaceCoords = [...homeSpaceCoords];
-    const rackElement = document.getElementById(`${props.owner}-rack`);
-    const spaces = [...rackElement.getElementsByClassName('space')];
-    spaces.forEach((space, s) => {
-      newHomeSpaceCoords[s] = {
-        x: space.getBoundingClientRect().left,
-        y: space.getBoundingClientRect().top
-      }
-    });
-    setHomeSpaceCoords(newHomeSpaceCoords);
-  }, []);
+const Rack = (props) => {
+  // console.warn('rendering Rack --------------------');
   return (
     <div className={`rack ${props.owner}`} id={`${props.owner}-rack`}>
       <div className='tile-container'>
@@ -49,15 +37,11 @@ export default function Rack(props) {
                   locked={tile.locked}
                   rackIndex={tile.rackIndex}
                   bgPosition={tile.bgPosition}
-                  homeSpaceCoords={homeSpaceCoords[t]}
-                  // displayingWordScore={props.wordScoreTileId === tile.id}
-                  // pendingTurnScore={props.pendingTurnScore}
-                  // submitReady={props.submitReady}
                 />
               }
             >
             </Space>);
-          }
+        }
         )}
       </div>
       <div className='shelf'></div>
@@ -123,4 +107,6 @@ export default function Rack(props) {
       `}</style>
     </div>
   );
-}
+};
+
+export default Rack;

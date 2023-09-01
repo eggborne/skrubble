@@ -1,31 +1,29 @@
 import Button from "./Button";
 
-export default function ConfirmAddFollowerModal(props) {
-  console.warn('rendering ConfirmAddFollowerModal ------------')
-  function onAcceptRuleEdit(e) {
-    props.handleClickAcceptRuleEdit();
+export default function EditEntryModal(props) {
+
+  function onAcceptEditEntry(e) {
+    props.handleClickAcceptEditEntry();
   }
+  console.log('prop', props)
+  const confirmMessage = `Really ${props.action} ${props.currentlyEditingType} ${props.selectedUnit.rowEntry.toUpperCase()}?`;
   
   return (
-    <div className={`confirm-add-follower-modal${props.showing ? ' showing' : ''}`}>
-      {props.currentlyEditingType && props.selectedUnit.rowEntry.newFollower && <h1 className='modal-title'>
-        <div>Really {props.action} rule</div>
-        <div className='selected-unit'>{props.selectedUnit.rowEntry.initialUnit.toUpperCase()}</div>
-        <div>cannot be followed by</div>
-        <div className='selected-unit'>{props.selectedUnit.rowEntry.newFollower ? props.selectedUnit.rowEntry.newFollower.toUpperCase() : ''}?</div>
-      </h1>}
-
+    <div className={`edit-confirm-modal${props.showing ? ' showing' : ''}`}>
+      {props.currentlyEditingType && props.selectedUnit && <h1 className='modal-title'>{props.showing && confirmMessage}</h1>}
+      
       <div className='button-area'>
         <Button disabled={!props.showing} color='green' width={'8rem'} label={'OK'} clickAction={onAcceptRuleEdit} />
         <Button disabled={!props.showing} width={'8rem'} label={'Cancel'} clickAction={props.dismissModal} />
       </div>
       <style jsx>{`
-        .confirm-add-follower-modal {
+        .edit-entry-modal {
           position: absolute;
           top: 50%;
           left: 50%;
           transform: translate(-50%, -50%);
           transform-origin: 50% 50%;
+          padding: 0 2rem;
           display: flex;
           max-width: 90vw;
           flex-direction: column;
@@ -60,20 +58,9 @@ export default function ConfirmAddFollowerModal(props) {
             ;
             font-size: calc(var(--board-size) / 30);
             display: flex;
-            flex-direction: column;
             align-items: center;
             justify-content: center;
-            gap: 0.5rem;
-            padding: 0.5rem;
-
-            & > p {
-              color: #ccc;
-              font-size: 85%;             
-            }
-
-            & > .selected-unit {
-              font-size: var(--played-tile-size);
-            }
+            height: 4rem;
           }
 
           & > .button-area {

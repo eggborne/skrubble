@@ -1,7 +1,7 @@
 import Button from "./Button";
 
 export default function ConfirmAddUnitModal(props) {
-
+  console.warn('rendering ConfirmAddUnitModal ------------')
   function onAcceptRuleEdit(e) {
     props.handleClickAcceptRuleEdit();
   }
@@ -9,7 +9,7 @@ export default function ConfirmAddUnitModal(props) {
   const confirmMessage = `Really ${props.action} ${props.currentlyEditingType} ${props.selectedUnit.rowEntry.toUpperCase()}?`;
   
   return (
-    <div className={`edit-confirm-modal${props.showing ? ' showing' : ''}`}>
+    <div className={`confirm-add-unit-modal${props.showing ? ' showing' : ''}`}>
       {props.currentlyEditingType && props.selectedUnit && <h1 className='modal-title'>{props.showing && confirmMessage}</h1>}
       
       <div className='button-area'>
@@ -17,7 +17,7 @@ export default function ConfirmAddUnitModal(props) {
         <Button disabled={!props.showing} width={'8rem'} label={'Cancel'} clickAction={props.dismissModal} />
       </div>
       <style jsx>{`
-        .edit-confirm-modal {
+        .confirm-add-unit-modal {
           position: absolute;
           top: 50%;
           left: 50%;

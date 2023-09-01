@@ -1,74 +1,24 @@
-import { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import Space from "./Space";
 import { fullBoard, specialSpaceData } from "../scripts/scrabbledata";
 import Tile from "./Tile";
 
-export default function GameBoard(props) {
+const GameBoard = React.memo((props) => {
+  console.warn('rendering GameBoard ------------------------------------------------');
   const [revealed, setRevealed] = useState(false);
 
   useEffect(() => {
     if (!revealed) {
       setRevealed(true);
-
     }
   }, [revealed]);
 
   return (
-    <>
       <div className='game-board' id='game-board' style={{
         opacity: revealed ? '1' : '0',
         scale: revealed ? '1' : '0.25',
       }}>
-        {fullBoard.map((row, r) =>
-          row.map((space, s) => {
-            const spaceContents = props.letterMatrix[r][s].contents;
-            // const spaceContents = props.letterMatrix[s][r].contents;
-            return <Space
-              // key={`${(r + 1)}-${(s + 1)}`}
-              // id={`${(r + 1)}-${(s + 1)}`}
-              key={`${(s + 1)}-${(r + 1)}`}
-              id={`${(s + 1)}-${(r + 1)}`}
-              locked={spaceContents && spaceContents.locked}
-              // targeted={props.targetedSpaceId === `${(r + 1)}-${(s + 1)}`}
-              targeted={props.targetedSpaceId === `${(s + 1)}-${(r + 1)}`}
-              spaceData={space}
-              backgroundColor={space.length ? specialSpaceData[space[0]].color : 'var(--board-color)'}
-              label={
-                r === 7 && space[0] === 'dw' ?
-                  <div className='star'></div>
-                  :
-                  space.length ?
-                    specialSpaceData[space[0]].legend
-                    :
-                    ''
-              }
-              contents={
-                spaceContents ?
-                  spaceContents.locked ?
-                    <Tile
-                      owner={spaceContents.owner}
-                      letter={spaceContents.letter}
-                      value={spaceContents.value}
-                      key={spaceContents.id}
-                      id={spaceContents.id}
-                      offset={{ x: 0, y: 0 }}
-                      placed={spaceContents.placed}
-                      landed={spaceContents.landed}
-                      locked={spaceContents.locked}
-                      turnPlayed={spaceContents.turnPlayed}
-                      rackIndex={spaceContents.rackIndex}
-                      bgPosition={spaceContents.bgPosition}
-                    />
-                    :
-                    spaceContents.letter
-                  :
-                  ''
-              }
-            />;
-          }
-          )
-        )}
-      </div>
+        {props.filledBoard}
       <style jsx>{`
         .game-board {
           justify-self: center;
@@ -129,6 +79,8 @@ export default function GameBoard(props) {
           }
         }
       `}</style>
-    </>
+    </div>
   );
-}
+});
+
+export default GameBoard;

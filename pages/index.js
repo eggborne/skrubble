@@ -1,5 +1,5 @@
 import { isMobile } from 'is-mobile';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { auth, provider } from '../scripts/firebase';
 import { getAuth, signInWithPopup, GoogleAuthProvider, signInWithRedirect, signOut, signInAnonymously } from "firebase/auth";
 import { getAllRulesets, sendNewRules } from '../scripts/db';
@@ -8,7 +8,7 @@ import Header from '../components/Header';
 import Button from '../components/Button';
 import GameBoard from '../components/GameBoard';
 import Rack from '../components/Rack';
-import { emptyLetterMatrix, fullBoard, tileData } from '../scripts/scrabbledata';
+import { emptyLetterMatrix, fullBoard, specialSpaceData, tileData } from '../scripts/scrabbledata';
 import { pause, randomInt, shuffleArray } from '../scripts/util';
 import LoginModal from '../components/LoginModal';
 import UserIcon from '../components/UserIcon';
@@ -21,6 +21,7 @@ import { checkFollowers, extractSyllables, validateSyllableSequence } from '../s
 import RulesModal from '../components/RulesModal';
 import ViolationsModal from '../components/ViolationsModal';
 import SaveMessage from '../components/SaveMessage';
+import Space from '../components/Space';
 
 const IS_MOBILE = isMobile();
 let LANDSCAPE;
@@ -64,7 +65,56 @@ export default function Home() {
   const [wordRules, setWordRules] = useState({});
   const [unpronouncableWords, setUnpronouncableWords] = useState([]);
   const [saveMessageShowing, setSaveMessageShowing] = useState('');
-  const [debugMode, setDebugMode] = useState(false); 1;
+  const [debugMode, setDebugMode] = useState(false);
+
+  const filledBoard = useMemo(() => {
+    console.log('>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> rendering creating filled board!!!');
+    return fullBoard.map((row, r) =>
+      row.map((space, s) => {
+        const spaceContents = letterMatrix[r][s].contents;
+        return <Space
+          key={`${(s + 1)}-${(r + 1)}`}
+          id={`${(s + 1)}-${(r + 1)}`}
+          locked={spaceContents && spaceContents.locked}
+          targeted={targetedSpaceId === `${(s + 1)}-${(r + 1)}`}
+          spaceData={space}
+          backgroundColor={space.length ? specialSpaceData[space[0]].color : 'var(--board-color)'}
+          label={
+            r === 7 && space[0] === 'dw' ?
+              <div className='star'></div>
+              :
+              space.length ?
+                specialSpaceData[space[0]].legend
+                :
+                ''
+          }
+          contents={
+            spaceContents ?
+              spaceContents.locked ?
+                <Tile
+                  owner={spaceContents.owner}
+                  letter={spaceContents.letter}
+                  value={spaceContents.value}
+                  key={spaceContents.id}
+                  id={spaceContents.id}
+                  offset={{ x: 0, y: 0 }}
+                  placed={spaceContents.placed}
+                  landed={spaceContents.landed}
+                  locked={spaceContents.locked}
+                  turnPlayed={spaceContents.turnPlayed}
+                  rackIndex={spaceContents.rackIndex}
+                  bgPosition={spaceContents.bgPosition}
+                />
+                :
+                spaceContents.letter
+              :
+              ''
+          }
+        />;
+      }
+      )
+    );
+  }, [letterMatrix]);
 
   function signInAsGuest() {
     signInAnonymously(getAuth())
@@ -244,7 +294,7 @@ export default function Home() {
       //   });
       let startTime = Date.now();
       getWordRules().then(newWordRules => {
-        flashSaveMessage(`Got ruleset "${newWordRules.dialect}" in ${(Date.now() - startTime)}ms`, 2000);
+        flashSaveMessage(`Got ruleset "${newWordRules.dialect.toUpperCase()}" in ${(Date.now() - startTime)}ms`, 2000);
         setWordRules(newWordRules);
       });
       setLoaded(true);
@@ -253,6 +303,7 @@ export default function Home() {
   }, [loaded]);
 
   useEffect(() => {
+    console.warn('>> rendering useEffect[letterMatrix] from Home');
     const tilesNeighbored = allTilesNeighbored();
     let ready = tilesNeighbored;
     const filledSpaces = letterMatrix.flat().filter(space => space.contents && space.contents.placed);
@@ -930,7 +981,7 @@ export default function Home() {
       console.log('ERROR', saveResult.data);
       saveResultMessage = `ERROR! ${saveResult.data}`;
     } else {
-      saveResultMessage = `Saved "${editInfoObj.editAction} ${editInfoObj.ruleName} ${entryString}" to database "${wordRules.dialect}" in ${saveDuration}ms`;
+      saveResultMessage = `Saved "${editInfoObj.editAction.toUpperCase()} ${editInfoObj.ruleName.toUpperCase()} ${entryString.toUpperCase()}" to ruleset "${wordRules.dialect}" in ${saveDuration}ms`;
     }
     flashSaveMessage(saveResultMessage, 4000);
 
@@ -1058,8 +1109,8 @@ export default function Home() {
               </div>
 
               <GameBoard
-                letterMatrix={letterMatrix}
-                targetedSpaceId={targetedSpaceId}
+                filledBoard={filledBoard}
+                newWords={newWords}
               />
               {/* {(submitReady && !selectedTileId) ? <WordScoreDisplay */}
               <WordScoreDisplay
@@ -1105,11 +1156,18 @@ export default function Home() {
               :
               <LoginModal handleClickGoogleLogin={callGooglePopup} handleClickGuestLogin={signInAsGuest} />
           }
-          <SaveMessage showing={saveMessageShowing} messageText={saveMessageShowing} />
+          {saveMessageShowing && <SaveMessage showing={saveMessageShowing} messageText={saveMessageShowing} />}
         </div>
         <footer><a href='https://github.com/eggborne/skrubble'>View source on GitHub</a></footer>
       </main>
-      {loaded && gameStarted && <RulesModal wordRules={wordRules} showing={modalShowing === 'rules'} handleClickAcceptRuleEdit={handleClickAcceptRuleEdit} dismissModal={() => toggleModal()} />}
+      {loaded && gameStarted && modalShowing === 'rules' &&
+        <RulesModal
+          wordRules={wordRules}
+          showing={modalShowing === 'rules'}
+          handleClickAcceptRuleEdit={handleClickAcceptRuleEdit}
+          dismissModal={() => toggleModal()}
+        />
+      }
 
       <style jsx>{`
         main {

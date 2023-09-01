@@ -1,8 +1,8 @@
-import { useEffect, useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 
-export default function Tile(props) {
+const Tile = React.memo((props) => {
   const [revealed, setRevealed] = useState(false);
-
+  
   useEffect(() => {
     if (!revealed) {
       setRevealed(true);
@@ -11,7 +11,7 @@ export default function Tile(props) {
 
   const tileClass =
     `tile ${props.owner} ${props.selected ? ' selected' : ''}${props.title ? ' title' : ''}${props.blank ? ' blank' : ''}${props.blankSelection ? ' blank-selection' : ''}${props.bag ? ' bag' : ''}${props.blank ? ' blank' : ''}${revealed ? ' revealed' : ''}${props.placed ? ' placed' : ''}${props.landed ? ' landed' : ''}${props.incongruent ? ' incongruent' : ''}${props.locked ? ' locked' : ''}`
-  ;
+    ;
   const tileOffset = props.offset || { x: 0, y: 0 };
   return (
     <>
@@ -20,7 +20,6 @@ export default function Tile(props) {
         className={tileClass}
       >
         <span className='letter'>{props.letter.toUpperCase() === 'BLANK' ? '' : props.letter}</span>
-        {/* {props.displayingWordScore && props.pendingTurnScore > 0 && <div className='word-score-display'>{props.pendingTurnScore}</div>} */}
       </div>
       <style jsx>{`
         .tile {
@@ -46,7 +45,7 @@ export default function Tile(props) {
           ;
           border: 1px solid #000;
           font-size: calc(var(--current-size) / 1.5);
-          font-weight: 700;
+          font-weight: 600;
           font-family: 'Open Sans', sans-serif;
           color: #000000;
           opacity: 0;
@@ -157,23 +156,21 @@ export default function Tile(props) {
         // .tile.opponent > .letter, .tile.opponent:after {
         //   opacity: 0;
         // }
-
-        // .tile > .word-score-display {
-        //   position: absolute;
-        //   display: flex;
-        //   align-items: center;
-        //   justify-content: center;
-        //   font-size: calc(var(--played-tile-size) / 2);
-        //   bottom: -35%;
-        //   right: -25%;
-        //   border-radius: 50%;
-        //   color: white;
-        //   background-color: green;
-        //   width: calc(var(--played-tile-size));
-        //   height: calc(var(--played-tile-size));
-        //   z-index: 6;
-        // }
       `}</style>
     </>
   );
-}
+}, (prevProps, nextProps) => {
+  const isEqual =
+    prevProps.revealed === nextProps.revealed
+    && prevProps.offset === nextProps.offset
+    && prevProps.placed === nextProps.placed
+    && prevProps.landed === nextProps.landed
+    && prevProps.locked === nextProps.locked
+    && prevProps.letter === nextProps.letter
+    && prevProps.selected === nextProps.selected
+    && prevProps.blankPosition === nextProps.blankPosition
+  ;
+  return isEqual;
+});
+
+export default Tile;

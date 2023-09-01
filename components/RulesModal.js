@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import Button from "./Button";
 import ConfirmAddUnitModal from "./ConfirmAddUnitModal";
 import { pause } from "../scripts/util";
@@ -6,6 +6,7 @@ import { validateInitialUnit } from "../scripts/validator";
 import ConfirmAddFollowerModal from "./ConfirmAddFollowerModal";
 
 export default function RulesModal(props) {
+  console.warn('rendering RulesModal ---------------->>');
   const [selectedUnit, setSelectedUnit] = useState({
     id: '',
     string: '',
@@ -16,36 +17,36 @@ export default function RulesModal(props) {
   const [confirmModalShowing, setConfirmModalShowing] = useState('');
   const [errorShowing, setErrorShowing] = useState('');
 
-  let onsetArrays = [[], [], [], [], []];
-  let nucleusArrays = [[], [], [], [], []];
-  let codaArrays = [[], [], [], [], []];
-  props.wordRules.onsets.forEach(unit => {
-    onsetArrays[unit.length - 1].push(unit);
-  });
-  onsetArrays = onsetArrays.filter(arr => arr.length);
-  onsetArrays.forEach(lengthArray => lengthArray.sort());
-  props.wordRules.nuclei.forEach(unit => {
-    nucleusArrays[unit.length - 1].push(unit);
-  });
-  nucleusArrays = nucleusArrays.filter(arr => arr.length);
-  nucleusArrays.forEach(lengthArray => lengthArray.sort());
-  props.wordRules.codas.forEach(unit => {
-    codaArrays[unit.length - 1].push(unit);
-  });
-  codaArrays = codaArrays.filter(arr => arr.length);
-  codaArrays.forEach(lengthArray => lengthArray.sort());
-
-  let followersArray = [];
-  const allUnits = [...props.wordRules.onsets, ...props.wordRules.nuclei, ...props.wordRules.codas];
-  const uniqueUnits = [...new Set(allUnits)].sort();;
-  for (let initialUnit of uniqueUnits) {
-    const newObj = {
-      initialUnit,
-      followers: props.wordRules.invalidFollowers[initialUnit] || [],
-    };
-    followersArray.push(newObj);
+  function formatUnitArray(fullList) {
+    console.log('rendering formatting a list!')
+    let sortedArrays = [[], [], [], [], []];
+    fullList.forEach(unit => {
+      sortedArrays[unit.length - 1].push(unit);
+    });
+    sortedArrays = sortedArrays.filter(arr => arr.length);
+    sortedArrays.forEach(lengthArray => lengthArray.sort());
+    return sortedArrays;
   }
-  followersArray = followersArray.sort((a, b) => a.initialUnit.length - b.initialUnit.length);
+  
+  function getEmptyFollowerPairList(fullUnitList) {
+    console.log('rendering formatting a pair list!')
+    let followersArray = [];
+    const uniqueUnits = [...new Set(fullUnitList)].sort();;
+    for (let initialUnit of uniqueUnits) {
+      const newObj = {
+        initialUnit,
+        followers: props.wordRules.invalidFollowers[initialUnit] || [],
+      };
+      followersArray.push(newObj);
+    }
+    followersArray = followersArray.sort((a, b) => a.initialUnit.length - b.initialUnit.length);
+    return followersArray;
+  }
+
+  const onsetArrays = useMemo(() => formatUnitArray(props.wordRules.onsets), [props.wordRules]);
+  const nucleusArrays = useMemo(() => formatUnitArray(props.wordRules.nuclei), [props.wordRules]);
+  const codaArrays = useMemo(() => formatUnitArray(props.wordRules.codas), [props.wordRules]);
+  const followersArray = useMemo(() => getEmptyFollowerPairList([...props.wordRules.onsets, ...props.wordRules.nuclei, ...props.wordRules.codas]), [props.wordRules]);
 
   function handleClickUnit(e) {
     const newUnitId = e.target.id;
@@ -492,7 +493,7 @@ export default function RulesModal(props) {
       <div className='button-area'>
         <Button width={'8rem'} label={'GO BACK'} clickAction={props.dismissModal} />
       </div>
-      {props.showing && currentlyEditingType && selectedUnit.string &&
+      {props.showing && currentEditAction !== 'edit' && currentlyEditingType && selectedUnit.string &&
         <>
           {!currentlyEditingType.includes('invalidFollowers') ?
             <ConfirmAddUnitModal
@@ -517,7 +518,7 @@ export default function RulesModal(props) {
       }
       <style jsx>{`
         .rules-modal {
-          position: absolute;
+          position: fixed;
           top: 50%;
           left: 50%;
           transform: translate(-50%, -50%);

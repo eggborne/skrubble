@@ -14,7 +14,7 @@
 	if($sql){
 		echo $rulesetID;
   }else{     
-    echo "Could not save.";          
+    echo "Could not save.";    
 	}
 	mysqli_close($link);
 ?>

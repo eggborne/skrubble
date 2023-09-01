@@ -2,9 +2,21 @@ import { useEffect, useState } from "react";
 import { pause } from "../scripts/util";
 
 export default function SaveMessage(props) {
+  console.warn('rendering SaveMessage ------');
+  let messageClasses = ['save-message'];
+  let [visible, setVisible] = useState(false);
+  useEffect(() => {
+    console.warn('saveMessage effect running!');
+    console.warn('props.showing!', props.showing);
+    console.warn('visible!', visible);
+
+    // pause(500).then(() => {
+    setVisible(props.showing);
+    // });
+  }, [props.showing]);
   return (
-    <div className={'save-message'}>
-      {props.messageText}
+    <div className={messageClasses.join(' ')}>
+      {props.messageText || ''}
       <style jsx>{`
         .save-message {
           position: fixed;
@@ -20,8 +32,8 @@ export default function SaveMessage(props) {
           justify-content: center;
           background-color: #000000dd;
           color: #eee;
-          opacity: ${props.showing ? 1 : 0};
-          scale: 1 ${props.showing ? 1 : 0};
+          opacity: ${visible ? 1 : 0};
+          scale: 1 ${visible ? 1 : 0};
           transform: translateX(-50%);
           transform-origin: top;
           pointer-events: none;
