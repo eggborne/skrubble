@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from "react";
 
 const Tile = React.memo((props) => {
+  // console.warn('rendering Tile ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++', props.letter)
   const [revealed, setRevealed] = useState(false);
   
   useEffect(() => {
@@ -95,7 +96,7 @@ const Tile = React.memo((props) => {
             opacity: 0.65 !important;
             // background-image: none;
             // background-color: #affa0088;
-            transition: translate 100ms, scale 100ms ease !important;
+            transition: translate 80ms, scale 100ms ease !important;
             // transform-origin: center;
             box-shadow: none;
           }
@@ -159,18 +160,6 @@ const Tile = React.memo((props) => {
       `}</style>
     </>
   );
-}, (prevProps, nextProps) => {
-  const isEqual =
-    prevProps.revealed === nextProps.revealed
-    && prevProps.offset === nextProps.offset
-    && prevProps.placed === nextProps.placed
-    && prevProps.landed === nextProps.landed
-    && prevProps.locked === nextProps.locked
-    && prevProps.letter === nextProps.letter
-    && prevProps.selected === nextProps.selected
-    && prevProps.blankPosition === nextProps.blankPosition
-  ;
-  return isEqual;
 });
 
 export default Tile;

@@ -15,21 +15,15 @@ export default function Header(props) {
         <div className='title-tile-container'><Tile bgPosition={90} letter='L' value={tileData['l'].value} title /></div>
         <div className='title-tile-container'><Tile bgPosition={100} letter='E' value={tileData['e'].value} title even /></div>
       </div>
-      <div className={`title-legend${props.revealed ? ' revealed' : ''}${props.user ? ' user' : ''}`}>
+      <div className={`title-legend${props.revealed && props.phase === 'title' ? ' revealed' : ''}${props.phase === 'title' ? ' expanded' : ''}`}>
         the <span style={{ color: '#ddffcc' }} >phonetic</span> crossword game
       </div>
-      {/* {props.landscape && props.user &&
-        <UserIcon
-          user={props.user}
-          size={'small'}
-        />
-      } */}
       <style jsx>{`
         header {
           position: relative;
           min-width: 100vw;
           height: var(--header-height);
-          margin-top: ${props.user ? '0' : '12vh'};
+          margin-top: ${props.phase === 'title' ? '12vh' : '0'};
           display: flex;
           flex-direction: column;
           align-items: center;
@@ -37,6 +31,7 @@ export default function Header(props) {
           padding: 0 calc(var(--racked-tile-size) * 0.1);
           transition: all 500ms ease;
           font-family: 'Aladin', cursive;
+          padding-top: ${props.phase === 'lobby' && 'calc(var(--header-height) * 0.25)'};
 
           & > .title-tile-area {
             display: flex;
@@ -75,14 +70,13 @@ export default function Header(props) {
             &.revealed {
               transition: all 600ms ease;
               transition-delay: 600ms;
-              opacity: 1;
               scale: 1;
-              filter: blur(0);
-
-              &.user {
-                display: none;
+            
+              &.expanded {
+                opacity: 1;
               }
             }
+
           }
         }
       `}</style>

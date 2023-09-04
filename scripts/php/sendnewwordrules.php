@@ -8,7 +8,7 @@
 	
 	$sql = mysqli_query(
 		$link, 
-		"UPDATE `invalid-strings` SET $ruleType='$newList' WHERE id='$rulesetID';"
+		"UPDATE `word-rules` SET $ruleType='$newList' WHERE id='$rulesetID';"
 	);
 
 	if($sql){

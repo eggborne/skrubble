@@ -34,7 +34,7 @@ export default function ConfirmAddFollowerModal(props) {
           gap: calc(var(--board-size) * 0.025);
           padding: calc(var(--board-size) * 0.05);
           background-color: #885577;
-          border-radius: calc(var(--board-size) * 0.025);
+          border-radius: var(--modal-border-radius);
           opacity: 0;
           translate: 0 15%;
           pointer-events: none;
@@ -45,19 +45,11 @@ export default function ConfirmAddFollowerModal(props) {
             opacity: 1;
             pointer-events: all;
             translate: 0 0;
-            box-shadow: 
-              0 0 calc(var(--board-size) / 100) #00000088,
-              0 0 calc(var(--board-size) / 150) #000000aa inset
-            ;
+            box-shadow: var(--modal-shadow);
           }
 
           & > .modal-title {
-            text-shadow: 
-              1px 1px calc(var(--button-height) / 64) #000000,
-              -1px 1px calc(var(--button-height) / 64) #000000,
-              -1px -1px calc(var(--button-height) / 64) #000000,
-              1px -1px calc(var(--button-height) / 64) #000000
-            ;
+            text-shadow: var(--text-stroke);
             font-size: calc(var(--board-size) / 30);
             display: flex;
             flex-direction: column;

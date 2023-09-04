@@ -1,9 +1,7 @@
-import { useEffect, useState } from "react";
 import Space from "./Space";
-import Tile from "./Tile";
 
 const Rack = (props) => {
-  // console.warn('rendering Rack --------------------');
+  // console.warn('rendering Rack --------------------', props.owner);
   return (
     <div className={`rack ${props.owner}`} id={`${props.owner}-rack`}>
       <div className='tile-container'>
@@ -13,34 +11,11 @@ const Rack = (props) => {
               key={`${props.owner}-rack-space-${t}`}
               id={`${props.owner}-rack-space-${t}`}
               onRack={true}
-              targeted={props.targetedSpaceId === `${props.owner}-rack-space-${t}`}
+              targeted={props.owner === 'user' && props.targetedSpaceId === `${props.owner}-rack-space-${t}`}
               spaceData={[]}
               label={''}
-              vacant={tile.placed}
-              contents={
-                <Tile
-                  owner={props.owner}
-                  draggable={props.owner === 'user'}
-                  letter={tile.letter}
-                  value={tile.value}
-                  key={tile.id}
-                  id={tile.id}
-                  turnPlayed={tile.turnPlayed}
-                  selected={props.selectedTileId === tile.id}
-                  rackSpaceId={`${props.owner}-rack-space-${t}`}
-                  offset={tile.offset}
-                  blankPosition={tile.blankPosition}
-                  blank={tile.blank}
-                  placed={tile.placed}
-                  landed={tile.landed}
-                  incongruent={tile.incongruent}
-                  locked={tile.locked}
-                  rackIndex={tile.rackIndex}
-                  bgPosition={tile.bgPosition}
-                />
-              }
-            >
-            </Space>);
+              contents={tile}
+            />);
         }
         )}
       </div>
@@ -51,17 +26,16 @@ const Rack = (props) => {
           width: var(--rack-width);
           height: var(--rack-height);
           ${props.owner === 'user' ?
-          `background-color: #aaaa66;
-            border-radius: calc(var(--board-size) / 150);
-            box-shadow: 
-              0 0 calc(var(--board-size) / 150) #000000aa,
-              0 0 calc(var(--board-size) / 150) #000000aa inset
-            ;
-            border: 1px solid black;`
-          :
-          `--rack-height: calc(var(--board-size) / 16);
-            `
-        }
+            `background-color: #aaaa66;
+              border-radius: calc(var(--board-size) / 150);
+              box-shadow: 
+                0 0 calc(var(--board-size) / 150) #000000aa,
+                0 0 calc(var(--board-size) / 150) #000000aa inset
+              ;
+              border: 1px solid black;`
+            :
+            `--rack-height: calc(var(--board-size) / 16);
+          `}
           z-index: 3;
           display: flex;
           justify-content: center;

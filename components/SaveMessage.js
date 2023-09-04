@@ -24,6 +24,7 @@ export default function SaveMessage(props) {
           left: 50%;
           min-width: 8rem;
           min-height: 0.5rem;
+          text-align: center;
           padding: 0.5rem;
           font-size: 1rem;
           display: flex;
@@ -32,7 +33,7 @@ export default function SaveMessage(props) {
           justify-content: center;
           background-color: #000000dd;
           color: #eee;
-          opacity: ${visible ? 1 : 0};
+          opacity: ${visible ? 0.9 : 0};
           scale: 1 ${visible ? 1 : 0};
           transform: translateX(-50%);
           transform-origin: top;

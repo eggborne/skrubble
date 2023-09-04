@@ -1,10 +1,10 @@
-import React, { useEffect, useMemo, useState } from "react";
+import { memo, useEffect, useState } from "react";
 import Space from "./Space";
 import { fullBoard, specialSpaceData } from "../scripts/scrabbledata";
 import Tile from "./Tile";
 
-const GameBoard = React.memo((props) => {
-  console.warn('rendering GameBoard ------------------------------------------------');
+const GameBoard = memo((props) => {
+  console.warn('rendering GameBoard ------------------------------------------------', props);
   const [revealed, setRevealed] = useState(false);
 
   useEffect(() => {
@@ -45,39 +45,7 @@ const GameBoard = React.memo((props) => {
         }
         h1 {
           font-size: calc(var(--header-height) / 2);
-        }
-        .star {
-          --star-size: calc(var(--board-size) / 40);
-          font-size: var(--star-size);
-          position: relative;
-          transform: translateY(-80%);
-          
-          border-right:  .3em solid transparent;
-          border-bottom: .75em solid #333;
-          border-left:   .3em solid transparent;
-        
-          &:before, &:after {
-            content: '';
-            
-            display: block;
-            width: 0;
-            height: 0;
-            
-            position: absolute;
-            top: .6em;
-            left: -1em;
-          
-            border-right:  1em solid transparent;
-            border-bottom: .7em  solid #333;
-            border-left:   1em solid transparent;
-          
-            transform: rotate(-35deg);
-          }
-          
-          &:after {  
-            transform: rotate(35deg);
-          }
-        }
+        }        
       `}</style>
     </div>
   );

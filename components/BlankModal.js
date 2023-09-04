@@ -43,7 +43,7 @@ export default function BlankModal(props) {
           gap: calc(var(--board-size) * 0.025);
           padding: calc(var(--board-size) * 0.0325);
           background-color: #99aa99;
-          border-radius: calc(var(--board-size) * 0.025);
+          border-radius: var(--modal-border-radius);
           opacity: 0;
           pointer-events: none;
           transition: all 400ms ease;
@@ -52,19 +52,11 @@ export default function BlankModal(props) {
           &.showing {
             opacity: 1;
             pointer-events: all;
-            box-shadow: 
-              0 0 calc(var(--board-size) / 100) #00000088,
-              0 0 calc(var(--board-size) / 150) #000000aa inset
-            ;
+            box-shadow: var(--modal-shadow);
           }
 
           & > .modal-title {
-            text-shadow: 
-              1px 1px calc(var(--button-height) / 64) #000000,
-              -1px 1px calc(var(--button-height) / 64) #000000,
-              -1px -1px calc(var(--button-height) / 64) #000000,
-              1px -1px calc(var(--button-height) / 64) #000000
-            ;
+            text-shadow: var(--text-stroke);
           }
 
           & > .blank-tile-grid {

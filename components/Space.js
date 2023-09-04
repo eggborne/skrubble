@@ -1,7 +1,16 @@
-export default function Space(props) {
+import { memo, useMemo } from "react";
+
+const Space = memo((props) => {
+  // console.warn('rendering Space +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++', props);
+  const isDropzone = props.id.split('-')[0] !== 'opponent';
+  const isSpecial = props.spaceData.length > 0;
+  const spaceClass =
+    `space${isDropzone ? ' dropzone' : ''}${props.targeted ? ' targeted' : ''}${props.onRack ? ' on-rack' : ''}${props.locked ? ' locked' : ''}`
+  ;
+
   return (
-    <div className={`space dropzone${props.targeted ? ' targeted' : ''}${props.onRack ? ' on-rack' : ''}${props.vacant ? ' vacant' : ''}${props.locked ? ' locked' : ''}`} id={props.id}>
-      {props.spaceData.length > 0 &&
+    <div className={spaceClass} id={props.id}>
+      {isSpecial &&
         <>
           <div className='caret-trio top'>
             <div className='space-caret'></div>
@@ -51,27 +60,6 @@ export default function Space(props) {
             position: relative;
             // background-color: #00990099;
             transition: all 300ms ease;
-
-            // &.vacant {
-            //   background: orange;
-            // }
-
-            // &:before, &:after {
-            //   content: '';
-            //   position: absolute;
-            //   width: calc(var(--racked-tile-gap-size));
-            //   height: inherit;
-            // }
-
-            // &:before {
-            //   background-color: #0000ff22;
-            //   right: calc(var(--racked-tile-gap-size) * -1);
-            // }
-
-            // &:after {
-            //   background-color: #ff000022;
-            //   left: calc(var(--racked-tile-gap-size) * -1);
-            // }
           }
 
           // &.targeted:after, &.targeted:before {
@@ -151,4 +139,20 @@ export default function Space(props) {
       `}</style>
     </div>
   );
-}
+}, (prevProps, nextProps) => {
+    const isEqual =
+      (prevProps.contents && nextProps.contents) ?
+        prevProps.contents.props === nextProps.contents.props
+        && prevProps.contents.props.offset === nextProps.contents.props.offset
+        && prevProps.contents.props.offset.x === nextProps.contents.props.offset.x
+        && prevProps.contents.props.offset.y === nextProps.contents.props.offset.y
+        && prevProps.contents === nextProps.contents
+        && prevProps.locked === nextProps.locked
+        && prevProps.targeted === nextProps.targeted
+      :
+        prevProps === nextProps
+    ;
+    return isEqual;
+});
+
+export default Space;

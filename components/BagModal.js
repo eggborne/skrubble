@@ -38,8 +38,8 @@ export default function BagModal(props) {
           justify-content: space-between;
           gap: calc(var(--board-size) * 0.025);
           padding: calc(var(--board-size) * 0.0325);
-          background-color: var(--main-bg-color);
-          border-radius: calc(var(--board-size) * 0.025);
+          background-color: var(--main-modal-color);
+          border-radius: var(--modal-border-radius);
           opacity: 0;
           translate: 0 15%;
           pointer-events: none;
@@ -50,19 +50,11 @@ export default function BagModal(props) {
             opacity: 1;
             pointer-events: all;
             translate: 0 0;
-            box-shadow: 
-              0 0 calc(var(--board-size) / 100) #00000088,
-              0 0 calc(var(--board-size) / 150) #000000aa inset
-            ;
+            box-shadow: var(--modal-shadow);
           }
 
           & > .modal-title {
-            text-shadow: 
-              1px 1px calc(var(--button-height) / 64) #000000,
-              -1px 1px calc(var(--button-height) / 64) #000000,
-              -1px -1px calc(var(--button-height) / 64) #000000,
-              1px -1px calc(var(--button-height) / 64) #000000
-            ;
+            text-shadow: var(--text-stroke);
           }
 
           & > .remaining-tile-grid {

@@ -6,12 +6,15 @@ export default function ConfirmAddUnitModal(props) {
     props.handleClickAcceptRuleEdit();
   }
   console.log('prop', props)
-  const confirmMessage = `Really ${props.action} ${props.currentlyEditingType} ${props.selectedUnit.rowEntry.toUpperCase()}?`;
+  const confirmMessage = `Really ${props.action} ${props.currentlyEditingType} "${props.action !== 'edit' ? props.selectedUnit.rowEntry.toUpperCase() : props.selectedUnit.doomedUnit && props.selectedUnit.doomedUnit.toUpperCase() }"?`;
   
   return (
     <div className={`confirm-add-unit-modal${props.showing ? ' showing' : ''}`}>
       {props.currentlyEditingType && props.selectedUnit && <h1 className='modal-title'>{props.showing && confirmMessage}</h1>}
-      
+      {props.showing && props.action === 'edit' && <div className='modal-subtitle'>
+        <div>{`It will be replaced by`}</div>
+        <div className='replacing-unit'>{props.selectedUnit.rowEntry}</div>
+      </div>}
       <div className='button-area'>
         <Button disabled={!props.showing} color='green' width={'8rem'} label={'OK'} clickAction={onAcceptRuleEdit} />
         <Button disabled={!props.showing} width={'8rem'} label={'Cancel'} clickAction={props.dismissModal} />
@@ -29,10 +32,10 @@ export default function ConfirmAddUnitModal(props) {
           flex-direction: column;
           align-items: center;
           justify-content: space-between;
-          gap: calc(var(--board-size) * 0.025);
+          gap: calc(var(--board-size) * 0.035);
           padding: calc(var(--board-size) * 0.05);
           background-color: #885577;
-          border-radius: calc(var(--board-size) * 0.025);
+          border-radius: var(--modal-border-radius);
           opacity: 0;
           translate: 0 15%;
           pointer-events: none;
@@ -43,24 +46,31 @@ export default function ConfirmAddUnitModal(props) {
             opacity: 1;
             pointer-events: all;
             translate: 0 0;
-            box-shadow: 
-              0 0 calc(var(--board-size) / 100) #00000088,
-              0 0 calc(var(--board-size) / 150) #000000aa inset
-            ;
+            box-shadow: var(--modal-shadow);
           }
 
-          & > .modal-title {
-            text-shadow: 
-              1px 1px calc(var(--button-height) / 64) #000000,
-              -1px 1px calc(var(--button-height) / 64) #000000,
-              -1px -1px calc(var(--button-height) / 64) #000000,
-              1px -1px calc(var(--button-height) / 64) #000000
-            ;
+          & > .modal-title, .modal-subtitle {
+            text-shadow: var(--text-stroke);
             font-size: calc(var(--board-size) / 30);
             display: flex;
             align-items: center;
             justify-content: center;
-            height: 4rem;
+            height: 3rem;
+          }
+
+          & > .modal-subtitle {
+            height: unset;
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+            font-size: calc(var(--board-size) / 32);
+
+            & > .replacing-unit {
+              text-transform: uppercase;
+              font-weight: bold;
+              padding: 0.5rem 0;
+              font-size: calc(var(--board-size) / 18);
+            }
           }
 
           & > .button-area {

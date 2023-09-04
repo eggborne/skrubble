@@ -1,9 +1,8 @@
 import axios from "axios";
 
 const PROD = process.env.NODE_ENV === 'production';
-let ROOT = '/namegenerator/php/';
+let ROOT = '/php/';
 if (!PROD) {
-  // ROOT = 'https://eggborne.com/namegenerator/php/';
   ROOT = 'https://skrubble.live/php/';
 }
 
@@ -17,24 +16,56 @@ function getAllRulesets() {
   });
 }
 
+function getAllVisitors() {
+  return axios({
+    method: 'get',
+    url: `${ROOT}getallvisitors.php`,
+    headers: {
+      'Content-type': 'application/x-www-form-urlencoded'
+    }
+  });
+}
+
+function registerVisitor(visitorId) {
+  return axios({
+    method: 'post',
+    url: `${ROOT}registervisitor.php`,
+    headers: {
+      'Content-type': 'application/x-www-form-urlencoded'
+    },
+    data: JSON.stringify({
+      visitorId: visitorId,
+    }),
+  });
+}
+
+function handshakeWithLobby(visitorId, status) {
+  return axios({
+    method: 'post',
+    url: `${ROOT}lobbyhandshake.php`,
+    headers: {
+      'Content-type': 'application/x-www-form-urlencoded'
+    },
+    data: JSON.stringify({
+      visitorId,
+      status,
+    }),
+  });
+}
+
 function sendNewRules(ruleType, newList) {
-  console.log('sendNewRules ruleType is', ruleType);
-  console.log('sendNewRules newList is', newList);
-  let rawData = {
-    rulesetID: 43,
-    ruleType,
-    newList,
-  };
-  console.info('rawData is', rawData);
-  console.info('stringified',JSON.stringify(rawData))
   return axios({
     method: 'post',
     url: `${ROOT}sendnewwordrules.php`,
     headers: {
       'Content-type': 'application/x-www-form-urlencoded'
     },
-    data: JSON.stringify(rawData)
+    data: JSON.stringify({
+      rulesetID: 43,
+      ruleType,
+      newList,
+    }),
   });
 }
 
-export { getAllRulesets, sendNewRules };
+export { getAllRulesets, getAllVisitors, registerVisitor, handshakeWithLobby, sendNewRules };

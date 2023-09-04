@@ -5,8 +5,7 @@ import { pause } from "../scripts/util";
 import { validateInitialUnit } from "../scripts/validator";
 import ConfirmAddFollowerModal from "./ConfirmAddFollowerModal";
 
-export default function RulesModal(props) {
-  console.warn('rendering RulesModal ---------------->>');
+const RulesModal = (props) => { 
   const [selectedUnit, setSelectedUnit] = useState({
     id: '',
     string: '',
@@ -18,7 +17,7 @@ export default function RulesModal(props) {
   const [errorShowing, setErrorShowing] = useState('');
 
   function formatUnitArray(fullList) {
-    console.log('rendering formatting a list!')
+    console.log('rendering formatting a list!');
     let sortedArrays = [[], [], [], [], []];
     fullList.forEach(unit => {
       sortedArrays[unit.length - 1].push(unit);
@@ -27,9 +26,9 @@ export default function RulesModal(props) {
     sortedArrays.forEach(lengthArray => lengthArray.sort());
     return sortedArrays;
   }
-  
+
   function getEmptyFollowerPairList(fullUnitList) {
-    console.log('rendering formatting a pair list!')
+    console.log('rendering formatting a pair list!');
     let followersArray = [];
     const uniqueUnits = [...new Set(fullUnitList)].sort();;
     for (let initialUnit of uniqueUnits) {
@@ -108,8 +107,13 @@ export default function RulesModal(props) {
     setCurrentEditAction('add');
   }
   function onClickEditButton(e) {
+    console.warn('clicked edit');
+    console.log(' while selectedUnit', selectedUnit);
     setCurrentEditAction('edit');
+    const entryType = e.target.id.split('-')[1];
+    setCurrentlyEditingType(entryType);
   }
+
   function onClickDeleteWordUnitButton(e) {
     setCurrentEditAction('delete');
     setCurrentlyEditingType('unit');
@@ -127,6 +131,9 @@ export default function RulesModal(props) {
     setConfirmModalShowing('follower-delete');
   }
   function handleSubmitAddUnitForm(e) {
+    console.warn('handleSubmitAddUnitForm ---------------------------');
+    console.log('currentlyEditingType', currentlyEditingType);
+    console.log('currentEditAction', currentEditAction);
     e.preventDefault();
     let ruleName;
     if (currentlyEditingType === 'onset' || currentlyEditingType === 'coda') {
@@ -138,10 +145,12 @@ export default function RulesModal(props) {
     const isAlpha = newUnit.split('').every(letter => letter.match(/[a-z]/i));
     const alreadyListed = props.wordRules[ruleName].includes(newUnit);
     let inputValidated = newUnit.length && isAlpha && !alreadyListed;
+    const oldUnit = selectedUnit.string || newUnit;
     if (inputValidated) {
       setSelectedUnit({
         id: `user-${currentlyEditingType}`,
         string: newUnit,
+        doomedUnit: currentEditAction === 'edit' ? oldUnit : '',
         rowEntry: newUnit,
       });
       setConfirmModalShowing('unit');
@@ -154,6 +163,7 @@ export default function RulesModal(props) {
         flashError(`there's nothing there!`);
       }
     }
+    console.log('selectedUnit', selectedUnit);
   }
 
   function handleSubmitAddFollowerSet(initialUnit, newFollower) {
@@ -181,7 +191,7 @@ export default function RulesModal(props) {
     if (currentlyEditingType.includes('invalidFollowers')) {
       ruleName = 'invalidFollowers';
     } else {
-      const subType = selectedUnit.id.split('-')[currentEditAction === 'add' ? 1 : 0];
+      const subType = selectedUnit.id.split('-')[currentEditAction === 'delete' ? 0 : 1];
       if (subType === 'onset' || subType === 'coda') {
         ruleName = subType + 's';
       } else if (subType === 'nucleus') {
@@ -190,6 +200,7 @@ export default function RulesModal(props) {
     }
     const editInfoObj = {
       ruleName,
+      doomedUnit: selectedUnit.doomedUnit,
       rowEntry: selectedUnit.rowEntry,
       editAction: currentEditAction,
     };
@@ -266,6 +277,15 @@ export default function RulesModal(props) {
     return allFollowers.filter(follower => !existingFollowers.includes(follower));
   }
 
+  const wordUnitLists = useMemo(() => {
+    return [onsetArrays, nucleusArrays, codaArrays].map(unitArray => {
+      
+    });
+  }, [])
+
+  console.warn('rendering RulesModal ---------------->>', props);
+  console.log('selectedUnit', selectedUnit)
+
   return (
     <div className={`rules-modal${props.showing ? ' showing' : ''}`}>
       <h1 className='modal-title'>Word Rules</h1>
@@ -290,9 +310,12 @@ export default function RulesModal(props) {
                             className={`add-button${currentlyEditingType === 'onset' ? ' adding' : ''}`}
                           >
                             {currentlyEditingType === 'onset' ?
-                              !confirmModalShowing && <form onSubmitCapture={handleSubmitAddUnitForm} name='submit-unit' className='add-unit-form'>
+                              !confirmModalShowing &&
+                              <form onSubmitCapture={handleSubmitAddUnitForm} name='submit-unit' className={`${currentEditAction}-unit-form`}>
                                 <input name='submit-unit' className='add-unit-input' type='text'></input>
-                                <button className={'confirm-button'} type='submit'>OK</button>
+                                <button className={'confirm-button'} type='submit'>
+                                  {currentEditAction === 'add' ? 'OK' : currentEditAction === 'edit' ? `SAVE EDIT` : 'none'}
+                                </button>
                                 <button className={'cancel-button'} type='button' onClick={handleCancelAddUnit}>Cancel</button>
                               </form>
                               :
@@ -364,7 +387,8 @@ export default function RulesModal(props) {
                             id='add-coda-button'
                             className={`add-button${currentlyEditingType === 'coda' ? ' adding' : ''}`}>
                             {currentlyEditingType === 'coda' ?
-                              !confirmModalShowing && <form onSubmitCapture={handleSubmitAddUnitForm} name='submit-unit' className='add-unit-form'>
+                              !confirmModalShowing &&
+                              <form onSubmitCapture={handleSubmitAddUnitForm} name='submit-unit' className={`${currentEditAction}-unit-form`}>
                                 <input name='submit-unit' className='add-unit-input' type='text'></input>
                                 <button className={'confirm-button'} type='submit'>OK</button>
                                 <button className={'cancel-button'} type='button' onClick={handleCancelAddUnit}>Cancel</button>
@@ -410,10 +434,10 @@ export default function RulesModal(props) {
                           {<div className='add-follower-button-area'>
                             {editingCurrentPair &&
                               (currentEditAction !== 'add') && <>
-                                <div onClick={onClickEditButton} className='edit-button'>{`EDIT "NO ${followerSet.initialUnit}${selectedUnit.string}"`}</div>
-                              <div onClick={() => onClickDeleteFollowerSetButton(followerSet.initialUnit, selectedUnit.string)} className='delete-button'>{`DELETE "NO ${followerSet.initialUnit}${selectedUnit.string}"`}</div>
-                              <button className={'cancel-button small'} onClick={handleCancelAddUnit}>X</button>
-                              </>                                                            
+                                {/* <div onClick={onClickEditButton} className='edit-button'>{`EDIT "NO ${followerSet.initialUnit}${selectedUnit.string}"`}</div> */}
+                                <div onClick={() => onClickDeleteFollowerSetButton(followerSet.initialUnit, selectedUnit.string)} className='delete-button'>{`DELETE "NO ${followerSet.initialUnit}${selectedUnit.string}"`}</div>
+                                <button className={'cancel-button small'} onClick={handleCancelAddUnit}>X</button>
+                              </>
                             }
                             {(currentlyEditingType !== `invalidFollowers-${followerSet.initialUnit}`) &&
                               <div
@@ -493,7 +517,8 @@ export default function RulesModal(props) {
       <div className='button-area'>
         <Button width={'8rem'} label={'GO BACK'} clickAction={props.dismissModal} />
       </div>
-      {props.showing && currentEditAction !== 'edit' && currentlyEditingType && selectedUnit.string &&
+      {props.showing && currentEditAction && currentlyEditingType && selectedUnit.string &&
+        // currentEditAction !== 'edit' &&
         <>
           {!currentlyEditingType.includes('invalidFollowers') ?
             <ConfirmAddUnitModal
@@ -533,8 +558,8 @@ export default function RulesModal(props) {
           justify-content: space-between;
           gap: calc(var(--board-size) * 0.025);
           padding: calc(var(--board-size) * 0.0325);
-          background-color: var(--main-bg-color);
-          border-radius: calc(var(--board-size) * 0.025);
+          background-color: var(--main-modal-color);
+          border-radius: var(--modal-border-radius);
           opacity: 0;
           translate: 0 15%;
           pointer-events: none;
@@ -545,19 +570,11 @@ export default function RulesModal(props) {
             opacity: 1;
             pointer-events: all;
             translate: 0 0;
-            box-shadow: 
-              0 0 calc(var(--board-size) / 100) #00000088,
-              0 0 calc(var(--board-size) / 150) #000000aa inset
-            ;
+            box-shadow: var(--modal-shadow);
           }
 
           & > .modal-title {
-            text-shadow: 
-              1px 1px calc(var(--button-height) / 64) #000000,
-              -1px 1px calc(var(--button-height) / 64) #000000,
-              -1px -1px calc(var(--button-height) / 64) #000000,
-              1px -1px calc(var(--button-height) / 64) #000000
-            ;
+            text-shadow: var(--text-stroke);
             position: absolute;
             top: 0;
             display: flex;
@@ -582,7 +599,7 @@ export default function RulesModal(props) {
               position: sticky;
               top: -0.5rem;
               padding: 1rem 0;
-              background-color: var(--main-bg-color);
+              background-color: var(--main-modal-color);
             }
 
             & > .rule-type-area {
@@ -650,6 +667,8 @@ export default function RulesModal(props) {
                   background-color: green;
                   scale: 1.1;
                   font-weight: bold;
+
+                  outline: 2px solid ${currentEditAction === 'edit' ? '#ffa' : currentEditAction === 'delete' ? '#f00' : 'transparent'};
                 }
               }
               
@@ -706,12 +725,13 @@ export default function RulesModal(props) {
               }
 
               & .edit-button, & .delete-button {
-                width: 9.5rem;
+                min-width: max-content;
+                width: 6rem;
                 max-width: 18vw;
                 text-align: center;
               }
               
-              & .add-unit-form, .add-follower-form {
+              & .add-unit-form, & .add-follower-form, & .edit-unit-form {
                 width: 100%;
                 display: flex;
                 gap: 0.5rem;
@@ -727,12 +747,24 @@ export default function RulesModal(props) {
                 }                
               }
 
+              & .edit-unit-form {
+                background: green;
+
+                & button.confirm-button {
+                  background-color: #ffa;
+                }
+              }
+
               & button {
-                width: 4rem;
+                font-weight: bold;
                 min-height: 3rem;
                 border-radius: calc(var(--board-size) * 0.0075);
+                padding: 0 0.75rem;
+                text-transform: uppercase;
+                min-width: max-content !important;
 
                 &.confirm-button {
+                  min-width: 5rem;
                   background-color: #aaffaa;
                 }
                 &.cancel-button {
@@ -845,4 +877,6 @@ export default function RulesModal(props) {
       `}</style>
     </div>
   );
-}
+};
+
+export default RulesModal;

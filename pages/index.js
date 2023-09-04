@@ -2,7 +2,7 @@ import { isMobile } from 'is-mobile';
 import { useEffect, useMemo, useState } from 'react';
 import { auth, provider } from '../scripts/firebase';
 import { getAuth, signInWithPopup, GoogleAuthProvider, signInWithRedirect, signOut, signInAnonymously } from "firebase/auth";
-import { getAllRulesets, sendNewRules } from '../scripts/db';
+import { getAllRulesets, getAllVisitors, handshakeWithLobby, registerVisitor, sendNewRules } from '../scripts/db';
 import Head from 'next/head';
 import Header from '../components/Header';
 import Button from '../components/Button';
@@ -22,6 +22,10 @@ import RulesModal from '../components/RulesModal';
 import ViolationsModal from '../components/ViolationsModal';
 import SaveMessage from '../components/SaveMessage';
 import Space from '../components/Space';
+import Tile from '../components/Tile';
+import LobbyScreen from '../components/LobbyScreen';
+
+
 
 const IS_MOBILE = isMobile();
 let LANDSCAPE;
@@ -34,12 +38,13 @@ const defaultOpponent = {
 const guestUser = {
   displayName: 'Guest',
   photoURL: '../guestavatar.png',
-  uid: v4(),
 };
 
 export default function Home() {
   const [loaded, setLoaded] = useState(false);
+  const [visitors, setVisitors] = useState([]);
   const [user, setUser] = useState(null);
+  const [phase, setPhase] = useState('title');
   const [userScore, setUserScore] = useState(0);
   const [opponentScore, setOpponentScore] = useState(0);
   const [opponent, setOpponent] = useState(defaultOpponent);
@@ -65,7 +70,66 @@ export default function Home() {
   const [wordRules, setWordRules] = useState({});
   const [unpronouncableWords, setUnpronouncableWords] = useState([]);
   const [saveMessageShowing, setSaveMessageShowing] = useState('');
-  const [debugMode, setDebugMode] = useState(false);
+
+  const [lobbyPollRunning, setLobbyPollRunning] = useState(false);
+  const [lobbyPoll, setLobbyPoll] = useState();
+
+  const [debugMode, setDebugMode] = useState(true);
+
+  const saveToLocalStorage = (key, item) => localStorage.setItem(key, typeof item === 'string' ? item : JSON.stringify(item));
+  const loadFromLocalStorage = (key) => JSON.parse(localStorage.getItem(key));
+
+  const userRackSpaces = useMemo(() => {
+    // console.log('rendering Home userrackspaces');
+    return playerRack.map((tile, t) =>
+      <Tile
+        owner={'user'}
+        draggable={true}
+        letter={tile.letter}
+        value={tile.value}
+        key={tile.id}
+        id={tile.id}
+        turnPlayed={tile.turnPlayed}
+        selected={selectedTileId === tile.id}
+        rackSpaceId={`user-rack-space-${t}`}
+        offset={tile.offset}
+        blankPosition={tile.blankPosition}
+        blank={tile.blank}
+        placed={tile.placed}
+        landed={tile.landed}
+        incongruent={tile.incongruent}
+        locked={tile.locked}
+        rackIndex={tile.rackIndex}
+        bgPosition={tile.bgPosition}
+      />
+    );
+  }, [playerRack, newWords, selectedTileId]);
+
+  const opponentRackSpaces = useMemo(() => {
+    // console.log('rendering Home opponent rackspaces');
+    return opponentRack.map((tile, t) =>
+      <Tile
+        owner={'opponent'}
+        draggable={false}
+        letter={tile.letter}
+        value={tile.value}
+        key={tile.id}
+        id={tile.id}
+        turnPlayed={tile.turnPlayed}
+        selected={selectedTileId === tile.id}
+        rackSpaceId={`opponent-rack-space-${t}`}
+        offset={tile.offset}
+        blankPosition={tile.blankPosition}
+        blank={tile.blank}
+        placed={tile.placed}
+        landed={tile.landed}
+        incongruent={tile.incongruent}
+        locked={tile.locked}
+        rackIndex={tile.rackIndex}
+        bgPosition={tile.bgPosition}
+      />
+    );
+  }, [opponentRack]);
 
   const filledBoard = useMemo(() => {
     console.log('>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> rendering creating filled board!!!');
@@ -83,10 +147,7 @@ export default function Home() {
             r === 7 && space[0] === 'dw' ?
               <div className='star'></div>
               :
-              space.length ?
-                specialSpaceData[space[0]].legend
-                :
-                ''
+              space.length ? specialSpaceData[space[0]].legend : ''
           }
           contents={
             spaceContents ?
@@ -106,24 +167,66 @@ export default function Home() {
                   bgPosition={spaceContents.bgPosition}
                 />
                 :
-                spaceContents.letter
+                undefined
               :
-              ''
+              undefined
           }
         />;
       }
       )
     );
-  }, [letterMatrix]);
+  }, [letterMatrix, newWords]);
 
-  function signInAsGuest() {
+  async function signInAsGuest() {
+    const anonUserData = await signInAnonymously(getAuth());
+    guestUser.displayName += '-' + anonUserData.user.uid.slice(anonUserData.user.uid.length - 4);
+    let newUser = {
+      ...anonUserData.user,
+      ...guestUser,
+    };
+    console.log('guest user!', newUser);
+    const registerStartTime = Date.now();
+    const registered = await registerVisitor(newUser.uid).data;
+    console.warn('visitor registered?', registered);
+    if (registered === newUser.uid) {
+      saveToLocalStorage('anonUserData', newUser);
+    } else {
+      console.error('ANON USER STILL IN VISITOR LIST! ------------------------------------------>>')
+    }
+    const newVisitorList = await getVisitorList();
+    flashSaveMessage(`Registered in ${Date.now() - registerStartTime}ms`, 1000);
+    console.warn('newVisitorList', newVisitorList);
+    setVisitors(newVisitorList);
+    setUser(newUser);
+    await pause(500);
+    setPhase('lobby');
+  }
+  function signInAsGuest2() {
     signInAnonymously(getAuth())
-      .then(() => {
-        console.log('signInAsGuest().then =>');
-        let newUser = guestUser;
-
-        setUser(newUser);
+      .then(anonUserData => {
+        console.log('signInAsGuest().then =>', anonUserData);
+        guestUser.displayName += '-' + anonUserData.user.uid.slice(anonUserData.user.uid.length - 4);
+        let newUser = {
+          ...anonUserData.user,
+          ...guestUser,
+        };
         console.log('guest user!', newUser);
+        const registerStartTime = Date.now();
+        registerVisitor(newUser.uid).then(result => {
+          const registered = result.data;
+          console.warn('visitor registered?', registered);
+          if (registered === newUser.uid) {
+            saveToLocalStorage('anonUserData', newUser);
+          }
+          const visitorStartTime = Date.now();
+          getVisitorList().then(newVisitorList => {
+            flashSaveMessage(`Registered in ${Date.now() - registerStartTime}ms | Got visitors in ${Date.now() - visitorStartTime}ms`, 3000);
+            console.warn('newVisitorList', newVisitorList);
+            setVisitors(newVisitorList);
+            setUser(newUser);
+            setPhase('lobby');
+          });
+        });
       })
       .catch((error) => {
         const errorCode = error.code;
@@ -144,6 +247,7 @@ export default function Home() {
         let newUser = { ...result.user };
 
         setUser(newUser);
+        setPhase('lobby');
         console.log('new user!', newUser);
         // This gives you a Google Access Token. You can use it to access the Google API.
         // const credential = GoogleAuthProvider.credentialFromResult(result);
@@ -236,6 +340,7 @@ export default function Home() {
 
   async function getWordRules() {
     const rulesets = await getAllRulesets();
+    console.log('raw rulesets', rulesets);
     const rawWordRules = rulesets.data[0].filter(set => set.dialect === "Pronouncable")[0];
     const newWordRules = {};
     for (let attribute in rawWordRules) {
@@ -247,16 +352,38 @@ export default function Home() {
     return newWordRules;
   }
 
+  async function getVisitorList() {
+    const visitors = await getAllVisitors();
+    const visitorArray = visitors.data[0];
+    return visitorArray;
+  }
+
+  useEffect(() => {
+    if (phase === 'lobby') {
+      // if (!lobbyPollRunning) { setLobbyPollRunning(true); }
+      const newInterval = setInterval(async () => {
+        console.warn('----------------------------------------------------------------------------------------------------------------------------------------------------- useEffect interval!');
+        const visitorStartTime = Date.now();
+        // const newVisitorList = await getVisitorList();
+        console.log('lobby shaking with', user.uid, phase)
+        let newVisitorList = await handshakeWithLobby(user.uid, phase);
+        flashSaveMessage(`Polled visitors in ${Date.now() - visitorStartTime}ms`, 1000);
+        newVisitorList = newVisitorList.data[0];
+        console.warn('newVisitorList', newVisitorList);
+        setVisitors(newVisitorList);
+      }, 4000);
+      setLobbyPoll(newInterval);
+    } else {
+      // if (lobbyPollRunning) { setLobbyPollRunning(false); }
+      clearInterval(lobbyPoll);
+      setLobbyPoll(undefined);
+    }
+  }, [phase, user]);
+
   useEffect(() => {
     if (!loaded) {
       establishScreenAttributes();
-      // document.getElementById('home-container').addEventListener('touchmove', e => e.preventDefault(), false);
       document.getElementsByTagName('main')[0].addEventListener('touchmove', e => e.preventDefault(), true);
-      // document.getElementById('home-container').addEventListener('touchmove', e => e.preventDefault());
-      // document.getElementById('home-container').addEventListener('touchmove', e => {
-      //   console.log(e.target);
-      //   e.preventDefault();
-      // });
       window.addEventListener('keydown', e => {
         if (e.code === 'Space') {
           e.preventDefault();
@@ -292,6 +419,7 @@ export default function Home() {
       //     const errorMessage = error.message;
       //     console.error('SETPERSISTENCE ERROR!', errorCode, errorMessage);
       //   });
+
       let startTime = Date.now();
       getWordRules().then(newWordRules => {
         flashSaveMessage(`Got ruleset "${newWordRules.dialect.toUpperCase()}" in ${(Date.now() - startTime)}ms`, 2000);
@@ -319,66 +447,25 @@ export default function Home() {
     const syllableViolations = [];
     syllabizedWords.forEach(wordObj => {
       const sequenceValidation = validateSyllableSequence(wordObj.syllables);
-      // console.warn('sequenceValidation', sequenceValidation);
       if (sequenceValidation.rule) {
         const newViolatorObj = {
           wordObj,
           ...sequenceValidation,
         };
-        // console.log('newViolatorObj', newViolatorObj);
         syllableViolations.push(newViolatorObj);
         newViolatingWords.push(newViolatorObj);
       }
       const followerViolations = checkFollowers(wordObj.word, wordRules);
-      console.warn('followerViolations', followerViolations);
     });
-    // if (syllableViolations.length) {
-    //   console.error('SYLLABLE SEQUENCE INVALID!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!');
-    // } else {
-    //   console.warn('--------------------> syllables OK!');
-    // }
-
-    // syllabizedWords.forEach(wordObj => {
-    //   const newViolatorObj = {
-    //     wordObj,
-    //     syllables: [],
-    //   };
-    //   wordObj.syllables.forEach((syllable, s) => {
-    //     console.warn('getViolations >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> syllable', syllable);
-    //     const syllableViolations = getViolations(syllable, wordRules);
-    //     if (syllableViolations.violations.length) {
-    //       console.log('syllableViolations', syllableViolations);
-    //       newViolatorObj.syllables.push({
-    //         string: syllable,
-    //         syllableIndex: s,
-    //         violations: syllableViolations.violations
-    //       });
-    //       newViolatingWords.push(newViolatorObj);
-    //     } else {
-    //       console.log('---------------------------------------------------------------------------------- syllable', syllable, 'OK!');
-    //     }
-    //   });
-    // });
-
-    // wordsToAnalyze.forEach(wordObj => {
-    //   const violations = getViolations(wordObj.word, wordRules);
-    //   if (violations.banned || violations.invalid) {
-    //     const newViolatorObj = {
-    //       wordObj,
-    //       violations,
-    //     };
-    //     newViolatingWords.push(newViolatorObj);
-    //   }
-    // });
     setUnpronouncableWords(newViolatingWords);
     const allWordsOkay = newViolatingWords.length === 0;
     if ((!allWordsOkay || (!tilesInLine || (tilesInLine && !tilesNeighbored)) || firstWordNotOnStart || (!touchingLocked && lockedTiles.length > 0))) {
       ready = false;
     }
 
-    document.getElementById('in-line-display').innerHTML = tilesInLine;
-    document.getElementById('touching-locked-display').innerHTML = touchingLocked || (lockedTiles.length === 0 && centerTileFilled) ? 'true' : 'false';
-    document.getElementById('submit-ready-display').innerHTML = ready;
+    // document.getElementById('in-line-display').innerHTML = tilesInLine;
+    // document.getElementById('touching-locked-display').innerHTML = touchingLocked || (lockedTiles.length === 0 && centerTileFilled) ? 'true' : 'false';
+    // document.getElementById('submit-ready-display').innerHTML = ready;
 
     setSubmitReady(ready);
   }, [letterMatrix]);
@@ -403,6 +490,7 @@ export default function Home() {
   }
 
   async function startGame() {
+    console.warn('------------------------------------------------------ STARING GAME ------------------------------------------------------');
     setGameStarted(true);
     const nextBag = createBag();
     const playerOpeningLetters = getRandomLetters(nextBag, 7, 'user');
@@ -411,6 +499,14 @@ export default function Home() {
     setPlayerRack(playerOpeningLetters);
     await pause(800);
     setOpponentRack(opponentOpeningLetters);
+  }
+
+  async function handleClickRequestGame(selectedOpponent) {
+    console.warn('clicked request game!', selectedOpponent);
+  }
+  function handleClickBackToTitle() {
+    console.warn('clicked back to title!');
+    setPhase('title');
   }
 
   useEffect(() => {
@@ -440,7 +536,7 @@ export default function Home() {
     return hasNeighbor ? [...verticalNeighbors, ...horizontalNeighbors] : false;
   }
 
-  function submitTiles() {
+  function submitUserTiles() {
     let newPlayerRack = [...playerRack];
     const placedTiles = newPlayerRack.filter(tile => tile.placed);
     placedTiles.map(tile => {
@@ -451,13 +547,31 @@ export default function Home() {
     const newLetters = getRandomLetters([...bag], 7 - newPlayerRack.length, 'user');
     const newFullRack = [...newPlayerRack, ...newLetters];
     setPlayerRack(newFullRack);
-    const newTurn = currentTurn === 'user' ? 'opponent' : 'user';
     const newTurnData = [...turnHistory, [...placedTiles]];
     setUserScore(userScore + pendingTurnScore);
     setPendingTurnScore(0);
     setNewWords([]);
     setTurnHistory(newTurnData);
-    setCurrentTurn(newTurn);
+    setCurrentTurn('opponent');
+    return [...placedTiles];
+  }
+
+  function submitOpponentTiles(opponentPlacedTiles) {
+    let newOpponentRack = [...opponentRack];
+    opponentPlacedTiles.map(tile => {
+      tile.locked = true;
+      tile.turnPlayed = turnHistory.length;
+    });
+    newOpponentRack = newOpponentRack.filter(tile => !tile.locked);
+
+    const newLetters = getRandomLetters([...bag], 7 - newOpponentRack.length, 'opponent');
+    const newFullRack = [...newOpponentRack, ...newLetters];
+    setPlayerRack(newFullRack);
+    const newTurnData = [...turnHistory, [...opponentPlacedTiles]];
+    setOpponentScore(opponentScore + pendingTurnScore);
+    setNewWords([]);
+    setTurnHistory(newTurnData);
+    setCurrentTurn('user');
   }
 
   function cursorOverBoard(touchX, touchY) {
@@ -524,8 +638,8 @@ export default function Home() {
   }
 
   function handleScreenPointerMove(e) {
-    const throttleOK = Date.now() % 2 === 0;
-    if (selectedTileId && throttleOK) {
+    // const throttleOK = Date.now() % 2 === 0;
+    if (selectedTileId) {
       const touchX = IS_MOBILE ? e.touches[0].pageX : e.pageX;
       const touchY = IS_MOBILE ? e.touches[0].pageY : e.pageY;
 
@@ -638,7 +752,7 @@ export default function Home() {
         }
       });
     });
-    document.getElementById('neigbored-display').innerText = congruous;
+    // document.getElementById('neigbored-display').innerText = congruous;
     return congruous;
   }
 
@@ -952,11 +1066,16 @@ export default function Home() {
     if (editInfoObj.ruleName === 'onsets' || editInfoObj.ruleName === 'nuclei' || editInfoObj.ruleName === 'codas') {
       if (editInfoObj.editAction === 'add') {
         newWordRules[editInfoObj.ruleName].push(editInfoObj.rowEntry);
+        entryString = editInfoObj.rowEntry.toUpperCase();
       } else if (editInfoObj.editAction === 'delete') {
         const doomedIndex = newWordRules[editInfoObj.ruleName].indexOf(editInfoObj.rowEntry);
         newWordRules[editInfoObj.ruleName].splice(doomedIndex, 1);
+        entryString = editInfoObj.rowEntry.toUpperCase();
+      } else if (editInfoObj.editAction === 'edit') {
+        const doomedIndex = newWordRules[editInfoObj.ruleName].indexOf(editInfoObj.doomedUnit);
+        newWordRules[editInfoObj.ruleName][doomedIndex] = editInfoObj.rowEntry;;
+        entryString = `CHANGE ${editInfoObj.doomedUnit.toUpperCase()} TO ${editInfoObj.rowEntry.toUpperCase()}`;
       }
-      entryString = editInfoObj.rowEntry.toUpperCase();
     } else if (editInfoObj.ruleName === 'invalidFollowers') {
       if (editInfoObj.editAction === 'add') {
         newWordRules[editInfoObj.ruleName][editInfoObj.rowEntry.initialUnit].push(editInfoObj.rowEntry.newFollower);
@@ -984,26 +1103,21 @@ export default function Home() {
       saveResultMessage = `Saved "${editInfoObj.editAction.toUpperCase()} ${editInfoObj.ruleName.toUpperCase()} ${entryString.toUpperCase()}" to ruleset "${wordRules.dialect}" in ${saveDuration}ms`;
     }
     flashSaveMessage(saveResultMessage, 4000);
-
   }
 
   const placedTiles = [...playerRack].filter(tile => tile.placed);
   const lockedTiles = [...letterMatrix].flat().filter(space => space.contents && space.contents.locked);
 
-  const horizontalWordList = Object.values(wordsOnBoard.horizontal).map(wordObj => wordObj.word);
-  const verticalWordList = Object.values(wordsOnBoard.vertical).map(wordObj => wordObj.word);
+  // const horizontalWordList = Object.values(wordsOnBoard.horizontal).map(wordObj => wordObj.word);
+  // const verticalWordList = Object.values(wordsOnBoard.vertical).map(wordObj => wordObj.word);
 
-  const newWordList = newWords.map(wordObj => `${wordObj.word} (${scoreWord(wordObj)})`);
-  let totalViolations = unpronouncableWords.length;
-  // unpronouncableWords.forEach(violationObj => {
-  // console.log('violationObj', violationObj);
-  // totalViolations += violationObj.violations.violations.length;
-  // });
+  // const newWordList = newWords.map(wordObj => `${wordObj.word} (${scoreWord(wordObj)})`);
+  // let totalViolations = unpronouncableWords.length;
 
   return (
     <div>
       {<div className={'debug'}>
-        <div className={'debug-row'}>
+        {/* <div className={'debug-row'}>
           <div>Selected:</div>
           <div>
             {selectedTileId ?
@@ -1060,6 +1174,8 @@ export default function Home() {
           <div>Pending score:</div>
           <div>{pendingTurnScore}</div>
         </div>
+        <hr /> */}
+        <div style={{ fontWeight: 'bold' }}>Phase: {phase}</div>
       </div>}
       <Head>
         <title>Skrubble.live</title>
@@ -1072,7 +1188,7 @@ export default function Home() {
         <Header
           landscape={LANDSCAPE}
           revealed={loaded}
-          user={user}
+          phase={phase}
           gameStarted={gameStarted}
         />
         <div
@@ -1086,7 +1202,7 @@ export default function Home() {
           onTouchEnd={(gameStarted && IS_MOBILE) ? handleScreenPointerUp : () => null}
           onTouchCancel={(gameStarted && IS_MOBILE) ? handleScreenPointerUp : () => null}
         >
-          {gameStarted ?
+          {gameStarted &&
             <>
               <div className='turn-display-area'>
                 <div className={`player-turn-area user${currentTurn === 'user' ? ' current-turn' : ''}`}>
@@ -1103,7 +1219,7 @@ export default function Home() {
                 <div className='rack-area'>
                   <Rack
                     owner={'opponent'}
-                    tiles={opponentRack}
+                    tiles={opponentRackSpaces}
                   />
                 </div>
               </div>
@@ -1124,14 +1240,14 @@ export default function Home() {
                 <div className='rack-area'>
                   <Rack
                     owner={'user'}
-                    tiles={playerRack}
+                    tiles={userRackSpaces}
                     selectedTileId={selectedTileId}
                     targetedSpaceId={targetedSpaceId}
                   />
                 </div>
                 <div className='user-button-area'>
                   <Button label='Menu' clickAction={() => null} />
-                  <Button disabled={!submitReady || !placedTiles.length || (placedTiles.length < 2 && lockedTiles.length === 0)} color='green' label='Submit' clickAction={submitTiles} />
+                  <Button disabled={!submitReady || !placedTiles.length || (placedTiles.length < 2 && lockedTiles.length === 0)} color='green' label='Submit' clickAction={submitUserTiles} />
                   {playerRack.every(tile => !tile.placed && !tile.selected) ?
                     <Button label='Shuffle' clickAction={shuffleUserTiles} />
                     :
@@ -1146,16 +1262,25 @@ export default function Home() {
               <BlankModal bag={bag} showing={modalShowing === 'blank'} dismissModal={handleSelectBlankLetter} />
               <ViolationsModal wordRules={wordRules} unpronouncableWords={unpronouncableWords} showing={modalShowing === 'violations'} dismissModal={() => toggleModal()} />
             </>
-            :
-            user ?
-              <VersusScreen
-                user={user}
-                opponent={opponent}
-                handleClickStartGame={startGame}
-              />
-              :
-              <LoginModal handleClickGoogleLogin={callGooglePopup} handleClickGuestLogin={signInAsGuest} />
           }
+          {phase === 'versus' &&
+            <VersusScreen
+              user={user}
+              opponent={opponent}
+              handleClickStartGame={startGame}
+            />
+          }
+          {phase === 'lobby' &&
+            <LobbyScreen
+              user={user}
+              visitors={visitors}
+              handleClickRequestGame={handleClickRequestGame}
+              handleClickBackToTitle={handleClickBackToTitle}
+            />
+          }
+
+          {phase === 'title' && <LoginModal handleClickGoogleLogin={callGooglePopup} handleClickGuestLogin={signInAsGuest} />}
+          
           {saveMessageShowing && <SaveMessage showing={saveMessageShowing} messageText={saveMessageShowing} />}
         </div>
         <footer><a href='https://github.com/eggborne/skrubble'>View source on GitHub</a></footer>
@@ -1182,7 +1307,8 @@ export default function Home() {
           overflow: hidden;
           opacity: ${loaded ? 1 : 0};
           transition: opacity 500ms ease;          
-        }
+        }        
+
         #home-container {
           position: relative;
           flex-grow: 1;
@@ -1321,7 +1447,7 @@ export default function Home() {
         :root {
           --actual-height: 100dvh;
           --board-size: 100vw;
-          --header-height: ${user ? '2.5rem' : '18vw'};
+          --header-height: ${phase === 'title' ? '18vw' : '2.75rem'};
           --main-padding: 0px;
           --large-icon-size: calc(var(--racked-tile-size) * 1.5);
           --rack-height: calc(var(--board-size) / 10);
@@ -1345,6 +1471,18 @@ export default function Home() {
           --board-color: #ccc2a1;
           --board-bg-color: #ddd;
           --tile-color: #ffddd0;
+          --main-modal-color: #224422;
+          --text-stroke: 
+            1px 1px calc(var(--button-height) / 64) #000000,
+            -1px 1px calc(var(--button-height) / 64) #000000,
+            -1px -1px calc(var(--button-height) / 64) #000000,
+            1px -1px calc(var(--button-height) / 64) #000000
+          ;
+          --modal-shadow: 
+            0 0 calc(var(--board-size) / 100) #00000088,
+            0 0 calc(var(--board-size) / 150) #000000aa inset
+          ;
+          --modal-border-radius: calc(var(--board-size) * 0.025);
         }
         html,
         body {
@@ -1359,6 +1497,7 @@ export default function Home() {
         h1, h2, h3, h4 {
           padding: 0;
           margin: 0;
+          text-shadow: var(--text-stroke);
         }
 
         button {
@@ -1381,11 +1520,45 @@ export default function Home() {
           box-sizing: border-box;
         }
 
+        .star {
+            opacity: 0.78;
+          --star-size: calc(var(--board-size) / 40);
+          font-size: var(--star-size);
+          position: relative;
+          transform: translateY(-80%);
+          
+          border-right:  .3em solid transparent;
+          border-bottom: .75em solid #333;
+          border-left:   .3em solid transparent;
+        
+          &:before, &:after {
+            content: '';
+            
+            display: block;
+            width: 0;
+            height: 0;
+            
+            position: absolute;
+            top: .6em;
+            left: -1em;
+          
+            border-right:  1em solid transparent;
+            border-bottom: .7em  solid #333;
+            border-left:   1em solid transparent;
+          
+            transform: rotate(-35deg);
+          }
+          
+          &:after {  
+            transform: rotate(35deg);
+          }
+        }
+
         .debug {
           position: fixed;
           top: 0;
           right: 0;
-          min-width: 14rem;
+          //min-width: 14rem;
           max-width: 14rem;
           padding: 1rem;
           display: flex;
@@ -1455,7 +1628,7 @@ export default function Home() {
 
         @media screen and (orientation: landscape) {
           :root {
-            --header-height: ${user ? '2.5rem' : '5rem'};
+            --header-height: ${phase === 'title' ? '5rem' : '4.5rem'};
             --main-padding: 1rem;
             --board-size: calc((var(--actual-height) - var(--header-height)) - var(--main-padding));
             --title-tile-size: calc(var(--header-height) * 0.85);

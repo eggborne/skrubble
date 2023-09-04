@@ -51,7 +51,7 @@ export default function WordScoreDisplay(props) {
           width: calc(var(--played-tile-size) / 1.5);
           height: calc(var(--played-tile-size) / 1.5);
           box-shadow: 0 0 calc(var(--board-outline-size) / 2) calc(var(--board-outline-size) / 4) black;
-          z-index: 6;
+          z-index: 5;
           pointer-events: none;
           display: ${props.pendingTurnScore ? 'flex' : 'none'};
           // scale: ${props.pendingTurnScore ? 1 : 0};
