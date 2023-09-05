@@ -2,7 +2,7 @@ import { isMobile } from 'is-mobile';
 import { useEffect, useMemo, useState } from 'react';
 import { auth, provider } from '../scripts/firebase';
 import { getAuth, signInWithPopup, GoogleAuthProvider, signInWithRedirect, signOut, signInAnonymously } from "firebase/auth";
-import { getAllRulesets, getAllVisitors, handshakeWithLobby, registerVisitor, sendNewRules } from '../scripts/db';
+import { getAllRulesets, getAllVisitors, handshakeWithLobby, registerVisitor, sendChallenge, sendNewRules } from '../scripts/db';
 import Head from 'next/head';
 import Header from '../components/Header';
 import Button from '../components/Button';
@@ -25,7 +25,8 @@ import Space from '../components/Space';
 import Tile from '../components/Tile';
 import LobbyScreen from '../components/LobbyScreen';
 
-
+const LOBBY_POLL_INTERVAL = 2000;
+let API_CALLS = 0;
 
 const IS_MOBILE = isMobile();
 let LANDSCAPE;
@@ -44,6 +45,7 @@ export default function Home() {
   const [loaded, setLoaded] = useState(false);
   const [visitors, setVisitors] = useState([]);
   const [user, setUser] = useState(null);
+  const [location, setLocation] = useState('title');
   const [phase, setPhase] = useState('title');
   const [userScore, setUserScore] = useState(0);
   const [opponentScore, setOpponentScore] = useState(0);
@@ -71,8 +73,10 @@ export default function Home() {
   const [unpronouncableWords, setUnpronouncableWords] = useState([]);
   const [saveMessageShowing, setSaveMessageShowing] = useState('');
 
-  const [lobbyPollRunning, setLobbyPollRunning] = useState(false);
+  const [challengedOpponent, setChallengedOpponent] = useState();
+
   const [lobbyPoll, setLobbyPoll] = useState();
+  const [lastSentPoll, setLastSentPoll] = useState(0);
 
   const [debugMode, setDebugMode] = useState(true);
 
@@ -132,7 +136,7 @@ export default function Home() {
   }, [opponentRack]);
 
   const filledBoard = useMemo(() => {
-    console.log('>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> rendering creating filled board!!!');
+    console.log('>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> creating filled board!!!');
     return fullBoard.map((row, r) =>
       row.map((space, s) => {
         const spaceContents = letterMatrix[r][s].contents;
@@ -187,52 +191,22 @@ export default function Home() {
     console.log('guest user!', newUser);
     const registerStartTime = Date.now();
     const registered = await registerVisitor(newUser.uid).data;
-    console.warn('visitor registered?', registered);
+    API_CALLS++;
+    let registerMessage;
     if (registered === newUser.uid) {
       saveToLocalStorage('anonUserData', newUser);
+      registerMessage = `Registered new anonymous user "Guest-${newUser.uid.slice(newUser.uid.length - 4)}"`;
     } else {
-      console.error('ANON USER STILL IN VISITOR LIST! ------------------------------------------>>')
+      console.error('ANON USER STILL IN VISITOR LIST! ------------------------------------------>>');
+      registerMessage = `Recognized anonymous user "Guest-${newUser.uid.slice(newUser.uid.length - 4)}"`;
     }
+    flashSaveMessage(`${registerMessage} in ${Date.now() - registerStartTime}ms`, 2000);
     const newVisitorList = await getVisitorList();
-    flashSaveMessage(`Registered in ${Date.now() - registerStartTime}ms`, 1000);
     console.warn('newVisitorList', newVisitorList);
     setVisitors(newVisitorList);
     setUser(newUser);
-    await pause(500);
-    setPhase('lobby');
-  }
-  function signInAsGuest2() {
-    signInAnonymously(getAuth())
-      .then(anonUserData => {
-        console.log('signInAsGuest().then =>', anonUserData);
-        guestUser.displayName += '-' + anonUserData.user.uid.slice(anonUserData.user.uid.length - 4);
-        let newUser = {
-          ...anonUserData.user,
-          ...guestUser,
-        };
-        console.log('guest user!', newUser);
-        const registerStartTime = Date.now();
-        registerVisitor(newUser.uid).then(result => {
-          const registered = result.data;
-          console.warn('visitor registered?', registered);
-          if (registered === newUser.uid) {
-            saveToLocalStorage('anonUserData', newUser);
-          }
-          const visitorStartTime = Date.now();
-          getVisitorList().then(newVisitorList => {
-            flashSaveMessage(`Registered in ${Date.now() - registerStartTime}ms | Got visitors in ${Date.now() - visitorStartTime}ms`, 3000);
-            console.warn('newVisitorList', newVisitorList);
-            setVisitors(newVisitorList);
-            setUser(newUser);
-            setPhase('lobby');
-          });
-        });
-      })
-      .catch((error) => {
-        const errorCode = error.code;
-        const errorMessage = error.message;
-        console.error(errorCode, errorMessage);
-      });
+    setLocation('lobby');
+    setPhase('waiting');
   }
 
   function callGoogleRedirect() {
@@ -247,7 +221,8 @@ export default function Home() {
         let newUser = { ...result.user };
 
         setUser(newUser);
-        setPhase('lobby');
+        // setPhase('lobby');
+        setLocation('lobby');
         console.log('new user!', newUser);
         // This gives you a Google Access Token. You can use it to access the Google API.
         // const credential = GoogleAuthProvider.credentialFromResult(result);
@@ -340,6 +315,7 @@ export default function Home() {
 
   async function getWordRules() {
     const rulesets = await getAllRulesets();
+    API_CALLS++;
     console.log('raw rulesets', rulesets);
     const rawWordRules = rulesets.data[0].filter(set => set.dialect === "Pronouncable")[0];
     const newWordRules = {};
@@ -354,31 +330,47 @@ export default function Home() {
 
   async function getVisitorList() {
     const visitors = await getAllVisitors();
+    API_CALLS++;
     const visitorArray = visitors.data[0];
     return visitorArray;
   }
 
   useEffect(() => {
-    if (phase === 'lobby') {
-      // if (!lobbyPollRunning) { setLobbyPollRunning(true); }
+    if ((location === 'lobby' || phase.includes('Challenging'))) {
+      // window.onblur = (e) => {
+      //   console.warn('LOST FOCUS!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!');
+      //   console.log(e);
+      // };
+
+      clearInterval(lobbyPoll);
       const newInterval = setInterval(async () => {
-        console.warn('----------------------------------------------------------------------------------------------------------------------------------------------------- useEffect interval!');
-        const visitorStartTime = Date.now();
-        // const newVisitorList = await getVisitorList();
-        console.log('lobby shaking with', user.uid, phase)
-        let newVisitorList = await handshakeWithLobby(user.uid, phase);
-        flashSaveMessage(`Polled visitors in ${Date.now() - visitorStartTime}ms`, 1000);
-        newVisitorList = newVisitorList.data[0];
-        console.warn('newVisitorList', newVisitorList);
-        setVisitors(newVisitorList);
-      }, 4000);
+        if (true || document.hasFocus()) {
+          const intervalStartTime = Date.now();
+          const sinceLastPoll = (intervalStartTime - lastSentPoll);
+          console.warn('----------------------------------------------------------------------- <Home> useEffect interval!', sinceLastPoll);
+          let newVisitorList = await handshakeWithLobby(user.uid, location, phase);
+          API_CALLS++;
+          const postPollTime = Date.now();
+          const shakeTime = postPollTime - intervalStartTime;
+          setLastSentPoll(postPollTime);
+          if (!lastSentPoll || (shakeTime < LOBBY_POLL_INTERVAL)) {
+            flashSaveMessage(`Polled visitors in ${shakeTime}ms`, (LOBBY_POLL_INTERVAL - shakeTime - 200));
+            newVisitorList = newVisitorList.data[0];
+            setVisitors(newVisitorList);
+            console.table(newVisitorList);
+          } else {
+            console.error(shakeTime, 'LATE RETURN FROM HANDSHAKE LATE RETURN FROM HANDSHAKE LATE RETURN FROM HANDSHAKE LATE RETURN FROM HANDSHAKE LATE RETURN FROM HANDSHAKE');
+          }
+        } else {
+          console.error('lost focus! saving interval but skipping doing anything...');
+        }
+      }, LOBBY_POLL_INTERVAL);
       setLobbyPoll(newInterval);
     } else {
-      // if (lobbyPollRunning) { setLobbyPollRunning(false); }
       clearInterval(lobbyPoll);
-      setLobbyPoll(undefined);
+      setLobbyPoll();
     }
-  }, [phase, user]);
+  }, [location, phase, user, lastSentPoll]);
 
   useEffect(() => {
     if (!loaded) {
@@ -503,10 +495,17 @@ export default function Home() {
 
   async function handleClickRequestGame(selectedOpponent) {
     console.warn('clicked request game!', selectedOpponent);
+    setChallengedOpponent(selectedOpponent);
+    setPhase(selectedOpponent);
+    console.warn('CHALLENGE!!!!!!!!!!!!!!!!!!!!!!', selectedOpponent);
   }
-  function handleClickBackToTitle() {
+
+  async function handleClickBackToTitle() {
     console.warn('clicked back to title!');
+    await handshakeWithLobby(user.uid, 'title', '');
+    setLocation('title');
     setPhase('title');
+    setChallengedOpponent();
   }
 
   useEffect(() => {
@@ -1093,6 +1092,7 @@ export default function Home() {
     const startTime = Date.now();
     console.log('sending', ruleType, newList);
     const saveResult = await sendNewRules(ruleType, newList);
+    API_CALLS++;
     const saveDuration = Date.now() - startTime;
     console.warn('>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> sending', saveResult, 'took', saveDuration);
     let saveResultMessage;
@@ -1176,7 +1176,9 @@ export default function Home() {
         </div>
         <hr /> */}
         <div style={{ fontWeight: 'bold' }}>Phase: {phase}</div>
+        <div style={{ fontWeight: 'bold' }}>API Calls: {API_CALLS}</div>
       </div>}
+
       <Head>
         <title>Skrubble.live</title>
         <link rel="icon" href="/favicon.ico" />
@@ -1184,11 +1186,13 @@ export default function Home() {
         <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
         <link href="https://fonts.googleapis.com/css2?family=Aladin&family=Bangers&display=swap" rel="stylesheet"></link>
       </Head>
+
       <main>
         <Header
           landscape={LANDSCAPE}
           revealed={loaded}
           phase={phase}
+          location={location}
           gameStarted={gameStarted}
         />
         <div
@@ -1228,10 +1232,9 @@ export default function Home() {
                 filledBoard={filledBoard}
                 newWords={newWords}
               />
-              {/* {(submitReady && !selectedTileId) ? <WordScoreDisplay */}
+
               <WordScoreDisplay
                 pendingTurnScore={pendingTurnScore}
-                // targetTileObj={[...playerRack].filter(tile => tile.id === wordScoreTileId)[0]}
                 wordScoreTileId={wordScoreTileId}
                 submitReady={submitReady}
               />
@@ -1258,30 +1261,41 @@ export default function Home() {
                   <Button size='small' label={`Bag (${bag.length})`} clickAction={() => toggleModal('bag')} />
                 </div>
               </div>
+
               <BagModal bag={bag} showing={modalShowing === 'bag'} dismissModal={() => toggleModal()} />
               <BlankModal bag={bag} showing={modalShowing === 'blank'} dismissModal={handleSelectBlankLetter} />
               <ViolationsModal wordRules={wordRules} unpronouncableWords={unpronouncableWords} showing={modalShowing === 'violations'} dismissModal={() => toggleModal()} />
             </>
           }
-          {phase === 'versus' &&
+
+          {location === 'versus' &&
             <VersusScreen
               user={user}
               opponent={opponent}
               handleClickStartGame={startGame}
             />
           }
-          {phase === 'lobby' &&
+
+          {(location === 'lobby' || phase.includes('Challenging')) &&
             <LobbyScreen
               user={user}
               visitors={visitors}
+              challengedOpponent={challengedOpponent}
               handleClickRequestGame={handleClickRequestGame}
               handleClickBackToTitle={handleClickBackToTitle}
             />
           }
 
-          {phase === 'title' && <LoginModal handleClickGoogleLogin={callGooglePopup} handleClickGuestLogin={signInAsGuest} />}
-          
-          {saveMessageShowing && <SaveMessage showing={saveMessageShowing} messageText={saveMessageShowing} />}
+          {location === 'title' &&
+            <LoginModal handleClickGoogleLogin={callGooglePopup} handleClickGuestLogin={signInAsGuest}
+            />
+          }
+
+          {/* {saveMessageShowing && */}
+          <SaveMessage showing={saveMessageShowing}
+          />
+          {/* } */}
+
         </div>
         <footer><a href='https://github.com/eggborne/skrubble'>View source on GitHub</a></footer>
       </main>
@@ -1447,7 +1461,7 @@ export default function Home() {
         :root {
           --actual-height: 100dvh;
           --board-size: 100vw;
-          --header-height: ${phase === 'title' ? '18vw' : '2.75rem'};
+          --header-height: ${location === 'title' ? '18vw' : '2.75rem'};
           --main-padding: 0px;
           --large-icon-size: calc(var(--racked-tile-size) * 1.5);
           --rack-height: calc(var(--board-size) / 10);
@@ -1593,12 +1607,25 @@ export default function Home() {
             transform: scale(1.05);
           }
         }
+
         @keyframes dip {
           from {
             transform: scale(1);
           }
           to {
             transform: scale(0.95);
+          }
+        }
+
+        @keyframes excite {
+          from {
+            transform: scale(1);
+            color: white;
+            box-shadow: var(--modal-shadow);
+          }
+          to {
+            transform: scale(1.05);
+            color: #ffffaa;
           }
         }
 
@@ -1628,7 +1655,7 @@ export default function Home() {
 
         @media screen and (orientation: landscape) {
           :root {
-            --header-height: ${phase === 'title' ? '5rem' : '4.5rem'};
+            --header-height: ${location === 'title' ? '5rem' : '4.5rem'};
             --main-padding: 1rem;
             --board-size: calc((var(--actual-height) - var(--header-height)) - var(--main-padding));
             --title-tile-size: calc(var(--header-height) * 0.85);

@@ -2,10 +2,11 @@
 	include("config.php");
 
 	$postData = json_decode(file_get_contents("php://input"), TRUE);
+	$location = $postData['location'];
+	$phase = $postData['phase'];
 	$visitorId = $postData['visitorId'];
-	$status = $postData['status'];
 
-  $updateSql = "UPDATE `visitors` SET timeSinceLastPoll=(UTC_TIMESTAMP-`visitors`.lastPolled), lastPolled=UTC_TIMESTAMP, status='$status' WHERE visitorId='$visitorId';";
+  $updateSql = "UPDATE `visitors` SET lastPolled=UTC_TIMESTAMP, location='$location', phase='$phase' WHERE visitorId='$visitorId';";
   $retrieveSql = "SELECT * FROM `visitors` ORDER BY ind DESC;";
 
   $updateResult = mysqli_query($link,$updateSql);

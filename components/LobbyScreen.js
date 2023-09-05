@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import Button from "./Button";
 
 export default function LobbyScreen(props) {
+  console.warn('LobbyScreen props', props)
   const [revealed, setRevealed] = useState();
   const [selectedVisitor, setSelectedVisitor] = useState();
 
@@ -19,32 +20,44 @@ export default function LobbyScreen(props) {
   }
 
   return (
-    <div className={`lobby-screen${revealed ? ' showing' : ''}`}>
+    <div
+      onClick={(e) => {
+        if (!e.target.id.includes('visitor')) {
+          setSelectedVisitor();
+        }
+      }}
+      className={`lobby-screen${revealed ? ' showing' : ''}`}
+    >
       <h2 className={'lobby-header'}>Choose your opponent</h2>
       <div className='visitor-column-header'>
         <div>Name</div>
-        <div>Status</div>
+        <div>Location</div>
+        <div>Phase</div>
       </div>
       <div className='lobby-display'>
         {props.visitors ?
           props.visitors.map(visitorObj => {
-            let lastSeen;
-            // let now = new Date().toISOString().slice(0, 19).replace('T', ' ');
-            let now = new Date().toISOString();
-            console.log('now', now);
-            now = parseFloat(now.slice(now.length - 8));
-            let last = new Date(visitorObj.lastPolled).toISOString();
-            console.log('las', last)
-            last = parseFloat(last.slice(last.length - 8));
-            console.log('nows', now);
-            console.log('lass', last)
-            console.log(now - last)
-            return <div key={`visitor-${visitorObj.visitorId}`} id={`visitor-${visitorObj.visitorId}`} onClick={props.user.uid !== visitorObj.visitorId ? handleClickVisitorListing : null} className={`visitor-listing${props.user.uid === visitorObj.visitorId ? ' self' : ''}${selectedVisitor === `${visitorObj.visitorId}` ? ' selected' : ''}`}>
-              <div>Guest-{visitorObj.visitorId.slice(visitorObj.visitorId.length - 4)} {props.user.uid === visitorObj.visitorId ? '(YOU!)' : ''}</div>
-              {/* <div>Last seen: {visitorObj.timeSinceLastPoll.slice(visitorObj.timeSinceLastPoll.length-2)}</div> */}
-              <div>Last: {now - last}</div>
-              <div>{visitorObj.status}</div>
-            </div>})
+            // let now = new Date().toISOString().replace(':', '').replace(':', '');
+            // now = parseFloat(now.slice(now.length - 8));
+            // let last = new Date(visitorObj.lastPolled).toISOString().replace(':', '').replace(':', '');
+            // last = parseFloat(last.slice(last.length - 8));
+            // let sinceLast = Math.round(now - last);
+            const isChallengingUser = visitorObj.phase === `${props.user.uid}`;
+            const isBeingChallenged = props.challengedOpponent === `${visitorObj.visitorId}`;
+            return <div
+              className={`visitor-listing${props.user.uid === visitorObj.visitorId ? ' self' : ''}${selectedVisitor === `${visitorObj.visitorId}` ? ' selected' : ''}${isBeingChallenged ? ' challenged' : ''}${isChallengingUser ? ' challenging' : ''}`}
+              // style={{ opacity: sinceLast < 6 ? 1 : 0.5 }}
+              key={`visitor-${visitorObj.visitorId}`}
+              id={`visitor-${visitorObj.visitorId}`}
+              onClick={props.user.uid !== visitorObj.visitorId ? handleClickVisitorListing : null}
+            >
+              <div>Guest-{visitorObj.visitorId.slice(visitorObj.visitorId.length - 4)}{props.user.uid === visitorObj.visitorId ? ' (YOU!)' : ''}</div>
+              <div>
+                <div>{visitorObj.location}</div>
+              </div>
+              <div>{isChallengingUser ? 'CHALLENGING YOU!' : visitorObj.phase}</div>
+            </div>;
+          })
           :
           <div className='empty-lobby-message'>{'Nobody else here :('}</div>
         }
@@ -63,12 +76,14 @@ export default function LobbyScreen(props) {
           width={'12rem'}
           color={'darkgreen'}
           disabled={!selectedVisitor}
+          specialClass={selectedVisitor && 'excited'}
         />
       </div>
       <style jsx>{`
         .lobby-screen {
+          --list-column-template: minmax(max-content, 12rem) 1fr max-content;
           --listing-height: 3rem;
-          --list-padding: 2rem;
+          --list-padding: 1rem;
           position: absolute;
           left: 50%;
           top: 50%;
@@ -124,6 +139,9 @@ export default function LobbyScreen(props) {
             padding: 0 calc(var(--list-padding) * 1.5);
             background-color: transparent;
             font-weight: bold;
+            display: grid;
+            grid-template-columns: var(--list-column-template);
+            
           }
 
           & > .lobby-display {
@@ -138,7 +156,7 @@ export default function LobbyScreen(props) {
               //justify-content: space-between;
               //align-items: center;
               display: grid;
-              grid-template-columns: 30% 1fr 1fr;
+              grid-template-columns: var(--list-column-template);
               align-items: center;
               min-height: var(--listing-height);
               padding: 0 calc(var(--list-padding) / 2);
@@ -146,14 +164,18 @@ export default function LobbyScreen(props) {
               background-color: #00000022;
               cursor: pointer;
               border-radius: 0.5rem;
-              transition: all 200ms ease;
+              transition: all 150ms ease;
+
+              & * {
+                pointer-events: none;
+              }
 
               & > div:first-child {
                 font-weight: bold;
               }
 
-              &:hover {
-                border: 2px solid orange;
+              &:not(.selected):hover {
+                border: calc(var(--listing-height) / 24) solid orange;
               }
               
               &:nth-of-type(odd) {
@@ -162,7 +184,13 @@ export default function LobbyScreen(props) {
 
               &.selected {
                 background-color: #00ff0066;
-                border: 2px solid orange;
+              }
+
+              &.challenged {
+                background-color: #ff6666;
+              }
+              &.challenging {
+                background-color: #888822;
               }
 
               &.self {

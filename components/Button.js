@@ -1,6 +1,7 @@
 export default function Button(props) {
+  const buttonClasses = ['button', props.disabled && 'disabled', props.specialClass && props.specialClass].filter(cl => cl).join(' ');
   return (
-    <button className={`button${props.disabled ? ' disabled' : ''}`} type='button' onClick={props.clickAction}>
+    <button className={buttonClasses} type='button' onClick={props.clickAction}>
       {props.label}
       <style jsx>{`
         .button {
@@ -49,6 +50,10 @@ export default function Button(props) {
           &.disabled {
             background: unset;
             pointer-events: none;
+          }
+
+          &.excited {
+            animation: excite 300ms ease infinite alternate;
           }
         }
       `}</style>
