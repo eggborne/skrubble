@@ -29,7 +29,7 @@ export default function Button(props) {
           font-size: var(--font-size);
           border-radius: calc(var(--button-height) / 10);
           cursor: pointer;
-          pointer-events: all;
+          pointer-events: all !important;
           padding: 0;
 
           transition: all 100ms linear;
@@ -53,6 +53,24 @@ export default function Button(props) {
           }
 
           &.excited {
+            animation: excite 300ms ease infinite alternate;
+          }
+
+          &.request-game {
+            width: 9rem;
+            max-width: 9rem;
+            font-size: 1rem;
+            padding: 0 0.5rem;
+            line-height: 120%;
+            background-color: #229922;
+          }
+          &.challenge-accept {
+            width: 9rem;
+            min-width: 9rem;
+            font-size: 1rem;
+            padding: 0 0.5rem;
+            line-height: 120%;
+            background-color: red;
             animation: excite 300ms ease infinite alternate;
           }
         }

@@ -25,7 +25,7 @@ import Space from '../components/Space';
 import Tile from '../components/Tile';
 import LobbyScreen from '../components/LobbyScreen';
 
-const LOBBY_POLL_INTERVAL = 2000;
+const LOBBY_POLL_INTERVAL = 1000;
 let API_CALLS = 0;
 
 const IS_MOBILE = isMobile();
@@ -45,7 +45,7 @@ export default function Home() {
   const [loaded, setLoaded] = useState(false);
   const [visitors, setVisitors] = useState([]);
   const [user, setUser] = useState(null);
-  const [location, setLocation] = useState('title');
+  const [currentLocation, setCurrentLocation] = useState('title');
   const [phase, setPhase] = useState('title');
   const [userScore, setUserScore] = useState(0);
   const [opponentScore, setOpponentScore] = useState(0);
@@ -73,15 +73,15 @@ export default function Home() {
   const [unpronouncableWords, setUnpronouncableWords] = useState([]);
   const [saveMessageShowing, setSaveMessageShowing] = useState('');
 
-  const [challengedOpponent, setChallengedOpponent] = useState();
-
   const [lobbyPoll, setLobbyPoll] = useState();
   const [lastSentPoll, setLastSentPoll] = useState(0);
+  const [latency, setLatency] = useState(0);
+  const [hasFocus, setHasFocus] = useState(true);
 
   const [debugMode, setDebugMode] = useState(true);
 
   const saveToLocalStorage = (key, item) => localStorage.setItem(key, typeof item === 'string' ? item : JSON.stringify(item));
-  const loadFromLocalStorage = (key) => JSON.parse(localStorage.getItem(key));
+
 
   const userRackSpaces = useMemo(() => {
     // console.log('rendering Home userrackspaces');
@@ -181,32 +181,37 @@ export default function Home() {
     );
   }, [letterMatrix, newWords]);
 
-  async function signInAsGuest() {
+  function handleClickGuestLogin(guestName) {
+
+    signInAsGuest(guestName);
+  }
+
+  async function signInAsGuest(guestName) {
     const anonUserData = await signInAnonymously(getAuth());
-    guestUser.displayName += '-' + anonUserData.user.uid.slice(anonUserData.user.uid.length - 4);
+    guestUser.displayName = guestName;
     let newUser = {
       ...anonUserData.user,
       ...guestUser,
     };
     console.log('guest user!', newUser);
     const registerStartTime = Date.now();
-    const registered = await registerVisitor(newUser.uid).data;
+    const registered = await registerVisitor(newUser.uid, guestName);
     API_CALLS++;
     let registerMessage;
-    if (registered === newUser.uid) {
+    if (registered.data === newUser.uid) {
       saveToLocalStorage('anonUserData', newUser);
-      registerMessage = `Registered new anonymous user "Guest-${newUser.uid.slice(newUser.uid.length - 4)}"`;
+      registerMessage = `Registered new anonymous user "${newUser.displayName} - ${newUser.uid}"`;
     } else {
       console.error('ANON USER STILL IN VISITOR LIST! ------------------------------------------>>');
-      registerMessage = `Recognized anonymous user "Guest-${newUser.uid.slice(newUser.uid.length - 4)}"`;
+      registerMessage = `Recognized anonymous user "${newUser.displayName} - ${newUser.uid}"`;
     }
     flashSaveMessage(`${registerMessage} in ${Date.now() - registerStartTime}ms`, 2000);
-    const newVisitorList = await getVisitorList();
-    console.warn('newVisitorList', newVisitorList);
-    setVisitors(newVisitorList);
+    // const newVisitorList = await getVisitorList();
+    // console.warn('newVisitorList', newVisitorList);
+    // setVisitors(newVisitorList);
     setUser(newUser);
-    setLocation('lobby');
-    setPhase('waiting');
+    setCurrentLocation('lobby');
+    setPhase('browsing');
   }
 
   function callGoogleRedirect() {
@@ -222,7 +227,7 @@ export default function Home() {
 
         setUser(newUser);
         // setPhase('lobby');
-        setLocation('lobby');
+        setCurrentLocation('lobby');
         console.log('new user!', newUser);
         // This gives you a Google Access Token. You can use it to access the Google API.
         // const credential = GoogleAuthProvider.credentialFromResult(result);
@@ -336,25 +341,22 @@ export default function Home() {
   }
 
   useEffect(() => {
-    if ((location === 'lobby' || phase.includes('Challenging'))) {
-      // window.onblur = (e) => {
-      //   console.warn('LOST FOCUS!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!');
-      //   console.log(e);
-      // };
-
-      clearInterval(lobbyPoll);
+    clearInterval(lobbyPoll);
+    if (currentLocation === 'lobby') {
       const newInterval = setInterval(async () => {
-        if (true || document.hasFocus()) {
+        if (true || hasFocus) {
           const intervalStartTime = Date.now();
           const sinceLastPoll = (intervalStartTime - lastSentPoll);
-          console.warn('----------------------------------------------------------------------- <Home> useEffect interval!', sinceLastPoll);
-          let newVisitorList = await handshakeWithLobby(user.uid, location, phase);
+          console.warn('----------------------------------------------- <Home> useEffect interval!', sinceLastPoll);
+          let newVisitorList = await handshakeWithLobby(user.uid, currentLocation, phase, latency);
           API_CALLS++;
           const postPollTime = Date.now();
           const shakeTime = postPollTime - intervalStartTime;
+          setLatency(shakeTime);
           setLastSentPoll(postPollTime);
           if (!lastSentPoll || (shakeTime < LOBBY_POLL_INTERVAL)) {
-            flashSaveMessage(`Polled visitors in ${shakeTime}ms`, (LOBBY_POLL_INTERVAL - shakeTime - 200));
+            //flashSaveMessage(`Polled visitors in ${shakeTime}ms`, LOBBY_POLL_INTERVAL - shakeTime);
+            console.warn(newVisitorList);
             newVisitorList = newVisitorList.data[0];
             setVisitors(newVisitorList);
             console.table(newVisitorList);
@@ -362,15 +364,16 @@ export default function Home() {
             console.error(shakeTime, 'LATE RETURN FROM HANDSHAKE LATE RETURN FROM HANDSHAKE LATE RETURN FROM HANDSHAKE LATE RETURN FROM HANDSHAKE LATE RETURN FROM HANDSHAKE');
           }
         } else {
-          console.error('lost focus! saving interval but skipping doing anything...');
+          console.error('Lost focus! saving handshake but skipping doing anything...');
+          handshakeWithLobby(user.uid, currentLocation, phase, 0);
+          API_CALLS++;
         }
       }, LOBBY_POLL_INTERVAL);
       setLobbyPoll(newInterval);
     } else {
-      clearInterval(lobbyPoll);
       setLobbyPoll();
     }
-  }, [location, phase, user, lastSentPoll]);
+  }, [currentLocation, phase, user, lastSentPoll, hasFocus]);
 
   useEffect(() => {
     if (!loaded) {
@@ -421,6 +424,18 @@ export default function Home() {
     }
 
   }, [loaded]);
+
+  useEffect(() => {
+    window.onblur = (e) => {
+      console.warn('LOST FOCUS!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!');
+      clearInterval(lobbyPoll);
+      setHasFocus(false);
+    };
+    window.onfocus = (e) => {
+      console.warn('GAINED FOCUS!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!');
+      setHasFocus(true);
+    };
+  }, [lobbyPoll]);
 
   useEffect(() => {
     console.warn('>> rendering useEffect[letterMatrix] from Home');
@@ -482,7 +497,7 @@ export default function Home() {
   }
 
   async function startGame() {
-    console.warn('------------------------------------------------------ STARING GAME ------------------------------------------------------');
+    console.warn('------------------------------------------------------ STARTING GAME ------------------------------------------------------');
     setGameStarted(true);
     const nextBag = createBag();
     const playerOpeningLetters = getRandomLetters(nextBag, 7, 'user');
@@ -493,19 +508,22 @@ export default function Home() {
     setOpponentRack(opponentOpeningLetters);
   }
 
-  async function handleClickRequestGame(selectedOpponent) {
-    console.warn('clicked request game!', selectedOpponent);
-    setChallengedOpponent(selectedOpponent);
-    setPhase(selectedOpponent);
-    console.warn('CHALLENGE!!!!!!!!!!!!!!!!!!!!!!', selectedOpponent);
+  async function handleClickRequestGame(selectedOpponentId) {
+    console.warn('clicked request game!', selectedOpponentId);
+    setPhase(selectedOpponentId);
   }
 
   async function handleClickBackToTitle() {
     console.warn('clicked back to title!');
-    await handshakeWithLobby(user.uid, 'title', '');
-    setLocation('title');
-    setPhase('title');
-    setChallengedOpponent();
+    clearInterval(lobbyPoll);
+    setLobbyPoll();
+    const timeUntilEndOfLastInterval = Date.now() - lastSentPoll;
+    console.warn('---------- pausing to let last interval end', timeUntilEndOfLastInterval);
+    await pause(timeUntilEndOfLastInterval);
+    setCurrentLocation('title');
+    setPhase('');
+    handshakeWithLobby(user.uid, 'title', '', 0);
+    // API_CALLS++;
   }
 
   useEffect(() => {
@@ -1192,7 +1210,7 @@ export default function Home() {
           landscape={LANDSCAPE}
           revealed={loaded}
           phase={phase}
-          location={location}
+          currentLocation={currentLocation}
           gameStarted={gameStarted}
         />
         <div
@@ -1268,7 +1286,7 @@ export default function Home() {
             </>
           }
 
-          {location === 'versus' &&
+          {currentLocation === 'versus' &&
             <VersusScreen
               user={user}
               opponent={opponent}
@@ -1276,18 +1294,17 @@ export default function Home() {
             />
           }
 
-          {(location === 'lobby' || phase.includes('Challenging')) &&
+          {(currentLocation === 'lobby' || phase.includes('Challenging')) &&
             <LobbyScreen
               user={user}
               visitors={visitors}
-              challengedOpponent={challengedOpponent}
               handleClickRequestGame={handleClickRequestGame}
               handleClickBackToTitle={handleClickBackToTitle}
             />
           }
 
-          {location === 'title' &&
-            <LoginModal handleClickGoogleLogin={callGooglePopup} handleClickGuestLogin={signInAsGuest}
+          {currentLocation === 'title' &&
+            <LoginModal handleClickGoogleLogin={callGooglePopup} handleClickGuestLogin={handleClickGuestLogin}
             />
           }
 
@@ -1461,7 +1478,7 @@ export default function Home() {
         :root {
           --actual-height: 100dvh;
           --board-size: 100vw;
-          --header-height: ${location === 'title' ? '18vw' : '2.75rem'};
+          --header-height: ${currentLocation === 'title' ? '18vw' : '2.75rem'};
           --main-padding: 0px;
           --large-icon-size: calc(var(--racked-tile-size) * 1.5);
           --rack-height: calc(var(--board-size) / 10);
@@ -1619,12 +1636,12 @@ export default function Home() {
 
         @keyframes excite {
           from {
-            transform: scale(1);
+            transform: scale(100%);
             color: white;
             box-shadow: var(--modal-shadow);
           }
           to {
-            transform: scale(1.05);
+            transform: scale(101%);
             color: #ffffaa;
           }
         }
@@ -1655,7 +1672,7 @@ export default function Home() {
 
         @media screen and (orientation: landscape) {
           :root {
-            --header-height: ${location === 'title' ? '5rem' : '4.5rem'};
+            --header-height: ${currentLocation === 'title' ? '5rem' : '4.5rem'};
             --main-padding: 1rem;
             --board-size: calc((var(--actual-height) - var(--header-height)) - var(--main-padding));
             --title-tile-size: calc(var(--header-height) * 0.85);

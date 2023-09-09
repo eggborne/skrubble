@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import Button from "./Button";
 
 export default function LobbyScreen(props) {
-  console.warn('LobbyScreen props', props)
+  console.warn('LobbyScreen props', props);
   const [revealed, setRevealed] = useState();
   const [selectedVisitor, setSelectedVisitor] = useState();
 
@@ -15,8 +15,8 @@ export default function LobbyScreen(props) {
   function handleClickVisitorListing(e) {
     setSelectedVisitor(e.target.id.split('-')[1]);
   }
-  function onClickRequestGame(e) {
-    props.handleClickRequestGame(selectedVisitor);
+  function onClickRequestGame(selectedVisitorId) {
+    props.handleClickRequestGame(selectedVisitorId);
   }
 
   return (
@@ -30,34 +30,76 @@ export default function LobbyScreen(props) {
     >
       <h2 className={'lobby-header'}>Choose your opponent</h2>
       <div className='visitor-column-header'>
-        <div>Name</div>
-        <div>Location</div>
-        <div>Phase</div>
+        <h3>Name</h3>
+        <h3>Location</h3>
+        <h3>Status</h3>
+        <h3></h3>
       </div>
       <div className='lobby-display'>
         {props.visitors ?
-          props.visitors.map(visitorObj => {
-            // let now = new Date().toISOString().replace(':', '').replace(':', '');
-            // now = parseFloat(now.slice(now.length - 8));
-            // let last = new Date(visitorObj.lastPolled).toISOString().replace(':', '').replace(':', '');
-            // last = parseFloat(last.slice(last.length - 8));
-            // let sinceLast = Math.round(now - last);
-            const isChallengingUser = visitorObj.phase === `${props.user.uid}`;
-            const isBeingChallenged = props.challengedOpponent === `${visitorObj.visitorId}`;
-            return <div
-              className={`visitor-listing${props.user.uid === visitorObj.visitorId ? ' self' : ''}${selectedVisitor === `${visitorObj.visitorId}` ? ' selected' : ''}${isBeingChallenged ? ' challenged' : ''}${isChallengingUser ? ' challenging' : ''}`}
-              // style={{ opacity: sinceLast < 6 ? 1 : 0.5 }}
-              key={`visitor-${visitorObj.visitorId}`}
-              id={`visitor-${visitorObj.visitorId}`}
-              onClick={props.user.uid !== visitorObj.visitorId ? handleClickVisitorListing : null}
-            >
-              <div>Guest-{visitorObj.visitorId.slice(visitorObj.visitorId.length - 4)}{props.user.uid === visitorObj.visitorId ? ' (YOU!)' : ''}</div>
-              <div>
-                <div>{visitorObj.location}</div>
-              </div>
-              <div>{isChallengingUser ? 'CHALLENGING YOU!' : visitorObj.phase}</div>
-            </div>;
-          })
+          !props.visitors.length ?
+            <h4 className={'loading-message'}>{'entering lobby...'}</h4>
+            :
+            props.visitors.map(visitorObj => {
+              // let now = new Date().toISOString().replace(':', '').replace(':', '');
+              // now = parseFloat(now.slice(now.length - 8));
+              // let last = new Date(visitorObj.lastPolled).toISOString().replace(':', '').replace(':', '');
+              // last = parseFloat(last.slice(last.length - 8));
+              // let sinceLast = Math.round(now - last);
+
+              // console.warn('props', props);
+              // console.warn('visitorObj', visitorObj);
+              const isSelf = props.user.uid === visitorObj.visitorId;
+              const isChallengingUser = visitorObj.phase === props.user.uid;
+              const isBeingChallengedByUser = props.phase && props.phase.includes(visitorObj.visitorId);
+              const isAway = visitorObj.phase.includes('away');
+              const listingClasses = ['visitor-listing',
+                isSelf && 'self',
+                selectedVisitor === visitorObj.visitorId && 'selected',
+                isBeingChallengedByUser && 'being-challenged-by-user',
+                isChallengingUser && 'challenging-user',
+                isAway && 'away'].filter(cl => cl).join(' ')
+                ;
+              return (
+                <div className='listing-row' key={`visitor-${visitorObj.visitorId}`}>
+                  <div className='uid-label'>{visitorObj.visitorId}</div>
+                  <div
+                    className={listingClasses}
+
+                    id={`visitor-${visitorObj.visitorId}`}
+                    onClick={props.user.uid !== visitorObj.visitorId ? handleClickVisitorListing : null}
+                    style={{ opacity: visitorObj.currentLocation === 'lobby' ? 1 : 0.25 }}
+                  >
+                    <h3>{visitorObj.displayName}{isSelf ? ' (you!)' : ''}</h3>
+                    <div>{visitorObj.currentLocation}</div>
+                    <div className='status-column'>{visitorObj.phase}
+                      {isChallengingUser ?
+                        <Button
+                          onClick={() => null}
+                          label={'CHALLENGING! Click to accept'}
+                          specialClass={'challenge-accept'}
+                        />
+                        :
+                        !isSelf && visitorObj.currentLocation === 'lobby' &&
+                        <Button
+                          label='REQUEST GAME'
+                          clickAction={() => onClickRequestGame(visitorObj.visitorId)}
+                          specialClass={'request-game'}
+                          color={'#669966'}
+                          disabled={false}
+                        />
+                      }
+                    </div>
+                    {/* <div>{isChallengingUser ?
+                    <Button width={'min-content'} onClick={() => null} label={'CHALLENGING! Click to accept'} specialClass={'challenge-accept'} />
+                    :
+                    isBeingChallengedByUser ? 'waiting for response...' : visitorObj.phase}</div> */}
+                    <div style={{ color: visitorObj.latency < 100 ? '#aaffaa' : visitorObj.latency < 500 ? '#ffffaa' : '#ffaaaa' }}>{parseInt(visitorObj.latency) || ''}</div>
+                  </div>
+
+                </div>
+              );
+            })
           :
           <div className='empty-lobby-message'>{'Nobody else here :('}</div>
         }
@@ -70,20 +112,22 @@ export default function LobbyScreen(props) {
           width={'6rem'}
           color={'brown'}
         />
-        <Button
+        {/* <Button
           label='REQUEST GAME'
           clickAction={onClickRequestGame}
           width={'12rem'}
           color={'darkgreen'}
           disabled={!selectedVisitor}
           specialClass={selectedVisitor && 'excited'}
-        />
+        /> */}
       </div>
       <style jsx>{`
         .lobby-screen {
-          --list-column-template: minmax(max-content, 12rem) 1fr max-content;
-          --listing-height: 3rem;
-          --list-padding: 1rem;
+          --lobby-header-height: 4rem;
+          --listing-height: 5rem;
+          --list-padding: 1rem;          
+          --list-column-template: 5rem max-content 1fr 3.5rem;
+          --list-row-template: 4rem 4rem 4rem;
           position: absolute;
           left: 50%;
           top: 50%;
@@ -92,7 +136,7 @@ export default function LobbyScreen(props) {
           max-width: 100vh;
           height: calc(var(--actual-height) - (var(--header-height) * 1.5));
           padding: var(--list-padding);
-          padding-top: calc(var(--listing-height) * 2);
+          padding-top: calc(var(--lobby-header-height) * 2.2);;
           display: grid;
           grid-template-columns: 1fr;
           grid-template-rows: 1fr var(--button-height);
@@ -106,21 +150,27 @@ export default function LobbyScreen(props) {
           ;
           transition: all 450ms ease;
           transition-delay: 100ms;
+          font-size: 0.8rem;
 
           &:not(.showing) {
             opacity: 0;
-            //filter: blur(calc(var(--board-size) * 0.005));
-            //transform: scale(1.2) translateY(20%);
+          }
+
+          & .uid-label {
+            position: absolute;
+            bottom: 2px;
+            left: 1%;
+            font-size: 0.65rem;
+            color: #ffffff44;
           }
 
           & > .lobby-header, & > .visitor-column-header {
             position: absolute;
             top: 0;
             left: 0;
-            height: var(--listing-height);
             padding: 0;
             margin: 0;
-            background-color: #000000aa;
+            background-color: #00000099;
             width: 100%;
             display: flex;
             justify-content: center;
@@ -128,19 +178,29 @@ export default function LobbyScreen(props) {
           }
 
           & > .lobby-header {
+            height: var(--lobby-header-height);
             border-top-left-radius: calc(var(--board-size) * 0.025);
             border-top-right-radius: calc(var(--board-size) * 0.025);
+            font-family: 'Aladin';
+            font-size: calc(var(--lobby-header-height) / 1.65);
+            font-weight: unset;
           }
 
           & > .visitor-column-header {
             justify-content: space-between;
-            top: var(--listing-height);
+            top: calc(var(--lobby-header-height) * 1.5);
             width: 100%;
-            padding: 0 calc(var(--list-padding) * 1.5);
+            height: 2rem;
+            padding: 0 calc(var(--list-padding));
             background-color: transparent;
             font-weight: bold;
             display: grid;
             grid-template-columns: var(--list-column-template);
+            grid-template-rows: var(--list-rows-template);
+
+            & > h3 {
+              padding: 0 calc(var(--list-padding) / 2);
+            }
             
           }
 
@@ -148,55 +208,103 @@ export default function LobbyScreen(props) {
             display: flex;
             flex-direction: column;
             align-items: stretch;
-            gap: calc(var(--listing-height) / 6);
+            gap: calc(var(--listing-height) / 10);
             overflow-y: auto;
+            padding: 0 0.5%;
 
-            & > .visitor-listing {
-              //display: flex;
-              //justify-content: space-between;
-              //align-items: center;
-              display: grid;
-              grid-template-columns: var(--list-column-template);
+            & > .listing-row {
+              position: relative;
+              display: flex;
               align-items: center;
-              min-height: var(--listing-height);
-              padding: 0 calc(var(--list-padding) / 2);
-              border: calc(var(--list-padding) * 0.05) solid #00000055;
-              background-color: #00000022;
-              cursor: pointer;
-              border-radius: 0.5rem;
-              transition: all 150ms ease;
-
-              & * {
-                pointer-events: none;
-              }
-
-              & > div:first-child {
-                font-weight: bold;
-              }
-
-              &:not(.selected):hover {
-                border: calc(var(--listing-height) / 24) solid orange;
-              }
+              justify-content: space-between;
+              gap: 3%;
               
-              &:nth-of-type(odd) {
-                background-color: #00000011;
-              }
+              & > .visitor-listing {
+                flex-grow: 1;
+                display: grid;
+                grid-template-columns: var(--list-column-template);
+                grid-template-rows: var(--list-rows-template);
+                align-items: center;
+                min-height: var(--listing-height);
+                border: calc(var(--list-padding) * 0.05) solid #00000055;
+                background-color: #00000022;
+                cursor: pointer;
+                border-radius: 0.5rem;
+                transition: all 180ms ease;
+                overflow: hidden;
+                border-color: #ffff0088;
 
-              &.selected {
-                background-color: #00ff0066;
-              }
+                & > .status-column {
+                  display: flex;
+                  flex-direction: row;
+                  align-items: center;
+                  justify-content: space-between;
 
-              &.challenged {
-                background-color: #ff6666;
-              }
-              &.challenging {
-                background-color: #888822;
-              }
+                }
 
-              &.self {
-                background-color: #ffffaa11;
-                border-color: #ffffaa33;
-                pointer-events: none;
+                & * {
+                  pointer-events: none;
+                }
+
+                & > * {
+                  background-color: #00000033;
+                  padding: 0 calc(var(--list-padding) / 2);
+                  align-self: stretch;
+                  display: flex;
+                  flex-direction: column;
+                  justify-content: center;
+                  overflow: hidden;
+                  
+                  &:nth-child(odd) {
+                    background-color: #00000055;
+                  }
+                  
+                  &:last-child {            
+                    text-align: center;
+                  }
+
+                }
+
+                &:not(.selected):hover {
+                  border: calc(var(--listing-height) / 24) solid orange;
+                }
+                
+                &:nth-of-type(odd) {
+                  background-color: #00000011;
+                }
+
+                &.selected {
+                  
+                  background-color: #888822;
+                }
+
+                &.being-challenged-by-user {
+                  background-color: #ff6666;
+                }
+
+                &.challenging-user {
+                  background-color: #888822; 
+                  background-color: #00ff0066;             
+                }     
+
+                &.self {
+                  //display: none;
+                  background-color: transparent;
+                  border-color: #ffffaa33;
+                  pointer-events: none;
+                  
+                  & > h3 {
+                    color: #ffffaa;
+                  }
+
+                  & > * {
+                    background-color: transparent;
+                  }
+                }
+
+                &.away {
+                  opacity: 0.25 !important;
+                }
               }
             }
           }
@@ -206,6 +314,29 @@ export default function LobbyScreen(props) {
             justify-content: center;
             align-items: center;
             gap: 2rem;
+          }
+
+          & .loading-message {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-grow: 1;
+            font-family: 'Aladin';
+            font-size: calc(var(--lobby-header-height) / 2);
+            font-weight: unset;
+          }
+        }
+        
+        @media screen and (orientation: landscape) {
+          .lobby-screen {
+            --listing-height: 4rem;
+            --list-column-template: minmax(max-content, 12rem) 6rem 1fr 3.5rem;
+            --list-row-template: 1fr;
+            font-size: 1rem;
+
+            & h3 {
+              font-size: 1rem;
+            }
           }
         }
       `}</style>

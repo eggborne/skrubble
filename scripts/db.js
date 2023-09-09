@@ -26,7 +26,7 @@ function getAllVisitors() {
   });
 }
 
-function registerVisitor(visitorId) {
+function registerVisitor(visitorId, displayName) {
   return axios({
     method: 'post',
     url: `${ROOT}registervisitor.php`,
@@ -34,13 +34,14 @@ function registerVisitor(visitorId) {
       'Content-type': 'application/x-www-form-urlencoded'
     },
     data: JSON.stringify({
-      visitorId: visitorId,
+      visitorId,
+      displayName,
     }),
   });
 }
 
-function handshakeWithLobby(visitorId, location, phase) {
-  console.log('handshakeWithLobby sending', visitorId, location, phase)
+function handshakeWithLobby(visitorId, currentLocation, phase, latency) {
+  console.log('handshakeWithLobby sending', ...arguments);
   return axios({
     method: 'post',
     url: `${ROOT}lobbyhandshake.php`,
@@ -49,8 +50,9 @@ function handshakeWithLobby(visitorId, location, phase) {
     },
     data: JSON.stringify({
       visitorId,
-      location,
+      currentLocation,
       phase,
+      latency,
     }),
   });
 }

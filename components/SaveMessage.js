@@ -6,7 +6,8 @@ export default function SaveMessage(props) {
   let [visible, setVisible] = useState(false);
   useEffect(() => {
     props.showing ?
-      pause(200).then(() => setVisible(true))
+      // pause(200).then(() => setVisible(true))
+      setVisible(true)
       :
       setVisible(false)
     ;
@@ -34,8 +35,11 @@ export default function SaveMessage(props) {
           opacity: ${visible ? 0.9 : 0};
           transform: translateX(-50%);
           pointer-events: none;
-          transition: all 150ms ease;
+          //transition: all 150ms ease;
           z-index: 7;
+          
+          //display: none;
+
         }
       `}</style>
     </div>

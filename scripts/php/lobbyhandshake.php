@@ -2,12 +2,13 @@
 	include("config.php");
 
 	$postData = json_decode(file_get_contents("php://input"), TRUE);
-	$location = $postData['location'];
+	$currentLocation = $postData['currentLocation'];
 	$phase = $postData['phase'];
 	$visitorId = $postData['visitorId'];
+	$latency = $postData['latency'];
 
-  $updateSql = "UPDATE `visitors` SET lastPolled=UTC_TIMESTAMP, location='$location', phase='$phase' WHERE visitorId='$visitorId';";
-  $retrieveSql = "SELECT * FROM `visitors` ORDER BY ind DESC;";
+  $updateSql = "UPDATE `visitors` SET lastPolled=UTC_TIMESTAMP, currentLocation='$currentLocation', phase='$phase', latency='$latency' WHERE visitorId='$visitorId';";
+  $retrieveSql = "SELECT * FROM `visitors` WHERE currentLocation='lobby' ORDER BY ind DESC;";
 
   $updateResult = mysqli_query($link,$updateSql);
   $retrieveResult = mysqli_query($link,$retrieveSql);
@@ -15,15 +16,17 @@
   if($updateResult && $retrieveResult){
     while($row=mysqli_fetch_assoc($retrieveResult)){
       $rows[] = $row;
-    }  
+    }
+    // mysqli_free_result($retrieveResult);
     echo json_encode([$rows]);
-  }else{
+  } else {
     if (!$updateResult) {
-      echo "Could not update visitor. ";
-    }   
+      echo 'Handshake could not update.';
+    }
     if (!$retrieveResult) {
-      echo "Could not retrieve visitors. ";
-    }   
+      echo 'Handshake could not retrieve.';
+    }
   }
+  
+
 	mysqli_close($link);
-?>
