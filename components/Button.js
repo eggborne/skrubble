@@ -49,14 +49,14 @@ export default function Button(props) {
 
           &.disabled {
             background: unset;
-            pointer-events: none;
+            pointer-events: none !important;
           }
 
           &.excited {
             animation: excite 300ms ease infinite alternate;
           }
 
-          &.request-game {
+          &.request-game, &.requesting-game {
             width: 9rem;
             max-width: 9rem;
             font-size: 1rem;
@@ -64,6 +64,14 @@ export default function Button(props) {
             line-height: 120%;
             background-color: #229922;
           }
+
+          &.requesting-game {
+            font-size: calc(var(--listing-height) * 0.21);
+            background-color: yellow;
+            background-image: unset;
+            animation: excite 300ms ease infinite alternate;
+          }
+
           &.challenge-accept {
             width: 9rem;
             min-width: 9rem;

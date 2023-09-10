@@ -1,6 +1,5 @@
 import { useEffect, useState } from "react";
-
-const loadFromLocalStorage = (key) => JSON.parse(localStorage.getItem(key));
+import { loadFromLocalStorage } from "../scripts/util";
 
 export default function SignInButton(props) {
   const [expanded, setExpanded] = useState(false);
@@ -20,7 +19,6 @@ export default function SignInButton(props) {
   }
 
   function handleSubmitGuestNameForm() {
-    setExpanded(false);
     props.clickAction(guestName);
   }
 

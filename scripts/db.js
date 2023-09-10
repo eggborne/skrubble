@@ -26,6 +26,18 @@ function getAllVisitors() {
   });
 }
 
+function getVisitorById(visitorId) {
+  return axios({
+    method: 'post',
+    url: `${ROOT}registervisitor.php`,
+    headers: {
+      'Content-type': 'application/x-www-form-urlencoded'
+    },
+    data: JSON.stringify({
+      visitorId,
+    }),
+  });
+}
 function registerVisitor(visitorId, displayName) {
   return axios({
     method: 'post',
@@ -40,8 +52,8 @@ function registerVisitor(visitorId, displayName) {
   });
 }
 
-function handshakeWithLobby(visitorId, currentLocation, phase, latency) {
-  console.log('handshakeWithLobby sending', ...arguments);
+function handshakeWithLobby(visitorId, currentLocation, phase, latency, currentOpponentId) {
+  // console.log('handshakeWithLobby sending', ...arguments);
   return axios({
     method: 'post',
     url: `${ROOT}lobbyhandshake.php`,
@@ -53,21 +65,21 @@ function handshakeWithLobby(visitorId, currentLocation, phase, latency) {
       currentLocation,
       phase,
       latency,
+      currentOpponentId,
     }),
   });
 }
 
-function sendChallenge(visitorId, opponentId, status) {
+function acceptChallenge(userId, opponentId) {
   return axios({
     method: 'post',
-    url: `${ROOT}sendchallenge.php`,
+    url: `${ROOT}acceptchallenge.php`,
     headers: {
       'Content-type': 'application/x-www-form-urlencoded'
     },
     data: JSON.stringify({
-      visitorId,
+      userId,
       opponentId,
-      status,
     }),
   });
 }
@@ -87,4 +99,4 @@ function sendNewRules(ruleType, newList) {
   });
 }
 
-export { getAllRulesets, getAllVisitors, registerVisitor, handshakeWithLobby, sendChallenge, sendNewRules };
+export { getAllRulesets, getAllVisitors, registerVisitor, handshakeWithLobby, acceptChallenge, sendNewRules };

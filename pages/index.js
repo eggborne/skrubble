@@ -2,14 +2,14 @@ import { isMobile } from 'is-mobile';
 import { useEffect, useMemo, useState } from 'react';
 import { auth, provider } from '../scripts/firebase';
 import { getAuth, signInWithPopup, GoogleAuthProvider, signInWithRedirect, signOut, signInAnonymously } from "firebase/auth";
-import { getAllRulesets, getAllVisitors, handshakeWithLobby, registerVisitor, sendChallenge, sendNewRules } from '../scripts/db';
+import { getAllRulesets, getAllVisitors, handshakeWithLobby, registerVisitor, acceptChallenge, sendNewRules } from '../scripts/db';
 import Head from 'next/head';
 import Header from '../components/Header';
 import Button from '../components/Button';
 import GameBoard from '../components/GameBoard';
 import Rack from '../components/Rack';
 import { emptyLetterMatrix, fullBoard, specialSpaceData, tileData } from '../scripts/scrabbledata';
-import { pause, randomInt, shuffleArray } from '../scripts/util';
+import { loadFromLocalStorage, pause, randomInt, saveToLocalStorage, shuffleArray } from '../scripts/util';
 import LoginModal from '../components/LoginModal';
 import UserIcon from '../components/UserIcon';
 import VersusScreen from '../components/VersusScreen';
@@ -24,6 +24,8 @@ import SaveMessage from '../components/SaveMessage';
 import Space from '../components/Space';
 import Tile from '../components/Tile';
 import LobbyScreen from '../components/LobbyScreen';
+import OpponentAcceptedModal from '../components/OpponentAcceptedModal';
+import AcceptedChallengeModal from '../components/AcceptedChallengeModal';
 
 const LOBBY_POLL_INTERVAL = 1000;
 let API_CALLS = 0;
@@ -79,8 +81,6 @@ export default function Home() {
   const [hasFocus, setHasFocus] = useState(true);
 
   const [debugMode, setDebugMode] = useState(true);
-
-  const saveToLocalStorage = (key, item) => localStorage.setItem(key, typeof item === 'string' ? item : JSON.stringify(item));
 
 
   const userRackSpaces = useMemo(() => {
@@ -202,6 +202,10 @@ export default function Home() {
       saveToLocalStorage('anonUserData', newUser);
       registerMessage = `Registered new anonymous user "${newUser.displayName} - ${newUser.uid}"`;
     } else {
+      const localDisplayName = loadFromLocalStorage('anonUserData').displayName;
+      if (localDisplayName !== guestName) {
+        saveToLocalStorage('anonUserData', newUser);
+      }
       console.error('ANON USER STILL IN VISITOR LIST! ------------------------------------------>>');
       registerMessage = `Recognized anonymous user "${newUser.displayName} - ${newUser.uid}"`;
     }
@@ -256,12 +260,18 @@ export default function Home() {
   function callModal(modalName) {
     setModalShowing(modalName);
   }
+
   function toggleModal(modalName) {
     const newValue = modalShowing === modalName ? 'undefined' : modalName;
     setModalShowing(newValue);
   }
+
   function dismissModal(modalName) {
     setModalShowing(undefined);
+  }
+
+  function startGameWithOpponent() {
+    console.warn('startGameWithOpponent!');
   }
 
   function callBlankModal() {
@@ -347,8 +357,8 @@ export default function Home() {
         if (true || hasFocus) {
           const intervalStartTime = Date.now();
           const sinceLastPoll = (intervalStartTime - lastSentPoll);
-          console.warn('----------------------------------------------- <Home> useEffect interval!', sinceLastPoll);
-          let newVisitorList = await handshakeWithLobby(user.uid, currentLocation, phase, latency);
+          // console.warn('----------------------------------------------- <Home> useEffect interval!', sinceLastPoll);
+          let newVisitorList = await handshakeWithLobby(user.uid, currentLocation, phase, latency, user.currentOpponentId || '');
           API_CALLS++;
           const postPollTime = Date.now();
           const shakeTime = postPollTime - intervalStartTime;
@@ -356,12 +366,12 @@ export default function Home() {
           setLastSentPoll(postPollTime);
           if (!lastSentPoll || (shakeTime < LOBBY_POLL_INTERVAL)) {
             //flashSaveMessage(`Polled visitors in ${shakeTime}ms`, LOBBY_POLL_INTERVAL - shakeTime);
-            console.warn(newVisitorList);
+            // console.warn(newVisitorList);
             newVisitorList = newVisitorList.data[0];
             setVisitors(newVisitorList);
-            console.table(newVisitorList);
+            // console.table(newVisitorList);
           } else {
-            console.error(shakeTime, 'LATE RETURN FROM HANDSHAKE LATE RETURN FROM HANDSHAKE LATE RETURN FROM HANDSHAKE LATE RETURN FROM HANDSHAKE LATE RETURN FROM HANDSHAKE');
+            // console.error(shakeTime, 'LATE RETURN FROM HANDSHAKE LATE RETURN FROM HANDSHAKE LATE RETURN FROM HANDSHAKE LATE RETURN FROM HANDSHAKE LATE RETURN FROM HANDSHAKE');
           }
         } else {
           console.error('Lost focus! saving handshake but skipping doing anything...');
@@ -510,21 +520,61 @@ export default function Home() {
 
   async function handleClickRequestGame(selectedOpponentId) {
     console.warn('clicked request game!', selectedOpponentId);
+    const newUser = { ...user };
+    newUser.currentOpponentId = selectedOpponentId;
+    setUser(newUser);
     setPhase(selectedOpponentId);
   }
 
   async function handleClickBackToTitle() {
     console.warn('clicked back to title!');
-    clearInterval(lobbyPoll);
-    setLobbyPoll();
     const timeUntilEndOfLastInterval = Date.now() - lastSentPoll;
-    console.warn('---------- pausing to let last interval end', timeUntilEndOfLastInterval);
-    await pause(timeUntilEndOfLastInterval);
+    console.warn('---------- pausing to let last interval end', (timeUntilEndOfLastInterval + LOBBY_POLL_INTERVAL));
     setCurrentLocation('title');
     setPhase('');
-    handshakeWithLobby(user.uid, 'title', '', 0);
-    // API_CALLS++;
+    await pause(timeUntilEndOfLastInterval + LOBBY_POLL_INTERVAL);
+    await handshakeWithLobby(user.uid, 'title', 'browsing', 0, '');
+    clearInterval(lobbyPoll);
+    setLobbyPoll();
+    const newUser = { ...user };
+    newUser.currentOpponentId = '';
+    setUser(newUser);
+    API_CALLS++;
+    setVisitors([]);
   }
+
+  function handleClickAcceptChallenge(visitorId) {
+    console.error('accepted with id', visitorId);
+    const newUser = { ...user };
+    newUser.currentOpponentId = visitorId;
+    setUser(newUser);
+    acceptChallenge(user.uid, visitorId);
+  }
+
+  useEffect(() => {
+    if (visitors.length) {
+      const confirmedOpponent = [...visitors].filter(v => {
+        const isSelf = v.visitorId === user.uid;
+        const opponentTargetingUser = v.currentOpponentId === user.uid;
+        const userTargetingOpponent = v.visitorId === user.currentOpponentId;
+        console.log(v.displayName, 'isSelf', isSelf);
+        console.log(v.displayName, 'opponentTargetingUser', opponentTargetingUser);
+        console.log(v.displayName, 'userTargetingOpponent', userTargetingOpponent);
+        return !isSelf && opponentTargetingUser && userTargetingOpponent;
+      })[0];
+      console.warn('confirmed opponent?', confirmedOpponent, visitors, 'uid', user.uid, 'user curr opp: ', user.currentOpponentId);
+      if (confirmedOpponent) {
+        if ((modalShowing !== 'opponent-accepted') && (modalShowing !== 'accepted-challenge')) {
+          setOpponent(confirmedOpponent);
+          setModalShowing(phase.length > 15 ? 'opponent-accepted' : 'accepted-challenge');
+        }
+      } else {
+        if (modalShowing === 'opponent-accepted' || modalShowing === 'accepted-challenge') {
+          setModalShowing();
+        }
+      }
+    }
+  }, [visitors, user]);
 
   useEffect(() => {
     let totalNewPoints = newWords.reduce((acc, curr) => scoreWord(curr) + acc, 0);
@@ -1295,12 +1345,40 @@ export default function Home() {
           }
 
           {(currentLocation === 'lobby' || phase.includes('Challenging')) &&
-            <LobbyScreen
-              user={user}
-              visitors={visitors}
-              handleClickRequestGame={handleClickRequestGame}
-              handleClickBackToTitle={handleClickBackToTitle}
-            />
+            <>
+              <LobbyScreen
+                user={user}
+                phase={phase}
+                visitors={visitors}
+                handleClickRequestGame={handleClickRequestGame}
+                handleClickAcceptChallenge={handleClickAcceptChallenge}
+                handleClickBackToTitle={handleClickBackToTitle}
+              />
+              <OpponentAcceptedModal
+                opponent={opponent}
+                showing={modalShowing === 'opponent-accepted'}
+                dismissModal={() => {
+                  const newUser = {...user};
+                  user.currentOpponentId = '';
+                  setOpponent(defaultOpponent);
+                  handleClickRequestGame('browsing');
+                  dismissModal('opponent-accepted');
+                }}
+                startGameWithOpponent={startGameWithOpponent}
+              />
+              <AcceptedChallengeModal
+                opponent={opponent}
+                showing={modalShowing === 'accepted-challenge'}
+                dismissModal={() => {
+                  const newUser = {...user};
+                  user.currentOpponentId = '';
+                  setOpponent(defaultOpponent);
+                  handleClickRequestGame('browsing');
+                  dismissModal('accepted-challenge');
+                }}
+                startGameWithOpponent={startGameWithOpponent}
+              />
+            </>
           }
 
           {currentLocation === 'title' &&

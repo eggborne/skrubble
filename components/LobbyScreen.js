@@ -2,9 +2,14 @@ import { useEffect, useState } from "react";
 import Button from "./Button";
 
 export default function LobbyScreen(props) {
-  console.warn('LobbyScreen props', props);
+  //console.warn('LobbyScreen props', props);
   const [revealed, setRevealed] = useState();
   const [selectedVisitor, setSelectedVisitor] = useState();
+
+  function getDisplayNameById(id) {
+    let visitorWithIdArr = [...props.visitors].filter(v => v.visitorId === id);
+    return visitorWithIdArr.length > 0 ? visitorWithIdArr[0].displayName : '';
+  }
 
   useEffect(() => {
     if (!revealed) {
@@ -15,17 +20,23 @@ export default function LobbyScreen(props) {
   function handleClickVisitorListing(e) {
     setSelectedVisitor(e.target.id.split('-')[1]);
   }
+
   function onClickRequestGame(selectedVisitorId) {
     props.handleClickRequestGame(selectedVisitorId);
   }
 
+  function onClickCancelRequest(selectedVisitorId) {
+    setSelectedVisitor();
+    props.handleClickRequestGame('browsing');
+  }
+
   return (
     <div
-      onClick={(e) => {
-        if (!e.target.id.includes('visitor')) {
-          setSelectedVisitor();
-        }
-      }}
+      // onClick={(e) => {
+      //   if (!e.target.id.includes('visitor')) {
+      //     setSelectedVisitor();
+      //   }
+      // }}
       className={`lobby-screen${revealed ? ' showing' : ''}`}
     >
       <h2 className={'lobby-header'}>Choose your opponent</h2>
@@ -41,17 +52,11 @@ export default function LobbyScreen(props) {
             <h4 className={'loading-message'}>{'entering lobby...'}</h4>
             :
             props.visitors.map(visitorObj => {
-              // let now = new Date().toISOString().replace(':', '').replace(':', '');
-              // now = parseFloat(now.slice(now.length - 8));
-              // let last = new Date(visitorObj.lastPolled).toISOString().replace(':', '').replace(':', '');
-              // last = parseFloat(last.slice(last.length - 8));
-              // let sinceLast = Math.round(now - last);
-
-              // console.warn('props', props);
-              // console.warn('visitorObj', visitorObj);
               const isSelf = props.user.uid === visitorObj.visitorId;
               const isChallengingUser = visitorObj.phase === props.user.uid;
-              const isBeingChallengedByUser = props.phase && props.phase.includes(visitorObj.visitorId);
+              const isBeingChallengedByUser = props.phase === visitorObj.visitorId;
+              const selfIsSendingChallenge = props.phase && props.phase.length > 16;
+              const selfIsBeingChallenged = props.phase && props.phase.length > 16;
               const isAway = visitorObj.phase.includes('away');
               const listingClasses = ['visitor-listing',
                 isSelf && 'self',
@@ -60,40 +65,53 @@ export default function LobbyScreen(props) {
                 isChallengingUser && 'challenging-user',
                 isAway && 'away'].filter(cl => cl).join(' ')
                 ;
+              // console.warn('PPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPP', visitorObj.displayName);
+              // console.warn('visitorobj phase', visitorObj.phase);
+              // console.warn('visitorobj visitorId', visitorObj.visitorId);
+              // console.log('is challenging user', isChallengingUser);
+              // console.log('is being challenged by user', isBeingChallengedByUser);
+              // console.warn('props.user', props.user);
+              const potentialOpponentId = isChallengingUser ? props.user.uid : isBeingChallengedByUser ? props.user.uid : selfIsSendingChallenge ? props.phase : undefined; 
+              // console.warn('--- opponent is', potentialOpponentId);
+              const phaseMessage = isBeingChallengedByUser ? 
+                `Challenge from YOU`
+                :
+                (isChallengingUser || selfIsSendingChallenge) ?
+                `Challenging ${selfIsSendingChallenge ? getDisplayNameById(potentialOpponentId) : 'YOU'}` 
+                :                
+                visitorObj.phase
+              ;
               return (
                 <div className='listing-row' key={`visitor-${visitorObj.visitorId}`}>
-                  <div className='uid-label'>{visitorObj.visitorId}</div>
+                  <div className='uid-label'>{'self: ' + visitorObj.visitorId + ' | opp: ' + (visitorObj.currentOpponentId || 'none') + ' ----------------- phase: ' + visitorObj.phase}</div>
                   <div
                     className={listingClasses}
 
                     id={`visitor-${visitorObj.visitorId}`}
-                    onClick={props.user.uid !== visitorObj.visitorId ? handleClickVisitorListing : null}
+                    // onClick={props.user.uid !== visitorObj.visitorId ? handleClickVisitorListing : null}
                     style={{ opacity: visitorObj.currentLocation === 'lobby' ? 1 : 0.25 }}
                   >
                     <h3>{visitorObj.displayName}{isSelf ? ' (you!)' : ''}</h3>
                     <div>{visitorObj.currentLocation}</div>
-                    <div className='status-column'>{visitorObj.phase}
+                    <div className='status-column'>
+                      <span style={{ display: 'none' }}>{phaseMessage}</span>
                       {isChallengingUser ?
                         <Button
-                          onClick={() => null}
+                          clickAction={() => props.handleClickAcceptChallenge(visitorObj.visitorId)}
                           label={'CHALLENGING! Click to accept'}
                           specialClass={'challenge-accept'}
                         />
                         :
-                        !isSelf && visitorObj.currentLocation === 'lobby' &&
+                        (!isSelf && visitorObj.currentLocation === 'lobby') &&                        
                         <Button
-                          label='REQUEST GAME'
-                          clickAction={() => onClickRequestGame(visitorObj.visitorId)}
-                          specialClass={'request-game'}
+                          label={isBeingChallengedByUser ? 'Sending challenge... (Click to cancel)' : 'REQUEST GAME'}
+                          clickAction={isBeingChallengedByUser ? () => onClickCancelRequest() : () => onClickRequestGame(visitorObj.visitorId)}
+                          specialClass={'requesting-game'}
                           color={'#669966'}
                           disabled={false}
                         />
                       }
                     </div>
-                    {/* <div>{isChallengingUser ?
-                    <Button width={'min-content'} onClick={() => null} label={'CHALLENGING! Click to accept'} specialClass={'challenge-accept'} />
-                    :
-                    isBeingChallengedByUser ? 'waiting for response...' : visitorObj.phase}</div> */}
                     <div style={{ color: visitorObj.latency < 100 ? '#aaffaa' : visitorObj.latency < 500 ? '#ffffaa' : '#ffaaaa' }}>{parseInt(visitorObj.latency) || ''}</div>
                   </div>
 
@@ -228,7 +246,7 @@ export default function LobbyScreen(props) {
                 min-height: var(--listing-height);
                 border: calc(var(--list-padding) * 0.05) solid #00000055;
                 background-color: #00000022;
-                cursor: pointer;
+                //cursor: pointer;
                 border-radius: 0.5rem;
                 transition: all 180ms ease;
                 overflow: hidden;
@@ -266,7 +284,7 @@ export default function LobbyScreen(props) {
                 }
 
                 &:not(.selected):hover {
-                  border: calc(var(--listing-height) / 24) solid orange;
+                  //border: calc(var(--listing-height) / 24) solid orange;
                 }
                 
                 &:nth-of-type(odd) {

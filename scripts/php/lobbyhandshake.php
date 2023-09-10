@@ -6,9 +6,10 @@
 	$phase = $postData['phase'];
 	$visitorId = $postData['visitorId'];
 	$latency = $postData['latency'];
+	$currentOpponentId = $postData['currentOpponentId'];
 
-  $updateSql = "UPDATE `visitors` SET lastPolled=UTC_TIMESTAMP, currentLocation='$currentLocation', phase='$phase', latency='$latency' WHERE visitorId='$visitorId';";
-  $retrieveSql = "SELECT * FROM `visitors` WHERE currentLocation='lobby' ORDER BY ind DESC;";
+  $updateSql = "UPDATE `visitors` SET lastPolled=UTC_TIMESTAMP, currentLocation='$currentLocation', phase='$phase', latency='$latency', currentOpponentId='$currentOpponentId' WHERE visitorId='$visitorId';";
+  $retrieveSql = "SELECT * FROM `visitors` WHERE currentLocation='lobby' AND UTC_TIMESTAMP-lastPolled<5 ORDER BY ind DESC;";
 
   $updateResult = mysqli_query($link,$updateSql);
   $retrieveResult = mysqli_query($link,$retrieveSql);
