@@ -26,6 +26,16 @@ function getAllVisitors() {
   });
 }
 
+function getAllGameSessions() {
+  return axios({
+    method: 'get',
+    url: `${ROOT}getallgamesessions.php`,
+    headers: {
+      'Content-type': 'application/x-www-form-urlencoded'
+    }
+  });
+}
+
 function getVisitorById(visitorId) {
   return axios({
     method: 'post',
@@ -38,6 +48,7 @@ function getVisitorById(visitorId) {
     }),
   });
 }
+
 function registerVisitor(visitorId, displayName) {
   return axios({
     method: 'post',
@@ -48,6 +59,32 @@ function registerVisitor(visitorId, displayName) {
     data: JSON.stringify({
       visitorId,
       displayName,
+    }),
+  });
+}
+
+function establishGameSession(userId, opponentId) {
+  return axios({
+    method: 'post',
+    url: `${ROOT}establishgamesession.php`,
+    headers: {
+      'Content-type': 'application/x-www-form-urlencoded'
+    },
+    data: JSON.stringify({
+      userId,
+      opponentId,
+    }),
+  });
+}
+function refreshGameSession(gameSessionId) {
+  return axios({
+    method: 'post',
+    url: `${ROOT}updategamesession.php`,
+    headers: {
+      'Content-type': 'application/x-www-form-urlencoded'
+    },
+    data: JSON.stringify({
+      gameSessionId,
     }),
   });
 }
@@ -99,4 +136,4 @@ function sendNewRules(ruleType, newList) {
   });
 }
 
-export { getAllRulesets, getAllVisitors, registerVisitor, handshakeWithLobby, acceptChallenge, sendNewRules };
+export { getAllRulesets, getAllVisitors, getAllGameSessions, registerVisitor, handshakeWithLobby, acceptChallenge, sendNewRules, establishGameSession };

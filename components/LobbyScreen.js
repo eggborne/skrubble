@@ -1,8 +1,9 @@
 import { useEffect, useState } from "react";
 import Button from "./Button";
+import { subscribeToList, unsubscribeFromList } from "../scripts/firebase";
 
 export default function LobbyScreen(props) {
-  //console.warn('LobbyScreen props', props);
+  console.warn('LobbyScreen props', props);
   const [revealed, setRevealed] = useState();
   const [selectedVisitor, setSelectedVisitor] = useState();
 
@@ -13,7 +14,13 @@ export default function LobbyScreen(props) {
 
   useEffect(() => {
     if (!revealed) {
+      
       setRevealed(true);
+    }
+    return () => {
+      if (revealed) {
+        console.error('LEAVING LOBBY!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!')
+      }
     }
   }, [revealed]);
 
@@ -64,23 +71,23 @@ export default function LobbyScreen(props) {
                 isBeingChallengedByUser && 'being-challenged-by-user',
                 isChallengingUser && 'challenging-user',
                 isAway && 'away'].filter(cl => cl).join(' ')
-                ;
+              ;
               // console.warn('PPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPP', visitorObj.displayName);
               // console.warn('visitorobj phase', visitorObj.phase);
               // console.warn('visitorobj visitorId', visitorObj.visitorId);
               // console.log('is challenging user', isChallengingUser);
               // console.log('is being challenged by user', isBeingChallengedByUser);
               // console.warn('props.user', props.user);
-              const potentialOpponentId = isChallengingUser ? props.user.uid : isBeingChallengedByUser ? props.user.uid : selfIsSendingChallenge ? props.phase : undefined; 
+              const potentialOpponentId = isChallengingUser ? props.user.uid : isBeingChallengedByUser ? props.user.uid : selfIsSendingChallenge ? props.phase : undefined;
               // console.warn('--- opponent is', potentialOpponentId);
-              const phaseMessage = isBeingChallengedByUser ? 
+              const phaseMessage = isBeingChallengedByUser ?
                 `Challenge from YOU`
                 :
                 (isChallengingUser || selfIsSendingChallenge) ?
-                `Challenging ${selfIsSendingChallenge ? getDisplayNameById(potentialOpponentId) : 'YOU'}` 
-                :                
-                visitorObj.phase
-              ;
+                  `Challenging ${selfIsSendingChallenge ? getDisplayNameById(potentialOpponentId) : 'YOU'}`
+                  :
+                  visitorObj.phase
+                ;
               return (
                 <div className='listing-row' key={`visitor-${visitorObj.visitorId}`}>
                   <div className='uid-label'>{'self: ' + visitorObj.visitorId + ' | opp: ' + (visitorObj.currentOpponentId || 'none') + ' ----------------- phase: ' + visitorObj.phase}</div>
@@ -94,16 +101,18 @@ export default function LobbyScreen(props) {
                     <h3>{visitorObj.displayName}{isSelf ? ' (you!)' : ''}</h3>
                     <div>{visitorObj.currentLocation}</div>
                     <div className='status-column'>
-                      <span style={{ display: 'none' }}>{phaseMessage}</span>
+                      <span style={{ display: 'none' }}>{visitorObj.phase}</span>
                       {isChallengingUser ?
                         <Button
+                          width={'max-content'}
                           clickAction={() => props.handleClickAcceptChallenge(visitorObj.visitorId)}
                           label={'CHALLENGING! Click to accept'}
                           specialClass={'challenge-accept'}
                         />
                         :
-                        (!isSelf && visitorObj.currentLocation === 'lobby') &&                        
+                        (!isSelf && visitorObj.currentLocation === 'lobby') &&
                         <Button
+                          width={'max-content'}
                           label={isBeingChallengedByUser ? 'Sending challenge... (Click to cancel)' : 'REQUEST GAME'}
                           clickAction={isBeingChallengedByUser ? () => onClickCancelRequest() : () => onClickRequestGame(visitorObj.visitorId)}
                           specialClass={'requesting-game'}
@@ -130,14 +139,6 @@ export default function LobbyScreen(props) {
           width={'6rem'}
           color={'brown'}
         />
-        {/* <Button
-          label='REQUEST GAME'
-          clickAction={onClickRequestGame}
-          width={'12rem'}
-          color={'darkgreen'}
-          disabled={!selectedVisitor}
-          specialClass={selectedVisitor && 'excited'}
-        /> */}
       </div>
       <style jsx>{`
         .lobby-screen {
@@ -256,8 +257,7 @@ export default function LobbyScreen(props) {
                   display: flex;
                   flex-direction: row;
                   align-items: center;
-                  justify-content: space-between;
-
+                  justify-content: flex-end;
                 }
 
                 & * {

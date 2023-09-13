@@ -1,8 +1,8 @@
 import { isMobile } from 'is-mobile';
 import { useEffect, useMemo, useState } from 'react';
-import { auth, provider } from '../scripts/firebase';
+import { addVisitorToList, auth, createGameSession, provider, removeVisitorFromList, subscribeToList, unsubscribeFromList, updateUserAttribute } from '../scripts/firebase';
 import { getAuth, signInWithPopup, GoogleAuthProvider, signInWithRedirect, signOut, signInAnonymously } from "firebase/auth";
-import { getAllRulesets, getAllVisitors, handshakeWithLobby, registerVisitor, acceptChallenge, sendNewRules } from '../scripts/db';
+import { getAllRulesets, getAllVisitors, handshakeWithLobby, registerVisitor, acceptChallenge, sendNewRules, establishGameSession } from '../scripts/db';
 import Head from 'next/head';
 import Header from '../components/Header';
 import Button from '../components/Button';
@@ -28,6 +28,8 @@ import OpponentAcceptedModal from '../components/OpponentAcceptedModal';
 import AcceptedChallengeModal from '../components/AcceptedChallengeModal';
 
 const LOBBY_POLL_INTERVAL = 1000;
+const GAME_POLL_INTERVAL = 1000;
+
 let API_CALLS = 0;
 
 const IS_MOBILE = isMobile();
@@ -35,12 +37,12 @@ let LANDSCAPE;
 
 const defaultOpponent = {
   displayName: 'Opponent',
-  photoURL: '../femaleavatar.png',
+  photoUrl: '../femaleavatar.png',
   uid: 'placeholderopponentid',
 };
 const guestUser = {
   displayName: 'Guest',
-  photoURL: '../guestavatar.png',
+  photoUrl: '../guestavatar.png',
 };
 
 export default function Home() {
@@ -75,9 +77,9 @@ export default function Home() {
   const [unpronouncableWords, setUnpronouncableWords] = useState([]);
   const [saveMessageShowing, setSaveMessageShowing] = useState('');
 
-  const [lobbyPoll, setLobbyPoll] = useState();
-  const [lastSentPoll, setLastSentPoll] = useState(0);
-  const [latency, setLatency] = useState(0);
+  const [subscribedToLobby, setSubscribedToLobby] = useState(false);
+  const [subscribedToGame, setSubscribedToGame] = useState(false);
+
   const [hasFocus, setHasFocus] = useState(true);
 
   const [debugMode, setDebugMode] = useState(true);
@@ -181,7 +183,7 @@ export default function Home() {
     );
   }, [letterMatrix, newWords]);
 
-  function handleClickGuestLogin(guestName) {
+  async function handleClickGuestLogin(guestName) {
 
     signInAsGuest(guestName);
   }
@@ -209,10 +211,17 @@ export default function Home() {
       console.error('ANON USER STILL IN VISITOR LIST! ------------------------------------------>>');
       registerMessage = `Recognized anonymous user "${newUser.displayName} - ${newUser.uid}"`;
     }
-    flashSaveMessage(`${registerMessage} in ${Date.now() - registerStartTime}ms`, 2000);
-    // const newVisitorList = await getVisitorList();
-    // console.warn('newVisitorList', newVisitorList);
-    // setVisitors(newVisitorList);
+    const queryStart = Date.now();
+    await addVisitorToList({
+      visitorId: newUser.uid,
+      displayName: guestName,
+      currentLocation: 'lobby',
+      phase: 'browsing',
+      currentOpponentId: '',
+      photoUrl: newUser.photoUrl,
+    });
+    flashSaveMessage(`${registerMessage} in ${Date.now() - queryStart}ms`, 2000);
+    console.warn('RTDB ADDED in', (Date.now() - queryStart));
     setUser(newUser);
     setCurrentLocation('lobby');
     setPhase('browsing');
@@ -257,6 +266,57 @@ export default function Home() {
       });
   }
 
+
+
+  useEffect(() => {
+    if (currentLocation === 'lobby') {
+      if (!subscribedToLobby) {
+        let newUserList;
+        async function startSubscription() {
+          let userData;
+          newUserList = await subscribeToList('users', async (snapshot) => {
+            userData = await snapshot.val();
+            userData = Object.values(userData);
+            setVisitors(userData);
+            return userData;
+          });
+        }
+        startSubscription().then((subscriptionResponse) => {
+          console.error('SUBSCRIBED TO LOBBY!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!');
+          console.warn('newUserList', newUserList);
+          console.warn('subscriptionResponse', subscriptionResponse);
+          setSubscribedToLobby(true);
+        });
+      }
+    } else {
+      if (subscribedToLobby) {
+        console.error('UNSUBSCRIBING FROM LOBBY!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!');
+        unsubscribeFromList('users');
+        setSubscribedToLobby(false);
+      }
+    }
+
+    // if (!revealed) {
+    //   async function startSubscription() {
+    //     let newUserList = await subscribeToList('users');
+    //     console.log('>>>>>>> newUserList', newUserList);
+    //     // newUserList = Object.values(newUserList).map(userObj => {
+    //     //   console.log('userObj?', userObj);
+    //     // });
+    //   }
+    //   setRevealed(true);
+    //   startSubscription();
+    // }
+    // return () => {
+    //   if (revealed) {
+    //     console.error('LEAVING LOBBY!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!');
+    //     unsubscribeFromList('users');
+    //   }
+    // };
+  }, [currentLocation]);
+
+
+
   function callModal(modalName) {
     setModalShowing(modalName);
   }
@@ -270,8 +330,18 @@ export default function Home() {
     setModalShowing(undefined);
   }
 
-  function startGameWithOpponent() {
-    console.warn('startGameWithOpponent!');
+  async function startGameWithOpponent() {
+    console.warn('startGameWithOpponent!', user.uid, opponent.visitorId);
+    await createGameSession(user.uid, opponent.visitorId);
+    const newUser = { ...user };
+    newUser.currentLocation = 'game';
+    newUser.phase = 'playing';
+    setUser(newUser);
+    await updateUserAttribute(newUser.uid, 'currentLocation', newUser.currentLocation);
+    await updateUserAttribute(newUser.uid, 'phase', newUser.phase);
+    setModalShowing();
+
+    // startGame();
   }
 
   function callBlankModal() {
@@ -343,57 +413,21 @@ export default function Home() {
     return newWordRules;
   }
 
-  async function getVisitorList() {
-    const visitors = await getAllVisitors();
-    API_CALLS++;
-    const visitorArray = visitors.data[0];
-    return visitorArray;
-  }
-
   useEffect(() => {
-    clearInterval(lobbyPoll);
-    if (currentLocation === 'lobby') {
-      const newInterval = setInterval(async () => {
-        if (true || hasFocus) {
-          const intervalStartTime = Date.now();
-          const sinceLastPoll = (intervalStartTime - lastSentPoll);
-          // console.warn('----------------------------------------------- <Home> useEffect interval!', sinceLastPoll);
-          let newVisitorList = await handshakeWithLobby(user.uid, currentLocation, phase, latency, user.currentOpponentId || '');
-          API_CALLS++;
-          const postPollTime = Date.now();
-          const shakeTime = postPollTime - intervalStartTime;
-          setLatency(shakeTime);
-          setLastSentPoll(postPollTime);
-          if (!lastSentPoll || (shakeTime < LOBBY_POLL_INTERVAL)) {
-            //flashSaveMessage(`Polled visitors in ${shakeTime}ms`, LOBBY_POLL_INTERVAL - shakeTime);
-            // console.warn(newVisitorList);
-            newVisitorList = newVisitorList.data[0];
-            setVisitors(newVisitorList);
-            // console.table(newVisitorList);
-          } else {
-            // console.error(shakeTime, 'LATE RETURN FROM HANDSHAKE LATE RETURN FROM HANDSHAKE LATE RETURN FROM HANDSHAKE LATE RETURN FROM HANDSHAKE LATE RETURN FROM HANDSHAKE');
-          }
-        } else {
-          console.error('Lost focus! saving handshake but skipping doing anything...');
-          handshakeWithLobby(user.uid, currentLocation, phase, 0);
-          API_CALLS++;
-        }
-      }, LOBBY_POLL_INTERVAL);
-      setLobbyPoll(newInterval);
-    } else {
-      setLobbyPoll();
+    if (user) {
+      window.addEventListener('beforeunload', e => {
+        e.preventDefault();
+        removeVisitorFromList(user.uid);
+      }, {capture: true});
     }
-  }, [currentLocation, phase, user, lastSentPoll, hasFocus]);
-
-  useEffect(() => {
-    if (!loaded) {
+    if (!loaded) {      
       establishScreenAttributes();
       document.getElementsByTagName('main')[0].addEventListener('touchmove', e => e.preventDefault(), true);
       window.addEventListener('keydown', e => {
         if (e.code === 'Space') {
           e.preventDefault();
         }
-      });
+      });      
       // getRedirectResult(auth)
       //   .then((result) => {
       //     setUser(result.user);
@@ -433,19 +467,18 @@ export default function Home() {
       setLoaded(true);
     }
 
-  }, [loaded]);
+  }, [loaded, user]);
 
-  useEffect(() => {
-    window.onblur = (e) => {
-      console.warn('LOST FOCUS!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!');
-      clearInterval(lobbyPoll);
-      setHasFocus(false);
-    };
-    window.onfocus = (e) => {
-      console.warn('GAINED FOCUS!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!');
-      setHasFocus(true);
-    };
-  }, [lobbyPoll]);
+  // useEffect(() => {
+  //   window.onblur = (e) => {
+  //     console.warn('LOST FOCUS!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!');
+  //     setHasFocus(false);
+  //   };
+  //   window.onfocus = (e) => {
+  //     console.warn('GAINED FOCUS!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!');
+  //     setHasFocus(true);
+  //   };
+  // }, [lobbyPoll]);
 
   useEffect(() => {
     console.warn('>> rendering useEffect[letterMatrix] from Home');
@@ -524,31 +557,32 @@ export default function Home() {
     newUser.currentOpponentId = selectedOpponentId;
     setUser(newUser);
     setPhase(selectedOpponentId);
+    await updateUserAttribute(newUser.uid, 'currentOpponentId', '');
+    await updateUserAttribute(user.uid, 'phase', selectedOpponentId);
   }
 
   async function handleClickBackToTitle() {
     console.warn('clicked back to title!');
-    const timeUntilEndOfLastInterval = Date.now() - lastSentPoll;
-    console.warn('---------- pausing to let last interval end', (timeUntilEndOfLastInterval + LOBBY_POLL_INTERVAL));
+    await updateUserAttribute(user.uid, 'currentLocation', 'title');
+    await updateUserAttribute(user.uid, 'phase', '');
+    await updateUserAttribute(user.uid, 'currentOpponentId', '');
     setCurrentLocation('title');
     setPhase('');
-    await pause(timeUntilEndOfLastInterval + LOBBY_POLL_INTERVAL);
-    await handshakeWithLobby(user.uid, 'title', 'browsing', 0, '');
-    clearInterval(lobbyPoll);
-    setLobbyPoll();
     const newUser = { ...user };
     newUser.currentOpponentId = '';
     setUser(newUser);
-    API_CALLS++;
     setVisitors([]);
   }
 
-  function handleClickAcceptChallenge(visitorId) {
+  async function handleClickAcceptChallenge(visitorId) {
     console.error('accepted with id', visitorId);
     const newUser = { ...user };
     newUser.currentOpponentId = visitorId;
     setUser(newUser);
-    acceptChallenge(user.uid, visitorId);
+    await updateUserAttribute(newUser.uid, 'currentOpponentId', visitorId);
+    await updateUserAttribute(visitorId, 'currentOpponentId', newUser.uid);
+
+    // acceptChallenge(user.uid, visitorId);
   }
 
   useEffect(() => {
@@ -1180,7 +1214,7 @@ export default function Home() {
   // const verticalWordList = Object.values(wordsOnBoard.vertical).map(wordObj => wordObj.word);
 
   // const newWordList = newWords.map(wordObj => `${wordObj.word} (${scoreWord(wordObj)})`);
-  // let totalViolations = unpronouncableWords.length;
+  let totalViolations = unpronouncableWords.length;
 
   return (
     <div>
@@ -1344,7 +1378,7 @@ export default function Home() {
             />
           }
 
-          {(currentLocation === 'lobby' || phase.includes('Challenging')) &&
+          {(currentLocation === 'lobby') &&
             <>
               <LobbyScreen
                 user={user}
@@ -1358,7 +1392,7 @@ export default function Home() {
                 opponent={opponent}
                 showing={modalShowing === 'opponent-accepted'}
                 dismissModal={() => {
-                  const newUser = {...user};
+                  const newUser = { ...user };
                   user.currentOpponentId = '';
                   setOpponent(defaultOpponent);
                   handleClickRequestGame('browsing');
@@ -1370,7 +1404,7 @@ export default function Home() {
                 opponent={opponent}
                 showing={modalShowing === 'accepted-challenge'}
                 dismissModal={() => {
-                  const newUser = {...user};
+                  const newUser = { ...user };
                   user.currentOpponentId = '';
                   setOpponent(defaultOpponent);
                   handleClickRequestGame('browsing');

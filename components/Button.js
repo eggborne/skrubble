@@ -57,8 +57,6 @@ export default function Button(props) {
           }
 
           &.request-game, &.requesting-game {
-            width: 9rem;
-            max-width: 9rem;
             font-size: 1rem;
             padding: 0 0.5rem;
             line-height: 120%;
@@ -70,13 +68,13 @@ export default function Button(props) {
             background-color: yellow;
             background-image: unset;
             animation: excite 300ms ease infinite alternate;
+            padding: 0 1.5rem;
           }
 
           &.challenge-accept {
-            width: 9rem;
             min-width: 9rem;
             font-size: 1rem;
-            padding: 0 0.5rem;
+            padding: 0 1.5rem;
             line-height: 120%;
             background-color: red;
             animation: excite 300ms ease infinite alternate;

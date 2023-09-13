@@ -1,7 +1,7 @@
 export default function UserIcon(props) {
   return (
     <div className='user-icon'>
-      <img src={props.user.photoURL}></img>
+      <img src={props.user.photoUrl}></img>
       <span className='user-name'>{props.user.displayName}</span>
       <style jsx>{`
         .user-icon {
