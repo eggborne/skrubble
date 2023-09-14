@@ -1,8 +1,8 @@
 import { isMobile } from 'is-mobile';
 import { useEffect, useMemo, useState } from 'react';
-import { addVisitorToList, auth, createGameSession, provider, removeVisitorFromList, subscribeToList, unsubscribeFromList, updateUserAttribute } from '../scripts/firebase';
+import { addVisitorToList, auth, createGameSession, drawFromBag, getBagContents, provider, removeVisitorFromList, subscribeToList, unsubscribeFromList, updateUserAttribute } from '../scripts/firebase';
 import { getAuth, signInWithPopup, GoogleAuthProvider, signInWithRedirect, signOut, signInAnonymously } from "firebase/auth";
-import { getAllRulesets, getAllVisitors, handshakeWithLobby, registerVisitor, acceptChallenge, sendNewRules, establishGameSession } from '../scripts/db';
+import { registerVisitor, getAllRulesets, sendNewRules } from '../scripts/db';
 import Head from 'next/head';
 import Header from '../components/Header';
 import Button from '../components/Button';
@@ -24,13 +24,8 @@ import SaveMessage from '../components/SaveMessage';
 import Space from '../components/Space';
 import Tile from '../components/Tile';
 import LobbyScreen from '../components/LobbyScreen';
-import OpponentAcceptedModal from '../components/OpponentAcceptedModal';
 import AcceptedChallengeModal from '../components/AcceptedChallengeModal';
-
-const LOBBY_POLL_INTERVAL = 1000;
-const GAME_POLL_INTERVAL = 1000;
-
-let API_CALLS = 0;
+import GameMenuModal from '../components/GameMenuModal';
 
 const IS_MOBILE = isMobile();
 let LANDSCAPE;
@@ -54,7 +49,7 @@ export default function Home() {
   const [userScore, setUserScore] = useState(0);
   const [opponentScore, setOpponentScore] = useState(0);
   const [opponent, setOpponent] = useState(defaultOpponent);
-  const [currentTurn, setCurrentTurn] = useState('user');
+  const [currentTurn, setCurrentTurn] = useState();
   const [pendingTurnScore, setPendingTurnScore] = useState(0);
   const [wordScoreTileId, setWordScoreTileId] = useState(undefined);
   const [gameStarted, setGameStarted] = useState(false);
@@ -64,7 +59,6 @@ export default function Home() {
   const [opponentRack, setOpponentRack] = useState([]);
   const [selectedTileId, setSelectedTileId] = useState(null);
   const [targetedSpaceId, setTargetedSpaceId] = useState(null);
-  const [pointerPosition, setPointerPosition] = useState({ x: null, y: null });
   const [letterMatrix, setLetterMatrix] = useState([...emptyLetterMatrix]);
   const [dragStartPosition, setDragStartPosition] = useState(null);
   const [modalShowing, setModalShowing] = useState(undefined);
@@ -79,6 +73,8 @@ export default function Home() {
 
   const [subscribedToLobby, setSubscribedToLobby] = useState(false);
   const [subscribedToGame, setSubscribedToGame] = useState(false);
+  const [currentGameId, setCurrentGameId] = useState();
+  const [currentGameSession, setCurrentGameSession] = useState();
 
   const [hasFocus, setHasFocus] = useState(true);
 
@@ -86,7 +82,6 @@ export default function Home() {
 
 
   const userRackSpaces = useMemo(() => {
-    // console.log('rendering Home userrackspaces');
     return playerRack.map((tile, t) =>
       <Tile
         owner={'user'}
@@ -112,7 +107,6 @@ export default function Home() {
   }, [playerRack, newWords, selectedTileId]);
 
   const opponentRackSpaces = useMemo(() => {
-    // console.log('rendering Home opponent rackspaces');
     return opponentRack.map((tile, t) =>
       <Tile
         owner={'opponent'}
@@ -198,7 +192,6 @@ export default function Home() {
     console.log('guest user!', newUser);
     const registerStartTime = Date.now();
     const registered = await registerVisitor(newUser.uid, guestName);
-    API_CALLS++;
     let registerMessage;
     if (registered.data === newUser.uid) {
       saveToLocalStorage('anonUserData', newUser);
@@ -218,6 +211,7 @@ export default function Home() {
       currentLocation: 'lobby',
       phase: 'browsing',
       currentOpponentId: '',
+      currentGameId: '',
       photoUrl: newUser.photoUrl,
     });
     flashSaveMessage(`${registerMessage} in ${Date.now() - queryStart}ms`, 2000);
@@ -270,9 +264,14 @@ export default function Home() {
 
   useEffect(() => {
     if (currentLocation === 'lobby') {
+      if (subscribedToGame) {
+        console.error('UNSUBSCRIBING FROM GAME!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!');
+        unsubscribeFromList('game-sessions');
+        setSubscribedToGame(false);
+      }
       if (!subscribedToLobby) {
         let newUserList;
-        async function startSubscription() {
+        async function startLobbySubscription() {
           let userData;
           newUserList = await subscribeToList('users', async (snapshot) => {
             userData = await snapshot.val();
@@ -281,7 +280,7 @@ export default function Home() {
             return userData;
           });
         }
-        startSubscription().then((subscriptionResponse) => {
+        startLobbySubscription().then((subscriptionResponse) => {
           console.error('SUBSCRIBED TO LOBBY!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!');
           console.warn('newUserList', newUserList);
           console.warn('subscriptionResponse', subscriptionResponse);
@@ -293,6 +292,27 @@ export default function Home() {
         console.error('UNSUBSCRIBING FROM LOBBY!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!');
         unsubscribeFromList('users');
         setSubscribedToLobby(false);
+      }
+      if (currentLocation === 'game') {
+        if (!subscribedToGame) {
+          let newGameData;
+          async function startGameSubscription() {
+            let sessionData;
+            newGameData = await subscribeToList(`game-sessions/${currentGameId}`, async (snapshot) => {
+              sessionData = await snapshot.val();
+              console.warn('game sub got new sessiond ata', sessionData)
+              setCurrentGameSession(sessionData);
+              setBag(sessionData.bag);
+              setCurrentTurn(sessionData.currentTurn);
+            });
+            return newGameData;
+          }
+          startGameSubscription().then((subscriptionResponse) => {
+            console.error('SUBSCRIBED TO GAME!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!');
+            console.warn('subscriptionResponse', subscriptionResponse);
+            setSubscribedToGame(true);
+          });
+        }
       }
     }
 
@@ -313,7 +333,7 @@ export default function Home() {
     //     unsubscribeFromList('users');
     //   }
     // };
-  }, [currentLocation]);
+  }, [currentLocation, currentGameId]);
 
 
 
@@ -330,18 +350,52 @@ export default function Home() {
     setModalShowing(undefined);
   }
 
-  async function startGameWithOpponent() {
-    console.warn('startGameWithOpponent!', user.uid, opponent.visitorId);
-    await createGameSession(user.uid, opponent.visitorId);
+  async function createAndStartGameWithFirstTurn() {
+    const newGame = await createGameSession(user.uid, opponent.visitorId);
+    const newGameId = newGame.newGameId;
+    console.warn('createAndStartGameWithFirstTurn!', user.uid, opponent.visitorId, newGameId);
+    setCurrentGameId(newGameId);
     const newUser = { ...user };
     newUser.currentLocation = 'game';
     newUser.phase = 'playing';
+    newUser.currentGameId = newGameId;
+    setPhase('playing');
+    setCurrentLocation('game');
     setUser(newUser);
     await updateUserAttribute(newUser.uid, 'currentLocation', newUser.currentLocation);
     await updateUserAttribute(newUser.uid, 'phase', newUser.phase);
+    await updateUserAttribute(newUser.uid, 'currentGameId', newUser.currentGameId);
     setModalShowing();
+    setCurrentTurn('user');
+    setGameStarted(true);
+    const nextBag = createBag();
+    
+    await pause(1000);
+    const initialTileQuery = await drawFromBag(newGameId, [...nextBag], 7, 'user');    
+    setPlayerRack(initialTileQuery.drawnLetters);
+  }
 
-    // startGame();
+  async function handleClickJoinGame(newGameId) {
+    console.error('JOINING GAME WITH SESSION ID', newGameId);
+    const newUser = { ...user };
+    newUser.currentGameId = newGameId;
+    newUser.currentLocation = 'game';
+    newUser.phase = 'playing';
+    setCurrentGameId(newUser.currentGameId);
+    setCurrentLocation(newUser.currentLocation);
+    setPhase(newUser.phase);
+    setUser(newUser);
+    await updateUserAttribute(newUser.uid, 'currentLocation', newUser.currentLocation);
+    await updateUserAttribute(newUser.uid, 'phase', newUser.phase);
+    await updateUserAttribute(newUser.uid, 'currentGameId', newUser.currentGameId);
+    console.error('finished updates!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!');
+    setModalShowing();
+    setGameStarted(true);
+    
+    await pause(1000);
+    const currentBag = await getBagContents(newGameId);
+    const initialTileQuery = await drawFromBag(newGameId, currentBag, 7, 'user');    
+    setPlayerRack(initialTileQuery.drawnLetters);
   }
 
   function callBlankModal() {
@@ -373,6 +427,10 @@ export default function Home() {
     return newBag;
   }
 
+  async function getBagTiles(gameSessionId, sessionBag, amount, owner) {
+    drawFromBag(gameSessionId, sessionBag, amount, owner);
+  }
+
   function getRandomLetters(nextBag, amount, owner) {
     const letterArray = [];
     for (let i = 0; i < amount; i++) {
@@ -400,7 +458,6 @@ export default function Home() {
 
   async function getWordRules() {
     const rulesets = await getAllRulesets();
-    API_CALLS++;
     console.log('raw rulesets', rulesets);
     const rawWordRules = rulesets.data[0].filter(set => set.dialect === "Pronouncable")[0];
     const newWordRules = {};
@@ -418,16 +475,16 @@ export default function Home() {
       window.addEventListener('beforeunload', e => {
         e.preventDefault();
         removeVisitorFromList(user.uid);
-      }, {capture: true});
+      }, { capture: true });
     }
-    if (!loaded) {      
+    if (!loaded) {
       establishScreenAttributes();
       document.getElementsByTagName('main')[0].addEventListener('touchmove', e => e.preventDefault(), true);
       window.addEventListener('keydown', e => {
         if (e.code === 'Space') {
           e.preventDefault();
         }
-      });      
+      });
       // getRedirectResult(auth)
       //   .then((result) => {
       //     setUser(result.user);
@@ -465,6 +522,8 @@ export default function Home() {
         setWordRules(newWordRules);
       });
       setLoaded(true);
+      console.warn('ENV ------>', process.env)
+      // getDefinition('blargh');
     }
 
   }, [loaded, user]);
@@ -545,6 +604,7 @@ export default function Home() {
     const nextBag = createBag();
     const playerOpeningLetters = getRandomLetters(nextBag, 7, 'user');
     const opponentOpeningLetters = getRandomLetters(nextBag, 7, 'opponent');
+    console.warn('nextBag', nextBag)
     await pause(1000);
     setPlayerRack(playerOpeningLetters);
     await pause(800);
@@ -574,15 +634,31 @@ export default function Home() {
     setVisitors([]);
   }
 
+  async function handleClickBackToLobby() {
+    console.warn('clicked back to lobby!');
+    await updateUserAttribute(user.uid, 'currentLocation', 'lobby');
+    await updateUserAttribute(user.uid, 'phase', 'browsing');
+    await updateUserAttribute(user.uid, 'currentOpponentId', '');
+    await updateUserAttribute(user.uid, 'currentGameId', '');
+    setCurrentLocation('lobby');
+    setPhase('browsing');
+    const newUser = { ...user };
+    newUser.currentOpponentId = '';
+    setUser(newUser);
+    setGameStarted(false);
+  }
+
+  async function handleClickForfeitGame() {
+
+  }
+
   async function handleClickAcceptChallenge(visitorId) {
     console.error('accepted with id', visitorId);
     const newUser = { ...user };
     newUser.currentOpponentId = visitorId;
     setUser(newUser);
-    await updateUserAttribute(newUser.uid, 'currentOpponentId', visitorId);
+    await updateUserAttribute(newUser.uid, 'currentOpponentId', newUser.currentOpponentId);
     await updateUserAttribute(visitorId, 'currentOpponentId', newUser.uid);
-
-    // acceptChallenge(user.uid, visitorId);
   }
 
   useEffect(() => {
@@ -591,12 +667,8 @@ export default function Home() {
         const isSelf = v.visitorId === user.uid;
         const opponentTargetingUser = v.currentOpponentId === user.uid;
         const userTargetingOpponent = v.visitorId === user.currentOpponentId;
-        console.log(v.displayName, 'isSelf', isSelf);
-        console.log(v.displayName, 'opponentTargetingUser', opponentTargetingUser);
-        console.log(v.displayName, 'userTargetingOpponent', userTargetingOpponent);
         return !isSelf && opponentTargetingUser && userTargetingOpponent;
       })[0];
-      console.warn('confirmed opponent?', confirmedOpponent, visitors, 'uid', user.uid, 'user curr opp: ', user.currentOpponentId);
       if (confirmedOpponent) {
         if ((modalShowing !== 'opponent-accepted') && (modalShowing !== 'accepted-challenge')) {
           setOpponent(confirmedOpponent);
@@ -1194,7 +1266,6 @@ export default function Home() {
     const startTime = Date.now();
     console.log('sending', ruleType, newList);
     const saveResult = await sendNewRules(ruleType, newList);
-    API_CALLS++;
     const saveDuration = Date.now() - startTime;
     console.warn('>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> sending', saveResult, 'took', saveDuration);
     let saveResultMessage;
@@ -1278,7 +1349,7 @@ export default function Home() {
         </div>
         <hr /> */}
         <div style={{ fontWeight: 'bold' }}>Phase: {phase}</div>
-        <div style={{ fontWeight: 'bold' }}>API Calls: {API_CALLS}</div>
+        <div style={{ fontWeight: 'bold' }}>location: {currentLocation}</div>
       </div>}
 
       <Head>
@@ -1311,11 +1382,11 @@ export default function Home() {
           {gameStarted &&
             <>
               <div className='turn-display-area'>
-                <div className={`player-turn-area user${currentTurn === 'user' ? ' current-turn' : ''}`}>
+                <div className={`player-turn-area user${currentTurn === user.uid ? ' current-turn' : ''}`}>
                   <UserIcon user={user} size='large' />
                   <div className='player-score'>{userScore}</div>
                 </div>
-                <div className={`player-turn-area opponent${currentTurn === 'opponent' ? ' current-turn' : ''}`}>
+                <div className={`player-turn-area opponent${currentTurn === opponent.visitorId ? ' current-turn' : ''}`}>
                   <UserIcon user={opponent} size='large' />
                   <div className='player-score'>{opponentScore}</div>
                 </div>
@@ -1334,7 +1405,7 @@ export default function Home() {
                 filledBoard={filledBoard}
                 newWords={newWords}
               />
-
+              <div className='game-id-label'>{currentGameId}</div>
               <WordScoreDisplay
                 pendingTurnScore={pendingTurnScore}
                 wordScoreTileId={wordScoreTileId}
@@ -1350,8 +1421,8 @@ export default function Home() {
                     targetedSpaceId={targetedSpaceId}
                   />
                 </div>
-                <div className='user-button-area'>
-                  <Button label='Menu' clickAction={() => null} />
+                <div id='user-button-area' className='user-button-area'>
+                  <Button label='Menu' clickAction={() => toggleModal('game-menu')} />
                   <Button disabled={!submitReady || !placedTiles.length || (placedTiles.length < 2 && lockedTiles.length === 0)} color='green' label='Submit' clickAction={submitUserTiles} />
                   {playerRack.every(tile => !tile.placed && !tile.selected) ?
                     <Button label='Shuffle' clickAction={shuffleUserTiles} />
@@ -1363,7 +1434,12 @@ export default function Home() {
                   <Button size='small' label={`Bag (${bag.length})`} clickAction={() => toggleModal('bag')} />
                 </div>
               </div>
-
+              <GameMenuModal
+                showing={modalShowing === 'game-menu'}
+                handleClickBackToLobby={handleClickBackToLobby}
+                handleClickForfeitGame={handleClickForfeitGame}
+                dismissModal={() => toggleModal()}
+              />
               <BagModal bag={bag} showing={modalShowing === 'bag'} dismissModal={() => toggleModal()} />
               <BlankModal bag={bag} showing={modalShowing === 'blank'} dismissModal={handleSelectBlankLetter} />
               <ViolationsModal wordRules={wordRules} unpronouncableWords={unpronouncableWords} showing={modalShowing === 'violations'} dismissModal={() => toggleModal()} />
@@ -1386,9 +1462,10 @@ export default function Home() {
                 visitors={visitors}
                 handleClickRequestGame={handleClickRequestGame}
                 handleClickAcceptChallenge={handleClickAcceptChallenge}
+                handleClickJoinGame={handleClickJoinGame}
                 handleClickBackToTitle={handleClickBackToTitle}
               />
-              <OpponentAcceptedModal
+              {/* <OpponentAcceptedModal
                 opponent={opponent}
                 showing={modalShowing === 'opponent-accepted'}
                 dismissModal={() => {
@@ -1398,8 +1475,8 @@ export default function Home() {
                   handleClickRequestGame('browsing');
                   dismissModal('opponent-accepted');
                 }}
-                startGameWithOpponent={startGameWithOpponent}
-              />
+                startGameWithOpponent={joinNewlyCreatedGame}
+              /> */}
               <AcceptedChallengeModal
                 opponent={opponent}
                 showing={modalShowing === 'accepted-challenge'}
@@ -1410,7 +1487,7 @@ export default function Home() {
                   handleClickRequestGame('browsing');
                   dismissModal('accepted-challenge');
                 }}
-                startGameWithOpponent={startGameWithOpponent}
+                startGameWithOpponent={createAndStartGameWithFirstTurn}
               />
             </>
           }
@@ -1458,6 +1535,15 @@ export default function Home() {
           display: grid;
           grid-template-columns: 1fr;
           grid-template-rows: min-content calc(var(--rack-height) * 1.75) min-content 1fr;
+
+          & .game-id-label {
+            position: fixed;
+            bottom: 0;
+            right: 0;
+            background: black;
+            color: white;
+            padding: 0.25rem 0.5rem;
+          }
 
           & > .turn-display-area {
             display: flex;
@@ -1527,16 +1613,16 @@ export default function Home() {
               }
 
               & > .user-button-area {
+                position: relative;
                 width: 95%;
                 display: grid;
-                grid-template-columns: 25% 1fr 25%;
+                grid-template-columns: 30% 1fr 30%;
                 grid-template-rows: 1fr 1fr;
                 align-items: center;
                 align-self: center;
                 margin-top: calc(var(--rack-height) / 1.25);
                 justify-content: center;
                 gap: 0 calc(var(--rack-height) / 4);
-                z-index: 1;
               }
             }
 
@@ -1748,12 +1834,12 @@ export default function Home() {
 
         @keyframes excite {
           from {
-            transform: scale(100%);
+            //transform: scale(100%);
             color: white;
             box-shadow: var(--modal-shadow);
           }
           to {
-            transform: scale(101%);
+            //transform: scale(100.5%);
             color: #ffffaa;
           }
         }

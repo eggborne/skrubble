@@ -79,6 +79,11 @@ export default function Button(props) {
             background-color: red;
             animation: excite 300ms ease infinite alternate;
           }
+
+          &.game-ongoing {
+            background-color: #22ff22;
+            padding: 0 1.5rem;
+          }
         }
       `}</style>
     </button>

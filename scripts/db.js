@@ -107,20 +107,6 @@ function handshakeWithLobby(visitorId, currentLocation, phase, latency, currentO
   });
 }
 
-function acceptChallenge(userId, opponentId) {
-  return axios({
-    method: 'post',
-    url: `${ROOT}acceptchallenge.php`,
-    headers: {
-      'Content-type': 'application/x-www-form-urlencoded'
-    },
-    data: JSON.stringify({
-      userId,
-      opponentId,
-    }),
-  });
-}
-
 function sendNewRules(ruleType, newList) {
   return axios({
     method: 'post',
@@ -136,4 +122,4 @@ function sendNewRules(ruleType, newList) {
   });
 }
 
-export { getAllRulesets, getAllVisitors, getAllGameSessions, registerVisitor, handshakeWithLobby, acceptChallenge, sendNewRules, establishGameSession };
+export { getAllRulesets, getAllVisitors, getAllGameSessions, registerVisitor, handshakeWithLobby, sendNewRules, establishGameSession };

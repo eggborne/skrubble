@@ -10,6 +10,7 @@
     "firebase": "^9.22.2",
     "is-mobile": "^4.0.0",
     "next": "latest",
+    "openai": "^4.6.0",
     "react": "18.2.0",
     "react-dom": "18.2.0",
     "uuid": "^9.0.0"

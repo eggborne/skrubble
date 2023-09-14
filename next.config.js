@@ -7,8 +7,7 @@ const nextConfig = {
   // trailingSlash: true,
   // Optional: Change the output directory `out` -> `dist`
   distDir: 'build',
-  // basePath: '/scrabble',
-  images: { unoptimized: true },
+  images: { unoptimized: true },  
 };
  
 module.exports = nextConfig;

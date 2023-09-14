@@ -1,6 +1,5 @@
 import { useEffect, useState } from "react";
 import Button from "./Button";
-import { subscribeToList, unsubscribeFromList } from "../scripts/firebase";
 
 export default function LobbyScreen(props) {
   console.warn('LobbyScreen props', props);
@@ -14,19 +13,14 @@ export default function LobbyScreen(props) {
 
   useEffect(() => {
     if (!revealed) {
-      
       setRevealed(true);
     }
     return () => {
       if (revealed) {
-        console.error('LEAVING LOBBY!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!')
+        console.error('LEAVING LOBBY!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!');
       }
-    }
+    };
   }, [revealed]);
-
-  function handleClickVisitorListing(e) {
-    setSelectedVisitor(e.target.id.split('-')[1]);
-  }
 
   function onClickRequestGame(selectedVisitorId) {
     props.handleClickRequestGame(selectedVisitorId);
@@ -37,98 +31,108 @@ export default function LobbyScreen(props) {
     props.handleClickRequestGame('browsing');
   }
 
+  function onClickJoinGame(gameSessionId) {
+    setSelectedVisitor();
+    console.log('onclickjoingame???', gameSessionId);
+    props.handleClickJoinGame(gameSessionId);
+  }
+
+  const filteredVisitors = props.visitors.filter(v => (v.currentLocation === 'lobby' || v.currentLocation === 'game') && props.user.uid !== v.visitorId);
+
   return (
     <div
-      // onClick={(e) => {
-      //   if (!e.target.id.includes('visitor')) {
-      //     setSelectedVisitor();
-      //   }
-      // }}
       className={`lobby-screen${revealed ? ' showing' : ''}`}
     >
+      <div className='user-label'>{props.user.displayName}</div>
       <h2 className={'lobby-header'}>Choose your opponent</h2>
       <div className='visitor-column-header'>
         <h3>Name</h3>
         <h3>Location</h3>
-        <h3>Status</h3>
+        <h3></h3>
         <h3></h3>
       </div>
       <div className='lobby-display'>
-        {props.visitors ?
-          !props.visitors.length ?
-            <h4 className={'loading-message'}>{'entering lobby...'}</h4>
-            :
-            props.visitors.map(visitorObj => {
-              const isSelf = props.user.uid === visitorObj.visitorId;
-              const isChallengingUser = visitorObj.phase === props.user.uid;
-              const isBeingChallengedByUser = props.phase === visitorObj.visitorId;
-              const selfIsSendingChallenge = props.phase && props.phase.length > 16;
-              const selfIsBeingChallenged = props.phase && props.phase.length > 16;
-              const isAway = visitorObj.phase.includes('away');
-              const listingClasses = ['visitor-listing',
-                isSelf && 'self',
-                selectedVisitor === visitorObj.visitorId && 'selected',
-                isBeingChallengedByUser && 'being-challenged-by-user',
-                isChallengingUser && 'challenging-user',
-                isAway && 'away'].filter(cl => cl).join(' ')
+        {filteredVisitors.length ?
+          filteredVisitors.map(visitorObj => {
+            const hasGameWithUser = visitorObj.currentLocation === 'game' && visitorObj.currentOpponentId === props.user.uid;
+            const isSelf = props.user.uid === visitorObj.visitorId;
+            const isChallengingUser = visitorObj.phase === props.user.uid;
+            const isBeingChallengedByUser = !hasGameWithUser && props.phase === visitorObj.visitorId;
+            const selfIsSendingChallenge = props.phase && props.phase.length > 16;
+            const selfIsBeingChallenged = props.phase && props.phase.length > 16;
+            const isAway = visitorObj.phase.includes('away');
+            const listingClasses = ['visitor-listing',
+              isSelf && 'self',
+              selectedVisitor === visitorObj.visitorId && 'selected',
+              isBeingChallengedByUser && 'being-challenged-by-user',
+              isChallengingUser && 'challenging-user',
+              isAway && 'away'].filter(cl => cl).join(' ')
               ;
-              // console.warn('PPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPP', visitorObj.displayName);
-              // console.warn('visitorobj phase', visitorObj.phase);
-              // console.warn('visitorobj visitorId', visitorObj.visitorId);
-              // console.log('is challenging user', isChallengingUser);
-              // console.log('is being challenged by user', isBeingChallengedByUser);
-              // console.warn('props.user', props.user);
-              const potentialOpponentId = isChallengingUser ? props.user.uid : isBeingChallengedByUser ? props.user.uid : selfIsSendingChallenge ? props.phase : undefined;
-              // console.warn('--- opponent is', potentialOpponentId);
-              const phaseMessage = isBeingChallengedByUser ?
-                `Challenge from YOU`
+            // console.warn('PPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPP', visitorObj.displayName);
+            // console.warn('visitorobj phase', visitorObj.phase);
+            // console.warn('visitorobj visitorId', visitorObj.visitorId);
+            // console.log('is challenging user', isChallengingUser);
+            // console.log('is being challenged by user', isBeingChallengedByUser);
+            // console.warn('props.user', props.user);
+            const potentialOpponentId = isChallengingUser ? props.user.uid : isBeingChallengedByUser ? props.user.uid : selfIsSendingChallenge ? props.phase : undefined;
+            // console.warn('--- opponent is', potentialOpponentId);
+            const phaseMessage = isBeingChallengedByUser ?
+              `Challenge from YOU`
+              :
+              (isChallengingUser || selfIsSendingChallenge) ?
+                `Challenging ${selfIsSendingChallenge ? getDisplayNameById(potentialOpponentId) : 'YOU'}`
                 :
-                (isChallengingUser || selfIsSendingChallenge) ?
-                  `Challenging ${selfIsSendingChallenge ? getDisplayNameById(potentialOpponentId) : 'YOU'}`
-                  :
-                  visitorObj.phase
-                ;
-              return (
-                <div className='listing-row' key={`visitor-${visitorObj.visitorId}`}>
+                visitorObj.phase
+              ;
+            return (
+              <div className='listing-row' key={`visitor-${visitorObj.visitorId}`}>
+                <div
+                  className={listingClasses}
+
+                  id={`visitor-${visitorObj.visitorId}`}
+                  // onClick={props.user.uid !== visitorObj.visitorId ? handleClickVisitorListing : null}
+                  style={{ opacity: visitorObj.currentLocation === 'lobby' || visitorObj.currentLocation === 'game' ? 1 : 0.25 }}
+                >
                   <div className='uid-label'>{'self: ' + visitorObj.visitorId + ' | opp: ' + (visitorObj.currentOpponentId || 'none') + ' ----------------- phase: ' + visitorObj.phase}</div>
-                  <div
-                    className={listingClasses}
-
-                    id={`visitor-${visitorObj.visitorId}`}
-                    // onClick={props.user.uid !== visitorObj.visitorId ? handleClickVisitorListing : null}
-                    style={{ opacity: visitorObj.currentLocation === 'lobby' ? 1 : 0.25 }}
-                  >
-                    <h3>{visitorObj.displayName}{isSelf ? ' (you!)' : ''}</h3>
-                    <div>{visitorObj.currentLocation}</div>
-                    <div className='status-column'>
-                      <span style={{ display: 'none' }}>{visitorObj.phase}</span>
-                      {isChallengingUser ?
-                        <Button
-                          width={'max-content'}
-                          clickAction={() => props.handleClickAcceptChallenge(visitorObj.visitorId)}
-                          label={'CHALLENGING! Click to accept'}
-                          specialClass={'challenge-accept'}
-                        />
-                        :
-                        (!isSelf && visitorObj.currentLocation === 'lobby') &&
-                        <Button
-                          width={'max-content'}
-                          label={isBeingChallengedByUser ? 'Sending challenge... (Click to cancel)' : 'REQUEST GAME'}
-                          clickAction={isBeingChallengedByUser ? () => onClickCancelRequest() : () => onClickRequestGame(visitorObj.visitorId)}
-                          specialClass={'requesting-game'}
-                          color={'#669966'}
-                          disabled={false}
-                        />
-                      }
-                    </div>
-                    <div style={{ color: visitorObj.latency < 100 ? '#aaffaa' : visitorObj.latency < 500 ? '#ffffaa' : '#ffaaaa' }}>{parseInt(visitorObj.latency) || ''}</div>
+                  <h3 className='display-name'>{visitorObj.displayName}{isSelf ? ' (you!)' : ''}</h3>
+                  <div>{visitorObj.currentLocation}</div>
+                  <div className='status-column'>
+                    <span style={{ display: 'none' }}>{visitorObj.phase}</span>
+                    {isChallengingUser ?
+                      <Button
+                        width={'max-content'}
+                        clickAction={() => props.handleClickAcceptChallenge(visitorObj.visitorId)}
+                        label={'CHALLENGING! Click to accept'}
+                        specialClass={'challenge-accept'}
+                      />
+                      :
+                      (!isSelf && visitorObj.currentLocation === 'lobby' || visitorObj.currentLocation === 'game') &&
+                      <Button
+                        width={'max-content'}
+                        label={
+                          isBeingChallengedByUser ?
+                            'Sending challenge... (Click to cancel)'
+                            :
+                            hasGameWithUser ?
+                              'Go to Game!'
+                              :
+                              'REQUEST GAME'
+                        }
+                        clickAction={isBeingChallengedByUser ? () => onClickCancelRequest() : hasGameWithUser ? () => onClickJoinGame(visitorObj.currentGameId) : () => onClickRequestGame(visitorObj.visitorId)}
+                        specialClass={hasGameWithUser ? 'game-ongoing' : 'requesting-game'}
+                        color={'#669966'}
+                        disabled={false}
+                      />
+                    }
                   </div>
-
+                  {/* <div style={{ color: visitorObj.latency < 100 ? '#aaffaa' : visitorObj.latency < 500 ? '#ffffaa' : '#ffaaaa' }}>{parseInt(visitorObj.latency) || ''}</div> */}
                 </div>
-              );
-            })
+
+              </div>
+            );
+          })
           :
-          <div className='empty-lobby-message'>{'Nobody else here :('}</div>
+          <h2 className='empty-lobby-message'>{'Nobody else here :('}</h2>
         }
       </div>
 
@@ -145,7 +149,7 @@ export default function LobbyScreen(props) {
           --lobby-header-height: 4rem;
           --listing-height: 5rem;
           --list-padding: 1rem;          
-          --list-column-template: 5rem max-content 1fr 3.5rem;
+          --list-column-template: 5rem max-content 1fr;
           --list-row-template: 4rem 4rem 4rem;
           position: absolute;
           left: 50%;
@@ -175,12 +179,34 @@ export default function LobbyScreen(props) {
             opacity: 0;
           }
 
+          & h2.empty-lobby-message {
+            width: 100%;
+            height: 5rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 2rem;
+            font-family: 'Aladin';
+            font-weight: normal;
+          }
+
           & .uid-label {
+            display: none !important;
             position: absolute;
             bottom: 2px;
             left: 1%;
             font-size: 0.65rem;
             color: #ffffff44;
+          }
+          & .user-label {
+            display: none;
+            position: absolute;
+            top: calc(var(--lobby-header-height) * 1.1);
+            right: 5%;
+            font-size: 3rem;
+            font-weight: bold;
+            color: #eee;
+            z-index: 2;
           }
 
           & > .lobby-header, & > .visitor-column-header {
@@ -266,12 +292,17 @@ export default function LobbyScreen(props) {
 
                 & > * {
                   background-color: #00000033;
-                  padding: 0 calc(var(--list-padding) / 2);
+                  padding-left: calc(var(--list-padding));
+                  padding-right: calc(var(--list-padding) / 4);
                   align-self: stretch;
                   display: flex;
                   flex-direction: column;
                   justify-content: center;
                   overflow: hidden;
+
+                  &.display-name {
+                    font-size: 1.325rem;
+                  }
                   
                   &:nth-child(odd) {
                     background-color: #00000055;
@@ -279,6 +310,7 @@ export default function LobbyScreen(props) {
                   
                   &:last-child {            
                     text-align: center;
+                    padding-left: 0;
                   }
 
                 }
@@ -309,7 +341,7 @@ export default function LobbyScreen(props) {
                   //display: none;
                   background-color: transparent;
                   border-color: #ffffaa33;
-                  pointer-events: none;
+                  pointer-events: none;                 
                   
                   & > h3 {
                     color: #ffffaa;
@@ -348,7 +380,7 @@ export default function LobbyScreen(props) {
         @media screen and (orientation: landscape) {
           .lobby-screen {
             --listing-height: 4rem;
-            --list-column-template: minmax(max-content, 12rem) 6rem 1fr 3.5rem;
+            --list-column-template: minmax(max-content, 12rem) 1fr min-content;
             --list-row-template: 1fr;
             font-size: 1rem;
 

@@ -1,71 +1,63 @@
 import { useEffect, useState } from 'react';
-import { getAllVisitors, getAllGameSessions } from '../scripts/db';
-import { pause } from '../scripts/util';
+import { subscribeToList } from '../scripts/firebase';
 
-let VISITOR_POLL_RATE = 500;
-let USER_POLL;
-let SESSION_POLL;
 
 export default function AdminScreen() {
   const [visitors, setVisitors] = useState([]);
   const [gameSessions, setGameSessions] = useState([]);
-  const [userPoll, setUserPoll] = useState();
-  const [sessionPoll, setSessionPoll] = useState();
-  const [waitingForData, setWaitingForData] = useState(false);
-  const [apiCalls, setApiCalls] = useState(0);
   const [userListUpdated, setUserListUpdated] = useState(false);
   const [gameSessionListUpdated, setGameSessionListUpdated] = useState(false);
 
-  async function refreshVisitors() {
-    if (!waitingForData) {
-      setWaitingForData(true);
-      setUserListUpdated(true);
-      const visitorQuery = await getAllVisitors();      
-      const visitorList = visitorQuery.data[0];
-      console.log('refreshVisitors got', visitorList);
-      setVisitors(visitorList);
-      setUserListUpdated(false);
-      // await pause(Math.round(VISITOR_POLL_RATE / 2));
-      setWaitingForData(false);
-    }
+  function getDisplayNameById(id) {
+    console.log('getting from vis', [...visitors]);
+    let visitorWithIdArr = [...visitors].filter(v => v.visitorId === id);
+    console.log('visitorArr?', visitorWithIdArr)
+    return visitorWithIdArr.length > 0 ? visitorWithIdArr[0].displayName : '';
   }
-  async function refreshGameSessions() {
-    console.warn('calling refreshGameSessions');
-    if (!waitingForData) {
-      setGameSessionListUpdated(true);
-      const sessionQuery = await getAllGameSessions();
-      const sessionList = sessionQuery.data[0];
-      console.log('refreshGameSessions got', sessionList);
-      setGameSessions(sessionList);
-      // await pause(Math.round(VISITOR_POLL_RATE / 2));
-      setGameSessionListUpdated(false);
-    } else {
-      console.error('game session did not refresh due to still waiting');
-    }
+
+  async function startLobbySubscription() {
+    let userData;
+    const newUserList = await subscribeToList('users', async (snapshot) => {
+      userData = await snapshot.val();
+      userData = userData ? Object.values(userData) : [];
+      setVisitors(userData);
+      return userData;
+    });
+    return newUserList;
+  }
+
+  async function startGamesSubscription() {
+    let sessionData;
+    const newGamesData = await subscribeToList(`game-sessions`, async (snapshot) => {
+      sessionData = await snapshot.val();
+      console.warn('initially got', sessionData);
+      sessionData = sessionData ? Object.values(sessionData) : [];
+      console.warn('game sub got new sessiondata', sessionData);
+      setGameSessions(sessionData);
+      return sessionData;
+    });
+    return newGamesData;
   }
 
   useEffect(() => {
-    clearTimeout(USER_POLL);
-
-    USER_POLL = setTimeout(async () => {
-      await refreshVisitors();
-      refreshGameSessions();
-      setApiCalls(apiCalls + 2);
-    }, VISITOR_POLL_RATE);
-
-  }), [visitors, gameSessions];
+    console.warn('initial useEffect ran -------------------------------------------------------------------------');
+    startLobbySubscription();
+    startGamesSubscription();
+  }, []);
 
   return (
     <div className='admin-screen'>
-      <h2>Administrator panel</h2>
       <div className={`table-row-list${userListUpdated ? ' updated' : ''}`}>
-        <h1>Users</h1>
+        <h2>Users</h2>
         {visitors.length ?
           visitors.map(visitorObj => {
             return (
               <div key={`visitor-${visitorObj.visitorId}`} className='table-row-listing'>
-                {Object.keys(visitorObj).map(key =>
-                  <div key={key} className='table-cell'>
+                <div className='user-photo-area'>
+                  <img alt={visitorObj.photoUrl} className='user-photo' src={`https://skrubble.live/${visitorObj.photoUrl}`} />
+                </div>
+                {Object.keys(visitorObj).filter(k => k !== 'photoUrl').map(key =>
+                  <div key={key} className={`table-cell${key.includes('Id') ? ' uid' : ''}`}>
                     <div className='table-cell-label'>{key}</div>
                     <div className='table-cell-value'>{visitorObj[key]}</div>
                   </div>
@@ -74,35 +66,41 @@ export default function AdminScreen() {
             );
           })
           :
-          <div>loading...</div>
+          <div>{'no users'}</div>
         }
       </div>
       <div className={`table-row-list${gameSessionListUpdated ? ' updated' : ''}`}>
-        <h1>Game Sessions</h1>
+        <h2>Games</h2>
         {gameSessions.length ?
           gameSessions.map(gameObj => {
+            console.log('mappion gameObj', gameObj)
             return (
-              <div key={`game-session-${gameObj.visitorId}`} className='table-row-listing'>
-                {Object.keys(gameObj).map(key =>
-                  <div key={key} className='table-cell'>
+              <div key={`game-session-${gameObj.sessionId}`} className='table-row-listing'>
+                <div className={`table-cell`}>
+                  <div className='table-cell-label'>{'players'}</div>
+                  <div className='table-cell-value'>{`${getDisplayNameById(gameObj.userId)} vs. ${getDisplayNameById(gameObj.opponentId)}`}</div>
+                </div>
+                {Object.keys(gameObj).map(key => {                  
+                  let printedValue = gameObj[key];
+                  if (typeof gameObj[key] !== 'string') {
+                    printedValue = gameObj[key].length;                  
+                  }
+                  if (key === 'currentTurn') {
+                    printedValue = getDisplayNameById(printedValue);
+                  }
+
+                  return (<div key={key} className={`table-cell${key.includes('Id') ? ' uid' : ''}`}>
                     <div className='table-cell-label'>{key}</div>
-                    <div className='table-cell-value'>{gameObj[key]}</div>
-                  </div>
+                    <div className='table-cell-value'>{printedValue}</div>
+                  </div>);
+                  }
                 )}
               </div>
             );
           })
           :
-          <div>loading...</div>
+          <div>{'no games'}</div>
         }
-      </div>
-
-      <div className='call-indicator'>
-        <div>POLL RATE</div><div>{VISITOR_POLL_RATE}</div>
-        <div>API CALLS:</div><div>{apiCalls}</div>
-        <div>waiting:</div><div>{waitingForData ? 'true' : 'false'}</div>
-        <div>Users updating:</div><div>{userListUpdated ? 'true' : 'false'}</div>
-        <div>Sessions updating:</div><div>{gameSessionListUpdated ? 'true' : 'false'}</div>
       </div>
 
       <style jsx global>{`
@@ -114,51 +112,38 @@ export default function AdminScreen() {
           color: var(--main-text-color);
           user-select: none;
         }
+        body {
+          display: flex;
+          flex-direction: column;
+          align-items: stretch;
+        }
       `}</style>
       <style jsx>{`
         .admin-screen {
-          font-size: 13px;
-          box-sizing: border-box;
-          padding:1rem  4rem;
-          max-width: 100vw;
+          font-size: 14px;
+          padding: 1rem;
+          
           min-height: 100dvh;
           display: flex;
           flex-direction: column;
-          gap: 1rem;
-          background-color: #334433;
+          gap: 2rem;
+          background-color: #232;
           color: #aaa;
-
-          & > .call-indicator {
-            padding: 1rem;
-            position: absolute;
-            top: 1rem;
-            right: 1rem;
-            width: 10rem;
-            background-color: black;
-            color: white;
-            font-size: 14px;
-            display: grid;
-            grid-template-columns: max-content 2rem;
-            gap: 0 1rem;
-
-            & > div {
-              text-align: right;
-            }
-          }
 
           & > .table-row-list {
             display: flex;
             flex-direction: column;
             align-items: stretch;
-            gap: 0.5rem;
-            background-color: #00000011;
-            padding: 1rem;
-            border-radius: 0.25rem;
+            gap: 1rem;
             width: max-content;
-            max-width: 100vw;
+            width: 100%;
 
             &.updated {
               background-color: #aaffff04;
+            }
+
+            & > h2 {
+              text-align: center;
             }
 
             & > .table-row-listing {
@@ -166,26 +151,50 @@ export default function AdminScreen() {
               border-radius: inherit;
               display: flex;
               justify-content: space-between;
+              height: 4rem;
 
               &:nth-of-type(odd) {
                 background-color: #ffffff15;
+              }
+
+              & > .user-photo-area {
+                width: 4.5rem;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+
+                & > img.user-photo {
+                  width: 3rem;
+                  height: 3rem;
+                }
               }
 
               & > .table-cell {
                 display: flex;
                 flex-direction: column;
                 flex-grow: 1;
-                max-width: 12vw; 
-                overflow: hidden;                       
+                overflow: hidden;   
+                width: 6rem;      
 
                 & > * {
                   padding: 0.5rem;
                 }
+
                 & > .table-cell-label {
                   background-color: #000000aa;
+                  font-size: 0.75rem;
+                  padding: 1px 2px;
                 }
+
                 & > .table-cell-value {
                   word-wrap: break-word;
+                }
+
+                &.uid {
+                  
+                  & > .table-cell-value {
+                    font-size: 0.6rem;
+                  }
                 }
 
                 &:nth-of-type(odd) {
