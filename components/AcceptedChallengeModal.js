@@ -1,20 +1,21 @@
 import Button from "./Button";
 
 export default function AcceptedChallengeModal(props) {
+  console.warn('AcceptedChallengeModal props', props)
   const titleLegend = `Game start!`;
   return (
     <div className={`accepted-challenge-modal${props.showing ? ' showing' : ''}`}>
       <h2 className='modal-title'>{titleLegend}</h2>
       <h4>{`A new game with ${props.opponent.displayName} will start, with your turn first.`}</h4>      
       <div className='button-area'>
-        <Button disabled={!props.showing} width={'6rem'} label={'Cancel'} clickAction={props.dismissModal} />
-        <Button disabled={!props.showing} color={'green'} width={'14rem'} label={'GO!'} clickAction={props.startGameWithOpponent} />
+        <Button disabled={!props.showing} width={'6rem'} label={'Cancel'} clickAction={props.handleClickCancel} />
+        <Button disabled={!props.showing} color={'green'} width={'14rem'} label={'GO!'} clickAction={props.handleClickConfirm} />
       </div>
       <style jsx>{`
         .accepted-challenge-modal {
           position: absolute;
-          min-width: 30rem;
-          max-width: 100vw;
+          width: 30rem;
+          max-width: 95dvw;
           top: 50%;
           left: 50%;
           transform: translate(-50%, -50%);
@@ -43,6 +44,7 @@ export default function AcceptedChallengeModal(props) {
 
           & > .modal-title {
             width: max-content;
+            max-width: 80vw;
             text-shadow: var(--text-stroke);
             padding: 5% 0;
             font-family: 'Aladin';

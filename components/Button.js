@@ -1,4 +1,5 @@
 export default function Button(props) {
+  // console.error('BUTTON RENDERED!', props.label)
   const buttonClasses = ['button', props.disabled && 'disabled', props.specialClass && props.specialClass].filter(cl => cl).join(' ');
   return (
     <button className={buttonClasses} type='button' onClick={props.clickAction}>
@@ -16,12 +17,13 @@ export default function Button(props) {
           background-image: linear-gradient(180deg, var(--button-color) 0%, #ffffff22 50%, var(--button-color) 100%);
           border: none;
           box-shadow: 0 0 calc(var(--button-height) / 32) calc(var(--button-height) / 64) #000000;
-          text-shadow: 
+          //text-shadow: 
             1px 1px calc(var(--button-height) / 32) #000000,
             -1px 1px calc(var(--button-height) / 32) #000000,
             -1px -1px calc(var(--button-height) / 32) #000000,
             1px -1px calc(var(--button-height) / 32) #000000
           ;
+          text-shadow: var(--text-stroke);
           color: var(--secondary-text-color);
           font-family: 'Aladin';
           letter-spacing: 0.1rem;
@@ -56,28 +58,31 @@ export default function Button(props) {
             animation: excite 300ms ease infinite alternate;
           }
 
-          &.request-game, &.requesting-game {
-            font-size: 1rem;
-            padding: 0 0.5rem;
-            line-height: 120%;
-            background-color: #229922;
+          &.request-game, &.requesting-game, &.challenging-user {
+            transition: all 300ms ease;
+            font-size: calc(var(--listing-height) * 0.3);
+            background-image: unset;
+            padding: 0 1.5rem;
+          }
+
+          &.request-game {
+            background-color: #dddd33;
           }
 
           &.requesting-game {
-            font-size: calc(var(--listing-height) * 0.21);
-            background-color: yellow;
-            background-image: unset;
-            animation: excite 300ms ease infinite alternate;
-            padding: 0 1.5rem;
+            background-color: #4477aa;
           }
 
-          &.challenge-accept {
+          &.challenging-user {
+            background-color: 66ff66;
             min-width: 9rem;
-            font-size: 1rem;
+            font-size: calc(var(--listing-height) * 0.3);
             padding: 0 1.5rem;
             line-height: 120%;
-            background-color: red;
+            background-image: unset;
+            background-color: #66ff66;
             animation: excite 300ms ease infinite alternate;
+            margin-left: 0.25rem;
           }
 
           &.game-ongoing {

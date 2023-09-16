@@ -15,7 +15,7 @@ export default function Header(props) {
         <div className='title-tile-container'><Tile bgPosition={90} letter='L' value={tileData['l'].value} title /></div>
         <div className='title-tile-container'><Tile bgPosition={100} letter='E' value={tileData['e'].value} title even /></div>
       </div>
-      <div className={`title-legend${props.revealed && props.currentLocation === 'title' ? ' revealed' : ''}${props.currentLocation === 'title' ? ' expanded' : ''}`}>
+      <div className={`title-legend${props.revealed && props.currentLocation === 'title screen' ? ' revealed' : ''}${props.currentLocation === 'title screen' ? ' expanded' : ''}`}>
         the <span style={{ color: '#ddffcc' }} >phonetic</span> crossword game
       </div>
       <style jsx>{`
@@ -23,7 +23,7 @@ export default function Header(props) {
           position: relative;
           min-width: 100vw;
           height: var(--header-height);
-          margin-top: ${props.currentLocation === 'title' ? '12vh' : '0'};
+          margin-top: ${props.currentLocation === 'title screen' ? '12vh' : '0'};
           display: flex;
           flex-direction: column;
           align-items: center;

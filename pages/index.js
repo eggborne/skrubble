@@ -1,6 +1,6 @@
 import { isMobile } from 'is-mobile';
 import { useEffect, useMemo, useState } from 'react';
-import { addVisitorToList, auth, createGameSession, drawFromBag, getBagContents, provider, removeVisitorFromList, subscribeToList, unsubscribeFromList, updateUserAttribute } from '../scripts/firebase';
+import { addVisitorToList, auth, createGameSession, drawFromBag, getBagContents, provider, removeGameSession, removeVisitorFromList, subscribeToList, unsubscribeFromList, updateUserAttribute } from '../scripts/firebase';
 import { getAuth, signInWithPopup, GoogleAuthProvider, signInWithRedirect, signOut, signInAnonymously } from "firebase/auth";
 import { registerVisitor, getAllRulesets, sendNewRules } from '../scripts/db';
 import Head from 'next/head';
@@ -43,9 +43,10 @@ const guestUser = {
 export default function Home() {
   const [loaded, setLoaded] = useState(false);
   const [visitors, setVisitors] = useState([]);
+  const [gameSessions, setGameSessions] = useState([]);
   const [user, setUser] = useState(null);
-  const [currentLocation, setCurrentLocation] = useState('title');
-  const [phase, setPhase] = useState('title');
+  const [currentLocation, setCurrentLocation] = useState('title screen');
+  const [phase, setPhase] = useState('title screen');
   const [userScore, setUserScore] = useState(0);
   const [opponentScore, setOpponentScore] = useState(0);
   const [opponent, setOpponent] = useState(defaultOpponent);
@@ -75,10 +76,13 @@ export default function Home() {
   const [subscribedToGame, setSubscribedToGame] = useState(false);
   const [currentGameId, setCurrentGameId] = useState();
   const [currentGameSession, setCurrentGameSession] = useState();
+  const [pendingOutgoingChallenges, setPendingOutgoingChallenges] = useState([]);
+  const [contemplatingChallengeWithId, setContemplatingChallengeWithId] = useState(undefined);
+  const [ongoingGames, setOngoingGames] = useState([]);
 
   const [hasFocus, setHasFocus] = useState(true);
 
-  const [debugMode, setDebugMode] = useState(true);
+  const [debugMode, setDebugMode] = useState(false);
 
 
   const userRackSpaces = useMemo(() => {
@@ -183,6 +187,8 @@ export default function Home() {
   }
 
   async function signInAsGuest(guestName) {
+    const existingUid = getAuth().currentUser && getAuth().currentUser.uid;
+    console.log('---------------- existingUid is', existingUid);
     const anonUserData = await signInAnonymously(getAuth());
     guestUser.displayName = guestName;
     let newUser = {
@@ -190,21 +196,20 @@ export default function Home() {
       ...guestUser,
     };
     console.log('guest user!', newUser);
-    const registerStartTime = Date.now();
-    const registered = await registerVisitor(newUser.uid, guestName);
-    let registerMessage;
-    if (registered.data === newUser.uid) {
-      saveToLocalStorage('anonUserData', newUser);
+    const queryStart = Date.now();
+    let registerMessage = 'Register message';
+    if (!existingUid) {
       registerMessage = `Registered new anonymous user "${newUser.displayName} - ${newUser.uid}"`;
     } else {
-      const localDisplayName = loadFromLocalStorage('anonUserData').displayName;
-      if (localDisplayName !== guestName) {
-        saveToLocalStorage('anonUserData', newUser);
-      }
       console.error('ANON USER STILL IN VISITOR LIST! ------------------------------------------>>');
+      const localData = loadFromLocalStorage('anonUserData');
+      console.warn('got local data', localData);
+      const outgoingList = localData ? localData.pendingOutgoingChallenges : [];
+      setPendingOutgoingChallenges(outgoingList);
+      newUser.pendingOutgoingChallenges = outgoingList;
       registerMessage = `Recognized anonymous user "${newUser.displayName} - ${newUser.uid}"`;
     }
-    const queryStart = Date.now();
+    saveToLocalStorage('anonUserData', newUser);
     await addVisitorToList({
       visitorId: newUser.uid,
       displayName: guestName,
@@ -212,6 +217,8 @@ export default function Home() {
       phase: 'browsing',
       currentOpponentId: '',
       currentGameId: '',
+      pendingOutgoingChallenges: newUser.pendingOutgoingChallenges || 0,
+      ongoingGames: 0,
       photoUrl: newUser.photoUrl,
     });
     flashSaveMessage(`${registerMessage} in ${Date.now() - queryStart}ms`, 2000);
@@ -260,13 +267,11 @@ export default function Home() {
       });
   }
 
-
-
   useEffect(() => {
     if (currentLocation === 'lobby') {
       if (subscribedToGame) {
         console.error('UNSUBSCRIBING FROM GAME!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!');
-        unsubscribeFromList('game-sessions');
+        unsubscribeFromList(`game-sessions/${currentGameId}`);
         setSubscribedToGame(false);
       }
       if (!subscribedToLobby) {
@@ -275,35 +280,55 @@ export default function Home() {
           let userData;
           newUserList = await subscribeToList('users', async (snapshot) => {
             userData = await snapshot.val();
+            setPendingOutgoingChallenges(userData[user.uid].pendingOutgoingChallenges);
             userData = Object.values(userData);
             setVisitors(userData);
             return userData;
           });
         }
-        startLobbySubscription().then((subscriptionResponse) => {
-          console.error('SUBSCRIBED TO LOBBY!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!');
-          console.warn('newUserList', newUserList);
-          console.warn('subscriptionResponse', subscriptionResponse);
-          setSubscribedToLobby(true);
+        async function startGameListSubscription() {
+          let sessionData;
+          const newGamesData = await subscribeToList(`game-sessions`, async (snapshot) => {
+            sessionData = await snapshot.val();
+            console.warn('initially got', sessionData);
+            sessionData = sessionData ? Object.values(sessionData) : [];
+            console.warn('game sub got new sessiondata', sessionData);
+            setGameSessions(sessionData);
+            return sessionData;
+          });
+          return newGamesData;
+        }
+        startLobbySubscription().then(() => {
+          startGameListSubscription().then(() => {
+            console.error('SUBSCRIBED TO LOBBY!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!');
+            setSubscribedToLobby(true);
+          });
         });
       }
     } else {
       if (subscribedToLobby) {
         console.error('UNSUBSCRIBING FROM LOBBY!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!');
         unsubscribeFromList('users');
+        unsubscribeFromList('game-sessions');
         setSubscribedToLobby(false);
       }
       if (currentLocation === 'game') {
+        console.warn('location is game')
         if (!subscribedToGame) {
+          console.warn('NOT subbed to game')
           let newGameData;
           async function startGameSubscription() {
             let sessionData;
-            newGameData = await subscribeToList(`game-sessions/${currentGameId}`, async (snapshot) => {
+            newGameData = await subscribeToList(`game-sessions/${currentGameId}`, async (snapshot) => {            
               sessionData = await snapshot.val();
-              console.warn('game sub got new sessiond ata', sessionData)
-              setCurrentGameSession(sessionData);
-              setBag(sessionData.bag);
-              setCurrentTurn(sessionData.currentTurn);
+              if (sessionData) {
+                console.warn('game subscription got new sessionData', sessionData);
+                setCurrentGameSession(sessionData);
+                setBag(sessionData.bag);
+                setCurrentTurn(sessionData.currentTurn);              
+              } else {
+                console.warn('game subscription DID NOT GET sessionData', user);              
+              }
             });
             return newGameData;
           }
@@ -315,25 +340,7 @@ export default function Home() {
         }
       }
     }
-
-    // if (!revealed) {
-    //   async function startSubscription() {
-    //     let newUserList = await subscribeToList('users');
-    //     console.log('>>>>>>> newUserList', newUserList);
-    //     // newUserList = Object.values(newUserList).map(userObj => {
-    //     //   console.log('userObj?', userObj);
-    //     // });
-    //   }
-    //   setRevealed(true);
-    //   startSubscription();
-    // }
-    // return () => {
-    //   if (revealed) {
-    //     console.error('LEAVING LOBBY!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!');
-    //     unsubscribeFromList('users');
-    //   }
-    // };
-  }, [currentLocation, currentGameId]);
+  }, [currentLocation, currentGameId, subscribedToLobby, subscribedToGame, user]);
 
 
 
@@ -355,24 +362,51 @@ export default function Home() {
     const newGameId = newGame.newGameId;
     console.warn('createAndStartGameWithFirstTurn!', user.uid, opponent.visitorId, newGameId);
     setCurrentGameId(newGameId);
+    
+    const newOngoingGames = ongoingGames ? [...ongoingGames, newGameId] : [newGameId];
+    console.warn('--------------------------------------------------------------|');
+    console.log('newOngoingGames', newOngoingGames);
+    setOngoingGames(newOngoingGames);
+    const newOpponentOngoingGames = opponent.ongoingGames ? [...opponent.ongoingGames, newGameId] : [newGameId];
+    console.log('newOpponentOngoingGames', newOpponentOngoingGames);
+    let diminishedOpponentPendingOutgoingChallenges = [...opponent.pendingOutgoingChallenges].filter(c => c !== user.uid);
+    if (!diminishedOpponentPendingOutgoingChallenges.length) {
+      diminishedOpponentPendingOutgoingChallenges = 0;
+    }
+    console.log('diminishedOpponentPendingOutgoingChallenges', diminishedOpponentPendingOutgoingChallenges);
+    console.warn('--------------------------------------------------------------|');
+    await updateUserAttribute(opponent.visitorId, 'ongoingGames', newOpponentOngoingGames);
+    await updateUserAttribute(opponent.visitorId, 'pendingOutgoingChallenges', diminishedOpponentPendingOutgoingChallenges);
+    await updateUserAttribute(user.uid, 'ongoingGames', newOngoingGames);
+    
     const newUser = { ...user };
     newUser.currentLocation = 'game';
-    newUser.phase = 'playing';
-    newUser.currentGameId = newGameId;
-    setPhase('playing');
-    setCurrentLocation('game');
+    newUser.phase = `playing: ${newGameId}`;
+    setCurrentLocation(newUser.currentLocation);
+    setPhase(newUser.phase);
     setUser(newUser);
     await updateUserAttribute(newUser.uid, 'currentLocation', newUser.currentLocation);
     await updateUserAttribute(newUser.uid, 'phase', newUser.phase);
-    await updateUserAttribute(newUser.uid, 'currentGameId', newUser.currentGameId);
     setModalShowing();
     setCurrentTurn('user');
+    
+
     setGameStarted(true);
     const nextBag = createBag();
-    
     await pause(1000);
-    const initialTileQuery = await drawFromBag(newGameId, [...nextBag], 7, 'user');    
+
+    const initialTileQuery = await drawFromBag(newGameId, [...nextBag], 7, 'user');
     setPlayerRack(initialTileQuery.drawnLetters);
+  }
+
+  async function handleClickForfeitGame() {
+    await handleClickBackToLobby();
+    removeGameSession(currentGameId);
+    const newOngoingGames = [...ongoingGames].filter(g => g.sessionId !== currentGameId);
+    console.log('dminished newOngoingGames', newOngoingGames);
+    setOngoingGames(newOngoingGames);
+    setCurrentGameId();  
+    await updateUserAttribute(user.uid, 'ongoingGames', newOngoingGames);
   }
 
   async function handleClickJoinGame(newGameId) {
@@ -391,11 +425,16 @@ export default function Home() {
     console.error('finished updates!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!');
     setModalShowing();
     setGameStarted(true);
-    
-    await pause(1000);
+
+    const newOngoingGames = ongoingGames ? [...ongoingGames, newGameId] : [newGameId];
+    console.log('newOngoingGames', newOngoingGames);
+    setOngoingGames(newOngoingGames);
+    await updateUserAttribute(newUser.uid, 'pendingOutgoingChallenges', newOngoingGames);
     const currentBag = await getBagContents(newGameId);
-    const initialTileQuery = await drawFromBag(newGameId, currentBag, 7, 'user');    
-    setPlayerRack(initialTileQuery.drawnLetters);
+    await pause(1000);
+    
+    // const initialTileQuery = await drawFromBag(newGameId, currentBag, 7, 'user');
+    // setPlayerRack(initialTileQuery.drawnLetters);
   }
 
   function callBlankModal() {
@@ -425,10 +464,6 @@ export default function Home() {
     }
     setBag(newBag);
     return newBag;
-  }
-
-  async function getBagTiles(gameSessionId, sessionBag, amount, owner) {
-    drawFromBag(gameSessionId, sessionBag, amount, owner);
   }
 
   function getRandomLetters(nextBag, amount, owner) {
@@ -472,9 +507,12 @@ export default function Home() {
 
   useEffect(() => {
     if (user) {
-      window.addEventListener('beforeunload', e => {
-        e.preventDefault();
-        removeVisitorFromList(user.uid);
+      window.addEventListener('beforeunload', async e => {
+        // e.preventDefault();
+        // removeVisitorFromList(user.uid);
+        if (user && currentLocation !== 'title') {
+          await updateUserAttribute(user.uid, 'currentLocation', 'away');
+        }
       }, { capture: true });
     }
     if (!loaded) {
@@ -522,7 +560,7 @@ export default function Home() {
         setWordRules(newWordRules);
       });
       setLoaded(true);
-      console.warn('ENV ------>', process.env)
+      console.warn('ENV ------>', process.env);
       // getDefinition('blargh');
     }
 
@@ -604,7 +642,7 @@ export default function Home() {
     const nextBag = createBag();
     const playerOpeningLetters = getRandomLetters(nextBag, 7, 'user');
     const opponentOpeningLetters = getRandomLetters(nextBag, 7, 'opponent');
-    console.warn('nextBag', nextBag)
+    console.warn('nextBag', nextBag);
     await pause(1000);
     setPlayerRack(playerOpeningLetters);
     await pause(800);
@@ -612,75 +650,108 @@ export default function Home() {
   }
 
   async function handleClickRequestGame(selectedOpponentId) {
-    console.warn('clicked request game!', selectedOpponentId);
+    console.warn('clicked request game!', selectedOpponentId);    
+    const newOutgoingChallenges = pendingOutgoingChallenges ? [...pendingOutgoingChallenges, selectedOpponentId] : [selectedOpponentId];
+    console.log('new outgoing', newOutgoingChallenges)
+    setPendingOutgoingChallenges(newOutgoingChallenges);
     const newUser = { ...user };
-    newUser.currentOpponentId = selectedOpponentId;
+    newUser.pendingOutgoingChallenges = newOutgoingChallenges;
     setUser(newUser);
-    setPhase(selectedOpponentId);
-    await updateUserAttribute(newUser.uid, 'currentOpponentId', '');
-    await updateUserAttribute(user.uid, 'phase', selectedOpponentId);
+    await updateUserAttribute(newUser.uid, 'pendingOutgoingChallenges', newOutgoingChallenges);
+  }
+  
+  async function handleClickCancelRequest(selectedOpponentId) {
+    console.warn('clicked cancel request!', selectedOpponentId);
+    let newOutgoingChallenges = [...pendingOutgoingChallenges].filter(c => c !== selectedOpponentId);
+    if (newOutgoingChallenges.length === 0) {
+      newOutgoingChallenges = 0;
+    }
+    setPendingOutgoingChallenges(newOutgoingChallenges);
+    const newUser = { ...user };
+    newUser.pendingOutgoingChallenges = newOutgoingChallenges;
+    setUser(newUser);
+    await updateUserAttribute(user.uid, 'pendingOutgoingChallenges', newOutgoingChallenges);
+  }
+
+  async function handleClickContemplateChallenge(visitorId) {
+    console.error('accepted with id', visitorId);
+    setContemplatingChallengeWithId(visitorId);    
+  }
+
+  async function cancelContemplate() {
+    setModalShowing();
+    setContemplatingChallengeWithId(undefined);
   }
 
   async function handleClickBackToTitle() {
     console.warn('clicked back to title!');
-    await updateUserAttribute(user.uid, 'currentLocation', 'title');
+    await updateUserAttribute(user.uid, 'currentLocation', 'title screen');
     await updateUserAttribute(user.uid, 'phase', '');
     await updateUserAttribute(user.uid, 'currentOpponentId', '');
-    setCurrentLocation('title');
+    setCurrentLocation('title screen');
     setPhase('');
     const newUser = { ...user };
     newUser.currentOpponentId = '';
     setUser(newUser);
     setVisitors([]);
+    setContemplatingChallengeWithId(undefined);
+    setModalShowing();
   }
 
   async function handleClickBackToLobby() {
     console.warn('clicked back to lobby!');
+    setCurrentLocation('lobby');
+    setPhase('browsing');
+    setContemplatingChallengeWithId(undefined);
     await updateUserAttribute(user.uid, 'currentLocation', 'lobby');
     await updateUserAttribute(user.uid, 'phase', 'browsing');
     await updateUserAttribute(user.uid, 'currentOpponentId', '');
     await updateUserAttribute(user.uid, 'currentGameId', '');
-    setCurrentLocation('lobby');
-    setPhase('browsing');
     const newUser = { ...user };
     newUser.currentOpponentId = '';
     setUser(newUser);
     setGameStarted(false);
   }
 
-  async function handleClickForfeitGame() {
-
-  }
-
-  async function handleClickAcceptChallenge(visitorId) {
-    console.error('accepted with id', visitorId);
-    const newUser = { ...user };
-    newUser.currentOpponentId = visitorId;
-    setUser(newUser);
-    await updateUserAttribute(newUser.uid, 'currentOpponentId', newUser.currentOpponentId);
-    await updateUserAttribute(visitorId, 'currentOpponentId', newUser.uid);
-  }
-
   useEffect(() => {
     if (visitors.length) {
-      const confirmedOpponent = [...visitors].filter(v => {
-        const isSelf = v.visitorId === user.uid;
-        const opponentTargetingUser = v.currentOpponentId === user.uid;
-        const userTargetingOpponent = v.visitorId === user.currentOpponentId;
-        return !isSelf && opponentTargetingUser && userTargetingOpponent;
-      })[0];
-      if (confirmedOpponent) {
-        if ((modalShowing !== 'opponent-accepted') && (modalShowing !== 'accepted-challenge')) {
-          setOpponent(confirmedOpponent);
-          setModalShowing(phase.length > 15 ? 'opponent-accepted' : 'accepted-challenge');
+      console.warn('when visitors.length > 0, contId', contemplatingChallengeWithId, 'modal', modalShowing, 'opponent', opponent);
+      if (contemplatingChallengeWithId) {
+        if (modalShowing !== 'accepted-challenge') {
+          const prospectiveOpponentObj = [...visitors].filter(v => v.visitorId === contemplatingChallengeWithId)[0];
+          setOpponent(prospectiveOpponentObj);
+          setModalShowing('accepted-challenge');
         }
-      } else {
-        if (modalShowing === 'opponent-accepted' || modalShowing === 'accepted-challenge') {
-          setModalShowing();
-        }
+      } else {        
+        setOpponent(defaultOpponent);
+        setModalShowing();        
       }
     }
-  }, [visitors, user]);
+    if (user) {
+      console.log('saving to local', user);
+      saveToLocalStorage('anonUserData', user);
+    }
+  }, [visitors, user, contemplatingChallengeWithId]);
+  // useEffect(() => {
+  //   if (visitors.length) {
+  //     const confirmedOpponent = [...visitors].filter(v => {
+  //       const isSelf = v.visitorId === user.uid;
+  //       const opponentTargetingUser = v.currentOpponentId === user.uid;
+  //       const userTargetingOpponent = v.visitorId === user.currentOpponentId;
+  //       return !isSelf && opponentTargetingUser && userTargetingOpponent;
+  //     })[0];
+  //     if (confirmedOpponent) {
+  //       if ((modalShowing !== 'opponent-accepted') && (modalShowing !== 'accepted-challenge')) {
+  //         setOpponent(confirmedOpponent);
+  //         setModalShowing(phase.length > 15 ? 'opponent-accepted' : 'accepted-challenge');
+  //       }
+  //     } else {
+  //       if (modalShowing === 'opponent-accepted' || modalShowing === 'accepted-challenge') {
+  //         setModalShowing();
+  //       }
+  //     }
+  //   }
+  // }, [visitors, user]);
 
   useEffect(() => {
     let totalNewPoints = newWords.reduce((acc, curr) => scoreWord(curr) + acc, 0);
@@ -1405,7 +1476,7 @@ export default function Home() {
                 filledBoard={filledBoard}
                 newWords={newWords}
               />
-              <div className='game-id-label'>{currentGameId}</div>
+              <div className='game-id-label'>game id: {currentGameId}</div>
               <WordScoreDisplay
                 pendingTurnScore={pendingTurnScore}
                 wordScoreTileId={wordScoreTileId}
@@ -1460,39 +1531,25 @@ export default function Home() {
                 user={user}
                 phase={phase}
                 visitors={visitors}
+                gameSessions={gameSessions}
+                pendingOutgoingChallenges={pendingOutgoingChallenges}
+                ongoingGames={ongoingGames}
                 handleClickRequestGame={handleClickRequestGame}
-                handleClickAcceptChallenge={handleClickAcceptChallenge}
+                handleClickCancelRequest={handleClickCancelRequest}
+                handleClickContemplateChallenge={handleClickContemplateChallenge}
                 handleClickJoinGame={handleClickJoinGame}
                 handleClickBackToTitle={handleClickBackToTitle}
               />
-              {/* <OpponentAcceptedModal
-                opponent={opponent}
-                showing={modalShowing === 'opponent-accepted'}
-                dismissModal={() => {
-                  const newUser = { ...user };
-                  user.currentOpponentId = '';
-                  setOpponent(defaultOpponent);
-                  handleClickRequestGame('browsing');
-                  dismissModal('opponent-accepted');
-                }}
-                startGameWithOpponent={joinNewlyCreatedGame}
-              /> */}
               <AcceptedChallengeModal
                 opponent={opponent}
                 showing={modalShowing === 'accepted-challenge'}
-                dismissModal={() => {
-                  const newUser = { ...user };
-                  user.currentOpponentId = '';
-                  setOpponent(defaultOpponent);
-                  handleClickRequestGame('browsing');
-                  dismissModal('accepted-challenge');
-                }}
-                startGameWithOpponent={createAndStartGameWithFirstTurn}
+                handleClickConfirm={createAndStartGameWithFirstTurn}
+                handleClickCancel={cancelContemplate}
               />
             </>
           }
 
-          {currentLocation === 'title' &&
+          {currentLocation === 'title screen' &&
             <LoginModal handleClickGoogleLogin={callGooglePopup} handleClickGuestLogin={handleClickGuestLogin}
             />
           }
@@ -1524,9 +1581,9 @@ export default function Home() {
           flex-direction: column;
           justify-content: space-between;
           align-items: center;
-          overflow: hidden;
+          //overflow: hidden;
           opacity: ${loaded ? 1 : 0};
-          transition: opacity 500ms ease;          
+          transition: opacity 500ms ease;                    
         }        
 
         #home-container {
@@ -1535,14 +1592,20 @@ export default function Home() {
           display: grid;
           grid-template-columns: 1fr;
           grid-template-rows: min-content calc(var(--rack-height) * 1.75) min-content 1fr;
+          overflow-y: auto;
+          min-width: 100dvw;
+          
 
           & .game-id-label {
             position: fixed;
-            bottom: 0;
+            top: 0;
             right: 0;
-            background: black;
-            color: white;
             padding: 0.25rem 0.5rem;
+            font-size: 1rem !important;
+            opacity: 0.75;
+            background-color: black;
+            pointer-events: none;
+            z-index: 3;
           }
 
           & > .turn-display-area {
@@ -1676,7 +1739,7 @@ export default function Home() {
         :root {
           --actual-height: 100dvh;
           --board-size: 100vw;
-          --header-height: ${currentLocation === 'title' ? '18vw' : '2.75rem'};
+          --header-height: ${currentLocation === 'title screen' ? '18vw' : '2.75rem'};
           --main-padding: 0px;
           --large-icon-size: calc(var(--racked-tile-size) * 1.5);
           --rack-height: calc(var(--board-size) / 10);
@@ -1696,7 +1759,7 @@ export default function Home() {
           --secondary-bg-color: #443330;
           --footer-color: #443330;
           --main-text-color: #cdc;
-          --secondary-text-color: #ccc;
+          --secondary-text-color: #eee;
           --board-color: #ccc2a1;
           --board-bg-color: #ddd;
           --tile-color: #ffddd0;
@@ -1720,7 +1783,7 @@ export default function Home() {
           font-family: sans-serif;
           background-color: black;
           color: var(--main-text-color);
-          user-select: none;
+          user-select: none;          
         }
 
         h1, h2, h3, h4 {
@@ -1834,12 +1897,12 @@ export default function Home() {
 
         @keyframes excite {
           from {
-            //transform: scale(100%);
+            transform: scale(99%);
             color: white;
-            box-shadow: var(--modal-shadow);
+            //box-shadow: var(--modal-shadow);
           }
           to {
-            //transform: scale(100.5%);
+            transform: scale(98%);
             color: #ffffaa;
           }
         }
@@ -1870,7 +1933,7 @@ export default function Home() {
 
         @media screen and (orientation: landscape) {
           :root {
-            --header-height: ${currentLocation === 'title' ? '5rem' : '4.5rem'};
+            --header-height: ${currentLocation === 'title screen' ? '5rem' : '4.5rem'};
             --main-padding: 1rem;
             --board-size: calc((var(--actual-height) - var(--header-height)) - var(--main-padding));
             --title-tile-size: calc(var(--header-height) * 0.85);

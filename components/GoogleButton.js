@@ -5,7 +5,7 @@ export default function GoogleButton(props) {
       <style jsx>{`
         .google-button {
           transition: background-color .3s, box-shadow .3s;
-          width: 12rem;
+          min-width: 12rem;
           padding: 12px 16px 12px 42px;
           border: none;
           border-radius: 3px;

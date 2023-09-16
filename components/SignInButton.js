@@ -44,10 +44,10 @@ export default function SignInButton(props) {
           align-items: center;
           justify-content: space-between;
           gap: 0.5rem;
-          width: 12rem;
-          height: 2.75rem;
+          min-width: 12rem;
+          height: 3rem;
           padding: 0.75rem 0;
-          padding-bottom: 0.5rem;
+          //padding-bottom: 0.5rem;
           border: none;
           border-radius: 3px;
           box-shadow: 0 -1px 0 rgba(0, 0, 0, .04), 0 1px 1px rgba(0, 0, 0, .25);
