@@ -1,6 +1,6 @@
 import { isMobile } from 'is-mobile';
 import { useEffect, useMemo, useState } from 'react';
-import { addVisitorToList, auth, createGameSession, drawFromBag, getBagContents, getVisitor, provider, removeGameSession, removeVisitorFromList, subscribeToList, unsubscribeFromList, updateGameSessionAttributes, updatePlayerAttributes, updateUserAttribute } from '../scripts/firebase';
+import { addVisitorToList, auth, createGameSession, drawFromBag, getBagContents, getVisitor, provider, removeGameSession, removeVisitorFromList, subscribeToList, unsubscribeFromList, updateGameSessionAttributes, updateLetterMatrix, updatePlayerAttributes, updateUserAttribute } from '../scripts/firebase';
 import { getAuth, signInWithPopup, GoogleAuthProvider, signInWithRedirect, signOut, signInAnonymously } from "firebase/auth";
 import { getAllRulesets, sendNewRules } from '../scripts/rulesdb';
 import Head from 'next/head';
@@ -26,6 +26,7 @@ import Tile from '../components/Tile';
 import LobbyScreen from '../components/LobbyScreen';
 import AcceptedChallengeModal from '../components/AcceptedChallengeModal';
 import GameMenuModal from '../components/GameMenuModal';
+import OpponentDisconnectedModal from '../components/OpponentDisconnectedModal';
 
 const IS_MOBILE = isMobile();
 let LANDSCAPE;
@@ -47,24 +48,19 @@ export default function Home() {
   const [gameSessions, setGameSessions] = useState([]);
   const [user, setUser] = useState(guestUser);
   const [opponent, setOpponent] = useState(defaultOpponent);
-  const [userScore, setUserScore] = useState(0);
-  const [opponentScore, setOpponentScore] = useState(0);
-  const [currentTurn, setCurrentTurn] = useState();
+  const [letterMatrix, setLetterMatrix] = useState([...emptyLetterMatrix]);
+
   const [pendingTurnScore, setPendingTurnScore] = useState(0);
   const [wordScoreTileId, setWordScoreTileId] = useState(undefined);
   const [gameStarted, setGameStarted] = useState(false);
   const [submitReady, setSubmitReady] = useState(false);
-  const [bag, setBag] = useState([]);
-  const [playerRack, setPlayerRack] = useState([]);
-  const [opponentRack, setOpponentRack] = useState([]);
+  const [activeTiles, setActiveTiles] = useState([]);
   const [selectedTileId, setSelectedTileId] = useState(null);
-  const [targetedSpaceId, setTargetedSpaceId] = useState(null);
-  const [letterMatrix, setLetterMatrix] = useState([...emptyLetterMatrix]);
+  const [targetedSpaceId, setTargetedSpaceId] = useState(null);  
   const [dragStartPosition, setDragStartPosition] = useState(null);
   const [modalShowing, setModalShowing] = useState(undefined);
   const [editingBlank, setEditingBlank] = useState(undefined);
   const [wordsOnBoard, setWordsOnBoard] = useState({ horizontal: [], vertical: [] });
-  const [previousWordList, setPreviousWordList] = useState({ horizontal: [], vertical: [] });
   const [newWords, setNewWords] = useState([]);
   const [turnHistory, setTurnHistory] = useState([]);
   const [wordRules, setWordRules] = useState({});
@@ -78,7 +74,6 @@ export default function Home() {
   const [ongoingGames, setOngoingGames] = useState([]);
 
   const [hasFocus, setHasFocus] = useState(true);
-
   const [debugMode, setDebugMode] = useState(false);
 
   async function updatePlayer(player, newAttributeObj) {
@@ -106,10 +101,8 @@ export default function Home() {
 
   const playerRackTiles = useMemo(() => {
     let rackSet = { userRackTiles: [], opponentRackTiles: [] };    
-    console.warn('000 user', user);
     if (currentGameSession) {
       const session = { ...currentGameSession };
-      console.warn('000 session', session);
       const userIsRespondent = session.respondent === user.uid;
       const userRackTiles = userIsRespondent ? session.respondentRack : session.instigatorRack;
       const opponentRackTiles = userIsRespondent ? session.instigatorRack : session.respondentRack;
@@ -117,63 +110,70 @@ export default function Home() {
         userRackTiles: userRackTiles || [],
         opponentRackTiles: opponentRackTiles || [],
       };
-      console.log('000 rackSet', rackSet);
     }
     return rackSet;
 
   }, [currentGameSession, newWords, selectedTileId, user]);
 
   const userRackSpaces = useMemo(() => {
-    console.log('000 mapping playerRackTiles.userRackTiles', playerRackTiles.userRackTiles)
-    return playerRackTiles.userRackTiles.map((tile, t) =>
-      <Tile
-        owner={'user'}
-        draggable={true}
-        letter={tile.letter}
-        value={tile.value}
-        key={tile.id}
-        id={tile.id}
-        turnPlayed={tile.turnPlayed}
-        selected={selectedTileId === tile.id}
-        rackSpaceId={`user-rack-space-${t}`}
-        offset={tile.offset}
-        blankPosition={tile.blankPosition}
-        blank={tile.blank}
-        placed={tile.placed}
-        landed={tile.landed}
-        incongruent={tile.incongruent}
-        locked={tile.locked}
-        rackIndex={tile.rackIndex}
-        bgPosition={tile.bgPosition}
-      />
-    );
-  }, [playerRack, newWords, selectedTileId, playerRackTiles]);
+    if (activeTiles) {
+      return activeTiles.map((tile, t) =>
+        <Tile
+          owner={'user'}
+          draggable={true}
+          letter={tile.letter}
+          value={tile.value}
+          key={tile.id}
+          id={tile.id}
+          turnPlayed={tile.turnPlayed}
+          selected={selectedTileId === tile.id}
+          rackSpaceId={`user-rack-space-${t}`}
+          offset={tile.offset}
+          blankPosition={tile.blankPosition}
+          blank={tile.blank}
+          placed={tile.placed}
+          landed={tile.landed}
+          incongruent={tile.incongruent}
+          locked={tile.locked}
+          rackIndex={tile.rackIndex}
+          bgPosition={tile.bgPosition}
+        />
+      ) || [];
+    } else {
+      console.error('activeTiles uindefined!')
+      return [];
+    }
+  }, [newWords, selectedTileId, activeTiles, currentGameSession]);
 
   const opponentRackSpaces = useMemo(() => {
-    console.log('000 mapping playerRackTiles.opponentRackTiles', playerRackTiles.opponentRackTiles)
-    return playerRackTiles.opponentRackTiles.map((tile, t) =>
-      <Tile
-        owner={'opponent'}
-        draggable={false}
-        letter={tile.letter}
-        value={tile.value}
-        key={tile.id}
-        id={tile.id}
-        turnPlayed={tile.turnPlayed}
-        selected={selectedTileId === tile.id}
-        rackSpaceId={`opponent-rack-space-${t}`}
-        offset={tile.offset}
-        blankPosition={tile.blankPosition}
-        blank={tile.blank}
-        placed={tile.placed}
-        landed={tile.landed}
-        incongruent={tile.incongruent}
-        locked={tile.locked}
-        rackIndex={tile.rackIndex}
-        bgPosition={tile.bgPosition}
-      />
-    );
-  }, [opponentRack, newWords, selectedTileId, playerRackTiles]);
+    if (activeTiles) {
+      console.log('000 mapping opponentRackTiles', playerRackTiles.opponentRackTiles)
+      return playerRackTiles.opponentRackTiles.map((tile, t) =>
+        <Tile
+          owner={'opponent'}
+          draggable={false}
+          letter={tile.letter}
+          value={tile.value}
+          key={tile.id}
+          id={tile.id}
+          turnPlayed={tile.turnPlayed}
+          selected={selectedTileId === tile.id}
+          rackSpaceId={`opponent-rack-space-${t}`}
+          offset={tile.offset}
+          blankPosition={tile.blankPosition}
+          blank={tile.blank}
+          placed={tile.placed}
+          landed={tile.landed}
+          incongruent={tile.incongruent}
+          locked={tile.locked}
+          rackIndex={tile.rackIndex}
+          bgPosition={tile.bgPosition}
+        />
+      ) || [];
+    } else {
+      return [];
+    }
+  }, [newWords, selectedTileId, playerRackTiles]);
 
   const filledBoard = useMemo(() => {
     console.log('>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> creating filled board!!!');
@@ -230,9 +230,7 @@ export default function Home() {
     const existingUid = getAuth().currentUser && getAuth().currentUser.uid;
     console.log('---------------- existingUid is', existingUid);
     const anonUserData = await signInAnonymously(getAuth());
-    console.error('00000000000000000000000000000000000');
     console.log('anonUserData', anonUserData);
-    console.error('00000000000000000000000000000000000');
     let newUser = {
       ...anonUserData.user,
       ...guestUser,
@@ -367,23 +365,39 @@ export default function Home() {
               if (sessionData) {
                 console.warn('game subscription got new sessionData', sessionData);
                 setCurrentGameSession(sessionData);
-                //setBag(sessionData.bag);
-                //setCurrentTurn(sessionData.currentTurn);
+                if (sessionData.opponentForfeited) {
+                  setModalShowing('opponent-disconnected')
+                }
               } else {
-                console.warn('game subscription DID NOT GET sessionData', user);
+                console.warn('game subscription DID NOT GET sessionData');
               }
             });
             return newGameData;
           }
-          startGameSubscription().then((subscriptionResponse) => {
-            console.error('SUBSCRIBED TO GAME!!!!!!!!!!!!!!!!!!!!!!!');
-            console.warn('subscriptionResponse', subscriptionResponse);
-            setSubscribedToGame(true);
+          let matrixData;
+          async function startLetterMatrixSubscription() {
+            let newMatrix;
+            matrixData = await subscribeToList(`letterMatrices/${user.currentGameId}`, async (snapshot) => {
+              newMatrix = await snapshot.val();
+              if (newMatrix) {
+                console.warn('122 matrix subscription got newMatrix', newMatrix);
+                setLetterMatrix(newMatrix);
+              } else {
+                console.warn('122 matrix subscription DID NOT GET newMatrix');
+              }
+            });
+            return matrixData;
+          }
+          startGameSubscription().then(() => {
+            startLetterMatrixSubscription().then(() => {
+              console.error('SUBSCRIBED TO GAME!!!!!!!!!!!!!!!!!!!!!!!');
+              setSubscribedToGame(true);
+            })
           });
         }
       }
     }
-  }, [subscribedToLobby, subscribedToGame, user]);
+  }, [user]);
 
 
 
@@ -399,6 +413,17 @@ export default function Home() {
   function dismissModal(modalName) {
     setModalShowing(undefined);
   }
+
+  const isUserTurn = useMemo(() => {
+    return currentGameSession && currentGameSession.currentTurn === user.uid;
+  }, [currentGameSession, user]);
+
+  useEffect(() => {
+    if (currentGameSession) {
+      const newActiveTiles = currentGameSession.instigator === user.uid ? currentGameSession.instigatorRack : currentGameSession.respondentRack;
+      setActiveTiles(newActiveTiles || []);
+    }
+  }, currentGameSession);
 
   async function createAndStartGameWithFirstTurn() {
     const newGame = await createGameSession(user.uid, opponent.uid);
@@ -429,38 +454,14 @@ export default function Home() {
     const nextBag = createBag();
 
     await pause(1000);
-
+    
     const userTileQuery = await drawFromBag(newGameId, [...nextBag], 7, 'user');
     const opponentTileQuery = await drawFromBag(newGameId, userTileQuery.remainingBag, 7, 'user');
-    const newCurrentGameSession = await updateGameSession(newGameId, {
-      bag: opponentTileQuery.remainingBag,
+    await updateGameSession(newGameId, {
       instigatorRack: opponentTileQuery.drawnTiles,
       respondentRack: userTileQuery.drawnTiles,
     });
-    //setPlayerRack(userTileQuery.drawnTiles);
-    setCurrentGameSession(newCurrentGameSession);
-  }
-
-  async function handleClickForfeitGame() {
-    let diminishedOngoingGames = [...user.ongoingGames].filter(sessionId => sessionId !== user.currentGameId);
-    if (!diminishedOngoingGames.length) {
-      diminishedOngoingGames = 0;
-    }
-    let diminishedOpponentOngoingGames = [...opponent.ongoingGames].filter(sessionId => sessionId !== user.currentGameId);
-    if (!diminishedOpponentOngoingGames.length) {
-      diminishedOpponentOngoingGames = 0;
-    }
-    const newUser = await updatePlayer(user, {
-      ongoingGames: diminishedOngoingGames,
-    });
-    const newOpponent = await updatePlayer(opponent, {
-      ongoingGames: diminishedOpponentOngoingGames,
-    });
-
-    setUser(newUser);
-    setOpponent(newOpponent);
-    await removeGameSession(user.currentGameId);
-    await handleClickBackToLobby();
+    setActiveTiles(userTileQuery.drawnTiles);
   }
 
   async function handleClickJoinGame(newGameObj) {
@@ -477,6 +478,41 @@ export default function Home() {
 
     setModalShowing();
     setGameStarted(true);
+  }
+
+  async function handleClickForfeitGame() {
+    let diminishedOngoingGames = [...user.ongoingGames].filter(sessionId => sessionId !== user.currentGameId);
+    if (!diminishedOngoingGames.length) {
+      diminishedOngoingGames = 0;
+    }
+    let diminishedOpponentOngoingGames = [...opponent.ongoingGames].filter(sessionId => sessionId !== user.currentGameId);
+    if (!diminishedOpponentOngoingGames.length) {
+      diminishedOpponentOngoingGames = 0;
+    }
+    const newUser = await updatePlayer(user, {
+      ongoingGames: diminishedOngoingGames,
+      currentGameId: '',
+      currentLocation: 'lobby',
+      phase: 'browsing',
+    });
+    const newOpponent = await updatePlayer(opponent, {
+      ongoingGames: diminishedOpponentOngoingGames,
+      currentGameId: '',
+    });
+
+    setUser(newUser);
+    setOpponent(newOpponent);
+
+    await updateGameSession(user.currentGameId, {
+      opponentForfeited: true,
+    });
+
+    await removeGameSession(user.currentGameId);
+    // await handleClickBackToLobby();
+  }
+
+  async function handleFinalizeOpponentForfeit() {
+
   }
 
   function callBlankModal() {
@@ -519,7 +555,6 @@ export default function Home() {
       }
       letterArray.push(drawnTile);
     }
-    //setBag(nextBag);
     return letterArray;
   }
 
@@ -651,16 +686,12 @@ export default function Home() {
       ready = false;
     }
 
-    // document.getElementById('in-line-display').innerHTML = tilesInLine;
-    // document.getElementById('touching-locked-display').innerHTML = touchingLocked || (lockedTiles.length === 0 && centerTileFilled) ? 'true' : 'false';
-    // document.getElementById('submit-ready-display').innerHTML = ready;
+    document.getElementById('in-line-display').innerHTML = tilesInLine;
+    document.getElementById('touching-locked-display').innerHTML = touchingLocked || (lockedTiles.length === 0 && centerTileFilled) ? 'true' : 'false';
+    document.getElementById('submit-ready-display').innerHTML = ready;
 
     setSubmitReady(ready);
-  }, [letterMatrix]);
-
-  useEffect(() => {
-    setPreviousWordList(wordsOnBoard);
-  }, [currentTurn]);
+  }, [letterMatrix, currentGameSession]);
 
   function syllabizeWords(wordArray) {
     const syllabizedWords = [...wordArray];
@@ -678,16 +709,8 @@ export default function Home() {
   }
 
   async function startGame() {
-    console.warn('------------------------------------------------------ STARTING GAME ------------------------------------------------------');
-    setGameStarted(true);
-    const nextBag = createBag();
-    const playerOpeningLetters = getRandomLetters(nextBag, 7, 'user');
-    const opponentOpeningLetters = getRandomLetters(nextBag, 7, 'opponent');
-    console.warn('nextBag', nextBag);
-    await pause(1000);
-    setPlayerRack(playerOpeningLetters);
-    await pause(800);
-    setOpponentRack(opponentOpeningLetters);
+    console.warn('---------------------- STARTING GAME ----------------------');
+    setGameStarted(true);    
   }
 
   async function handleClickRequestGame(selectedOpponentId) {
@@ -795,42 +818,39 @@ export default function Home() {
     return hasNeighbor ? [...verticalNeighbors, ...horizontalNeighbors] : false;
   }
 
-  function submitUserTiles() {
-    let newPlayerRack = [...playerRack];
+  async function submitUserTiles() {
+    let newPlayerRack = [...activeTiles];
     const placedTiles = newPlayerRack.filter(tile => tile.placed);
     placedTiles.map(tile => {
       tile.locked = true;
       tile.turnPlayed = turnHistory.length;
     });
     newPlayerRack = newPlayerRack.filter(tile => !tile.locked);
-    const newLetters = getRandomLetters([...bag], 7 - newPlayerRack.length, 'user');
-    const newFullRack = [...newPlayerRack, ...newLetters];
-    setPlayerRack(newFullRack);
+    const newLetterQuery = await drawFromBag(currentGameSession.sessionId, currentGameSession.bag, 7 - newPlayerRack.length, 'user');
+    const newFullRack = [...newPlayerRack, ...newLetterQuery.drawnTiles];
+    setActiveTiles(newFullRack);
     const newTurnData = [...turnHistory, [...placedTiles]];
-    setUserScore(userScore + pendingTurnScore);
+    const userGameRole = currentGameSession.instigator === user.uid ? 'instigator' : 'respondent'; 
+    const rackToUpdate = `${userGameRole}Rack`;
+    const scoreToUpdate = `${userGameRole}Score`;
+    const newUserScore = currentGameSession[scoreToUpdate] + pendingTurnScore;
+
+    let newGameSession = {...currentGameSession};
+    newGameSession[rackToUpdate] = newFullRack;
+    newGameSession[scoreToUpdate] = newUserScore;
+    newGameSession['currentTurn'] = newGameSession.instigator === user.uid ? newGameSession.respondent : newGameSession.instigator;
+    // newGameSession.turnHistory = newTurnData;
+
+    console.log('newGameSession?', newGameSession);
+
+    await updateGameSession(currentGameSession.sessionId, newGameSession);
+    await updateLetterMatrix(currentGameSession.sessionId, letterMatrix);
+
     setPendingTurnScore(0);
     setNewWords([]);
-    setTurnHistory(newTurnData);
-    setCurrentTurn('opponent');
-    return [...placedTiles];
-  }
-
-  function submitOpponentTiles(opponentPlacedTiles) {
-    let newOpponentRack = [...opponentRack];
-    opponentPlacedTiles.map(tile => {
-      tile.locked = true;
-      tile.turnPlayed = turnHistory.length;
-    });
-    newOpponentRack = newOpponentRack.filter(tile => !tile.locked);
-
-    const newLetters = getRandomLetters([...bag], 7 - newOpponentRack.length, 'opponent');
-    const newFullRack = [...newOpponentRack, ...newLetters];
-    setPlayerRack(newFullRack);
-    const newTurnData = [...turnHistory, [...opponentPlacedTiles]];
-    setOpponentScore(opponentScore + pendingTurnScore);
-    setNewWords([]);
-    setTurnHistory(newTurnData);
-    setCurrentTurn('user');
+    // setTurnHistory(newTurnData);
+    // setCurrentTurn('opponent');
+    // return [...placedTiles];
   }
 
   function cursorOverBoard(touchX, touchY) {
@@ -857,7 +877,7 @@ export default function Home() {
       if (xDistance > 0 && yDistance > 0 && xDistance < tileRect.width && yDistance < tileRect.height) {
         const newSelectedTileId = tileElement.id;
         setSelectedTileId(newSelectedTileId);
-        const newPlayerRack = [...playerRack];
+        const newPlayerRack = [...activeTiles];
         const rackedTileObject = newPlayerRack.filter(tile => tile.id === newSelectedTileId)[0];
         const tileStyle = getComputedStyle(tileElement);
         const tileTranslate = {
@@ -875,7 +895,7 @@ export default function Home() {
         };
         rackedTileObject.offset = newTileOffset;
 
-        setPlayerRack(newPlayerRack);
+        setActiveTiles(newPlayerRack);
 
         setDragStartPosition(tileCenter);
 
@@ -901,17 +921,18 @@ export default function Home() {
     if (selectedTileId) {
       const touchX = IS_MOBILE ? e.touches[0].pageX : e.pageX;
       const touchY = IS_MOBILE ? e.touches[0].pageY : e.pageY;
-
-      const newPlayerRack = [...playerRack];
+      const newPlayerRack = [...activeTiles];
       const rackedTileObject = newPlayerRack.filter(tile => tile.id === selectedTileId)[0];
+      console.log('moving activeTiles', rackedTileObject)
       const newTileOffset = {
         x: touchX - dragStartPosition.x,
         y: touchY - dragStartPosition.y
       };
       rackedTileObject.offset = newTileOffset;
-      setPlayerRack(newPlayerRack);
+      // setPlayerRack(newPlayerRack);
       if (cursorOverBoard(touchX, touchY)) {
         const newTargetedSpaceId = findTargetedBoardSpaceId(touchX, touchY);
+        console.warn('moving cursorOverBoard!', newTargetedSpaceId)
         if (typeof newTargetedSpaceId === 'string') {
           setTargetedSpaceId(newTargetedSpaceId);
         }
@@ -925,19 +946,27 @@ export default function Home() {
           setTargetedSpaceId(null);
         }
       }
+      setActiveTiles(newPlayerRack);
     }
   }
 
   function handleScreenPointerUp(e) {
     if (selectedTileId) {
+      console.warn('122 letterMatrix', letterMatrix);
+      console.warn('122 selectedTileId', selectedTileId);
       const touchX = IS_MOBILE ? e.changedTouches[0].pageX : e.pageX;
       const touchY = IS_MOBILE ? e.changedTouches[0].pageY : e.pageY;
-
-      const newPlayerRack = [...playerRack];
+      console.warn('122 up!');
+      
+      const newPlayerRack = [...activeTiles];
+      console.warn('122 newPlayerRack', newPlayerRack);
+      // const newPlayerRack = currentGameSession.instigator === user.uid ? currentGameSession.instigatorRack : currentGameSession.respondentRack;
       const rackedTileObject = newPlayerRack.filter(tile => tile.id === selectedTileId)[0];
       if (!cursorOverBoard(touchX, touchY)) {
+        console.error('122 not over board ggggggggggggggggggggggggggggg');
         if (targetedSpaceId) {
           const rackFull = newPlayerRack.every(tile => !tile.placed);
+          console.warn('122 targetedSpaceId over rack', newPlayerRack, 'full', rackFull);
           if (rackFull) {
             const rackIndex = newPlayerRack.indexOf(rackedTileObject);
             const targetIndex = parseInt(targetedSpaceId.split('-')[3]);
@@ -950,14 +979,15 @@ export default function Home() {
         }
       } else {
         if (targetedSpaceId) {
+          console.log('122 targetedSpaceId', targetedSpaceId)
           placeTile(rackedTileObject);
           // setWordScoreTileId(selectedTileId);
         }
       }
       if (!targetedSpaceId) {
         rackedTileObject.offset = { x: 0, y: 0 };
-        setPlayerRack(newPlayerRack);
       }
+      setActiveTiles(newPlayerRack);
       setDragStartPosition(null);
       setSelectedTileId(null);
       setTargetedSpaceId(null);
@@ -965,17 +995,14 @@ export default function Home() {
   }
 
   function placeTile(tileObj) {
-    // tileObj.placed = targetedSpaceId;
     tileObj.placed = {
       x: targetedSpaceId.split('-')[0] - 1,
       y: targetedSpaceId.split('-')[1] - 1,
     };
-    const newPlayerRack = [...playerRack];
     const tileElement = document.getElementById(tileObj.id);
     const newLetterMatrix = [...letterMatrix];
     const matrixX = tileObj.placed.x;
     const matrixY = tileObj.placed.y;
-    // newLetterMatrix[matrixX][matrixY].contents = tileObj;
     newLetterMatrix[matrixY][matrixX].contents = tileObj;
     const spaceElement = document.getElementById(targetedSpaceId);
     const spaceRect = spaceElement.getBoundingClientRect();
@@ -995,9 +1022,23 @@ export default function Home() {
       tileObj.offset.y -= preTileDistance.y;
       tileObj.landed = true;
       await pause(2);
-      setPlayerRack(newPlayerRack);
       setLetterMatrix(newLetterMatrix);
     });
+  }
+
+  function unplaceTile(tileObj) {
+    const matrixX = tileObj.placed.x;
+    const matrixY = tileObj.placed.y;
+    const newLetterMatrix = [...letterMatrix];
+    tileObj.landed = false;
+    tileObj.placed = false;
+    if (tileObj.blank) {
+      tileObj.letter = 'BLANK';
+    }
+    // newLetterMatrix[matrixX][matrixY].contents = null;
+    newLetterMatrix[matrixY][matrixX].contents = null;
+    setLetterMatrix(newLetterMatrix);
+    // setWordScoreTileId(undefined);
   }
 
   function allTilesNeighbored() {
@@ -1011,7 +1052,7 @@ export default function Home() {
         }
       });
     });
-    // document.getElementById('neigbored-display').innerText = congruous;
+    document.getElementById('neigbored-display').innerText = congruous;
     return congruous;
   }
 
@@ -1034,26 +1075,6 @@ export default function Home() {
     return touching;
   }
 
-  function changeTileAttribute(tileObj, attribute, newValue) {
-    tileObj[attribute] = newValue;
-    setPlayerRack(newPlayerRack);
-  }
-
-  function unplaceTile(tileObj) {
-    const matrixX = tileObj.placed.x;
-    const matrixY = tileObj.placed.y;
-    const newLetterMatrix = [...letterMatrix];
-    tileObj.landed = false;
-    tileObj.placed = false;
-    if (tileObj.blank) {
-      tileObj.letter = 'BLANK';
-    }
-    // newLetterMatrix[matrixX][matrixY].contents = null;
-    newLetterMatrix[matrixY][matrixX].contents = null;
-    setLetterMatrix(newLetterMatrix);
-    // setWordScoreTileId(undefined);
-  }
-
   function getTileDistanceFromSpace(tileRect, spacePosition) {
     return {
       x: tileRect.left - spacePosition.x,
@@ -1062,18 +1083,18 @@ export default function Home() {
   }
 
   function shuffleUserTiles() {
-    let newRack = [...playerRack];
+    let newRack = [...activeTiles];
     shuffleArray(newRack);
-    setPlayerRack(newRack);
+    setActiveTiles(newRack);
   }
 
   function returnUserTiles() {
-    const newPlayerRack = [...playerRack];
+    const newPlayerRack = [...activeTiles];
     newPlayerRack.filter(tile => tile.placed).forEach(tile => {
       unplaceTile(tile);
       tile.offset = { x: 0, y: 0 };
     });
-    setPlayerRack(newPlayerRack);
+    setActiveTiles(newPlayerRack);
   }
 
   function findTargetedRackSpace(cursorPositionX, cursorPositionY) {
@@ -1104,7 +1125,7 @@ export default function Home() {
       const matrixX = parseInt(spaceElement.id.split('-')[0]) - 1;
       const matrixY = parseInt(spaceElement.id.split('-')[1]) - 1;
       // const occupied = letterMatrix[matrixX][matrixY].contents !== null;
-      const occupied = letterMatrix[matrixY][matrixX].contents !== null;
+      const occupied = (letterMatrix[matrixY][matrixX].contents !== undefined) && (letterMatrix[matrixY][matrixX].contents !== null);
 
       if (spaceElement) {
         const targetedX = cursorPositionX > spaceRect.x && cursorPositionX < (spaceRect.x + spaceRect.width);
@@ -1122,19 +1143,20 @@ export default function Home() {
   }
 
   function insertRackTile(originalIndex, newIndex) {
-    const newPlayerRack = [...playerRack];
+    const newPlayerRack = [...activeTiles];
     const replacingTileObj = newPlayerRack[originalIndex];
     newPlayerRack.splice(originalIndex, 1);
     newPlayerRack.splice(newIndex, 0, replacingTileObj);
-    setPlayerRack(newPlayerRack);
+    console.log('122 inserting', arguments, newPlayerRack)
+    setActiveTiles(newPlayerRack);
   }
 
   function handleSelectBlankLetter(selectedLetter) {
-    const newPlayerRack = [...playerRack];
+    const newPlayerRack = [...activeTiles];
     const blankTileObj = newPlayerRack.filter(tile => tile.id === editingBlank)[0];
     blankTileObj.letter = selectedLetter;
     newPlayerRack[newPlayerRack.indexOf(blankTileObj)] = blankTileObj;
-    setPlayerRack(newPlayerRack);
+    setActiveTiles(newPlayerRack);
     setLetterMatrix([...letterMatrix]);
     setEditingBlank(undefined);
     dismissModal();
@@ -1231,7 +1253,7 @@ export default function Home() {
     return columnArray;
   }
 
-  function getWordsFromBoard() {
+  function getWordsFromBoard() {   
     const matrixCopy = [...letterMatrix];
     const horizontalWords = [];
     const verticalWords = [];
@@ -1250,8 +1272,15 @@ export default function Home() {
       horizontal: horizontalWords,
       vertical: verticalWords,
     };
+    console.log('000 wordsOnBoard', wordsOnBoard);
+    console.log('000 newWordList', newWordList)
+    // const nextNewWords = getNewWords(newWordList);
+    const nextNewWords = [
+      ...newWordList.horizontal.filter(w => !wordsOnBoard.horizontal.includes(w)),
+      ...newWordList.vertical.filter(w => !wordsOnBoard.vertical.includes(w))
+    ].filter(wordObj => !wordObj.spaces.every(spaceObj => spaceObj.contents.locked));
+    console.log('000 nextNewWords', nextNewWords);
     setWordsOnBoard(newWordList);
-    const nextNewWords = getNewWords(newWordList);
     setNewWords(nextNewWords);
     const playerTileWords = nextNewWords.filter(wordObj => !wordObj.spaces.every(spaceObj => spaceObj.contents.locked));
     const newWordScoreTile = getWordScoreTile(playerTileWords);
@@ -1259,20 +1288,6 @@ export default function Home() {
       setWordScoreTileId(newWordScoreTile.contents.id);
     }
     return nextNewWords;
-  }
-
-  function getNewWords(wordList) {
-    const boardWordsCopy = { ...wordList };
-    const previousWordsCopy = { ...previousWordList };
-    const previousHorizontalWordIdArray = previousWordsCopy.horizontal.map(wordObj => wordObj.wordId);
-    const newHorizontal = boardWordsCopy.horizontal.length ? boardWordsCopy.horizontal.filter((wordObj, w) =>
-      !previousHorizontalWordIdArray.includes(wordObj.wordId)
-    ) : [];
-    const previousVerticalWordIdArray = previousWordsCopy.vertical.map(wordObj => wordObj.wordId);
-    const newVertical = boardWordsCopy.vertical.length ? boardWordsCopy.vertical.filter((wordObj, w) =>
-      !previousVerticalWordIdArray.includes(wordObj.wordId)
-    ) : [];
-    return [...newHorizontal, ...newVertical];
   }
 
   function getWordScoreTile(wordSpaceArr) {
@@ -1364,21 +1379,24 @@ export default function Home() {
     flashSaveMessage(saveResultMessage, 4000);
   }
 
-  const placedTiles = [...playerRack].filter(tile => tile.placed);
+  const placedTiles = [...activeTiles].filter(tile => tile.placed);
   const lockedTiles = [...letterMatrix].flat().filter(space => space.contents && space.contents.locked);
 
   // const horizontalWordList = Object.values(wordsOnBoard.horizontal).map(wordObj => wordObj.word);
   // const verticalWordList = Object.values(wordsOnBoard.vertical).map(wordObj => wordObj.word);
 
-  // const newWordList = newWords.map(wordObj => `${wordObj.word} (${scoreWord(wordObj)})`);
+  const newWordList = newWords.map(wordObj => `${wordObj.word} (${scoreWord(wordObj)})`);
   let totalViolations = unpronouncableWords.length;
 
   console.log('user!', user);
+  console.log('gameStarted!', gameStarted);
+  console.log('subscribedToGame!', subscribedToGame);
+  console.log('currentGameSession!', currentGameSession);
 
   return (
     <div>
       {<div className={'debug'}>
-        {/* <div className={'debug-row'}>
+        <div className={'debug-row'}>
           <div>Selected:</div>
           <div>
             {selectedTileId ?
@@ -1414,14 +1432,14 @@ export default function Home() {
           <div style={{ fontWeight: 'bold' }} id='submit-ready-display'></div>
         </div>
         <p>&nbsp;</p>
-        <div className={'debug-row'}>
+        {/* <div className={'debug-row'}>
           <div>Horiz. words:</div>
           <div>{horizontalWordList.join(' ')}</div>
         </div>
         <div className={'debug-row'}>
           <div>Vert. words:</div>
           <div>{verticalWordList.join(' ')}</div>
-        </div>
+        </div> */}
         <div className={'debug-row'}>
           <div style={{ fontWeight: 'bold' }} >New words:</div>
           <div style={{ fontWeight: 'bold' }} >{newWordList.join(' ')}</div>
@@ -1435,9 +1453,10 @@ export default function Home() {
           <div>Pending score:</div>
           <div>{pendingTurnScore}</div>
         </div>
-        <hr /> */}
+        <hr />
         <div style={{ fontWeight: 'bold' }}>Phase: {user.phase}</div>
         <div style={{ fontWeight: 'bold' }}>location: {user.currentLocation}</div>
+        <div>active: {activeTiles.length}</div>
       </div>}
 
       <Head>
@@ -1466,16 +1485,16 @@ export default function Home() {
           onTouchEnd={(gameStarted && IS_MOBILE) ? handleScreenPointerUp : () => null}
           onTouchCancel={(gameStarted && IS_MOBILE) ? handleScreenPointerUp : () => null}
         >
-          {gameStarted && subscribedToGame &&
+          {gameStarted && subscribedToGame && currentGameSession &&
             <>
               <div className='turn-display-area'>
-                <div className={`player-turn-area user${currentTurn === user.uid ? ' current-turn' : ''}`}>
+                <div className={`player-turn-area user${currentGameSession.currentTurn === user.uid ? ' current-turn' : ''}`}>
                   <UserIcon owner={user} size='large' />
-                  <div className='player-score'>{userScore}</div>
+                  <div className='player-score'>{currentGameSession[`${currentGameSession.instigator === user.uid ? 'instigator' : 'respondent'}Score`]}</div>
                 </div>
-                <div className={`player-turn-area opponent${currentTurn === opponent.uid ? ' current-turn' : ''}`}>
+                <div className={`player-turn-area opponent${currentGameSession.currentTurn === opponent.uid ? ' current-turn' : ''}`}>
                   <UserIcon owner={opponent} size='large' />
-                  <div className='player-score'>{opponentScore}</div>
+                  <div className='player-score'>{currentGameSession[`${currentGameSession.instigator === opponent.uid ? 'instigator' : 'respondent'}Score`]}</div>
                 </div>
               </div>
 
@@ -1510,15 +1529,15 @@ export default function Home() {
                 </div>
                 <div id='user-button-area' className='user-button-area'>
                   <Button label='Menu' clickAction={() => toggleModal('game-menu')} />
-                  <Button disabled={!submitReady || !placedTiles.length || (placedTiles.length < 2 && lockedTiles.length === 0)} color='green' label='Submit' clickAction={submitUserTiles} />
-                  {playerRack.every(tile => !tile.placed && !tile.selected) ?
+                  <Button disabled={!isUserTurn || !submitReady || !placedTiles.length || (placedTiles.length < 2 && lockedTiles.length === 0)} color='green' label='Submit' clickAction={submitUserTiles} />
+                  {activeTiles.every(tile => !tile.placed && !tile.selected) ?
                     <Button label='Shuffle' clickAction={shuffleUserTiles} />
                     :
                     <Button label='&#8595;&#8595;' clickAction={returnUserTiles} />
                   }
                   <Button size='small' label={`Word Rules`} clickAction={() => toggleModal('rules')} />
                   <Button color='brown' disabled={!unpronouncableWords.length} size='small' label={`Violations${totalViolations ? ' (' + totalViolations + ')' : ''}`} clickAction={() => toggleModal('violations')} />
-                  <Button size='small' label={`Bag (${bag.length})`} clickAction={() => toggleModal('bag')} />
+                  <Button size='small' label={`Bag (${currentGameSession.bag.length})`} clickAction={() => toggleModal('bag')} />
                 </div>
               </div>
               <GameMenuModal
@@ -1531,6 +1550,7 @@ export default function Home() {
               <>
                 <BagModal bag={currentGameSession.bag} showing={modalShowing === 'bag'} dismissModal={() => toggleModal()} />
                 <BlankModal bag={currentGameSession.bag} showing={modalShowing === 'blank'} dismissModal={handleSelectBlankLetter} />
+                <OpponentDisconnectedModal showing={modalShowing === 'opponent-disconnected'} opponent={opponent} dismissModal={handleFinalizeOpponentForfeit} />              
               </>
             }
               <ViolationsModal wordRules={wordRules} unpronouncableWords={unpronouncableWords} showing={modalShowing === 'violations'} dismissModal={() => toggleModal()} />
@@ -1757,7 +1777,7 @@ export default function Home() {
         :root {
           --actual-height: 100dvh;
           --board-size: 100vw;
-          --header-height: ${user.currentLocation === 'title' ? '18vw' : '2.75rem'};
+          --header-height: ${user.currentLocation === 'title' ? '18vw' : '2.25rem'};
           --main-padding: 0px;
           --large-icon-size: calc(var(--racked-tile-size) * 1.5);
           --rack-height: calc(var(--board-size) / 10);
@@ -1868,8 +1888,8 @@ export default function Home() {
           position: fixed;
           top: 0;
           right: 0;
-          //min-width: 14rem;
-          max-width: 14rem;
+          min-width: 18rem;
+          max-width: 18rem;
           padding: 1rem;
           display: flex;
           flex-direction: column;
@@ -1951,7 +1971,7 @@ export default function Home() {
 
         @media screen and (orientation: landscape) {
           :root {
-            --header-height: ${user.currentLocation === 'title' ? '5rem' : '4.5rem'};
+            --header-height: ${user.currentLocation === 'title' ? '5rem' : '3rem'};
             --main-padding: 1rem;
             --board-size: calc((var(--actual-height) - var(--header-height)) - var(--main-padding));
             --title-tile-size: calc(var(--header-height) * 0.85);

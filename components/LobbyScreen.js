@@ -133,7 +133,7 @@ export default function LobbyScreen(props) {
       <div className='lobby-display users'>
         <h3 className='lobby-sublist-header'>All Users</h3>
         {allUsers.length > 0 &&
-          allUsers.map(visitorObj => {
+          allUsers.filter(v => v.uid).map(visitorObj => {
             const isSelf = props.user.uid === visitorObj.uid;
             const isBeingChallengedByUser = props.user.pendingOutgoingChallenges && props.user.pendingOutgoingChallenges.includes(visitorObj.uid);
             const isAway = visitorObj.phase.includes('away');
@@ -328,7 +328,7 @@ export default function LobbyScreen(props) {
                 background-color: #88aa4433;                  
 
                 &.game-listing {
-                  background-color: #559955 !important;
+                  background-color: #775577 !important;
                   grid-template-columns: max-content max-content max-cintent 1dr;;
 
                   & > .game-info {

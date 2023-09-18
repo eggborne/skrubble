@@ -7,13 +7,10 @@ const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
 alphabet.push('blank');
 
 export default function GameMenuModal(props) {
-  const position = useMemo(() => {
-    const buttonAreaRect = document.getElementById
-  }, );
   return (
     <div className={`game-menu-modal${props.showing ? ' showing' : ''}`}>
-      <Button width='12rem' label='Back to Lobby' clickAction={props.handleClickBackToLobby} />
-      <Button width='12rem' color='red' label='Forfeit Game' clickAction={props.handleClickForfeitGame} />
+      <Button disabled={!props.showing} width='12rem' label='Back to Lobby' clickAction={props.handleClickBackToLobby} />
+      <Button disabled={!props.showing} width='12rem' color='red' label='Forfeit Game' clickAction={props.handleClickForfeitGame} />
       <div className='button-area'>
         <Button width={'8rem'} label={'OK'} clickAction={props.dismissModal} />
       </div>

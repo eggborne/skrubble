@@ -13,7 +13,7 @@ export default function AcceptedChallengeModal(props) {
       </div>
       <style jsx>{`
         .accepted-challenge-modal {
-          position: absolute;
+          position: fixed;
           width: 30rem;
           max-width: 95dvw;
           top: 50%;

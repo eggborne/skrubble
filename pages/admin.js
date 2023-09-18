@@ -5,6 +5,7 @@ import { subscribeToList } from '../scripts/firebase';
 export default function AdminScreen() {
   const [visitors, setVisitors] = useState([]);
   const [gameSessions, setGameSessions] = useState([]);
+  const [letterMatrices, setLetterMatrices] = useState([]);
   const [userListUpdated, setUserListUpdated] = useState(false);
   const [gameSessionListUpdated, setGameSessionListUpdated] = useState(false);
 
@@ -37,10 +38,34 @@ export default function AdminScreen() {
     return newGamesData;
   }
 
+  async function startLetterMatricesSubscription() {
+    let matrixListData;
+    const matrixList = await subscribeToList(`letterMatrices`, async (snapshot) => {
+      matrixListData = await snapshot.val();
+      if (matrixListData) {
+        console.warn('122 admin matrix subscription got matrixListData', matrixListData);
+        let matrixArray = [];
+        for (let key in matrixListData) {
+          const rowList = matrixListData[key];
+          matrixArray.push({
+            sessionId: key,
+            rows: rowList,
+          });
+        }
+        setLetterMatrices(matrixArray);
+      } else {
+        console.warn('122 admin matrixListData subscription DID NOT GET matrixListData');
+      }
+      return matrixListData;
+    });
+    return matrixList;
+  }
+
   useEffect(() => {
     console.error('initial useEffect ran -------------------------------------------------------------------------');
     startLobbySubscription();
     startGamesSubscription();
+    startLetterMatricesSubscription();
   }, []);
 
   const sortedUserArray = useMemo(() => [...visitors].sort((a, b) => a.displayName.localeCompare(b.displayName)), [visitors]);
@@ -67,7 +92,7 @@ export default function AdminScreen() {
                         let printedValue = visitorObj[key];
                         if (key.includes('Challenges')) {
                           printedValue = printedValue.length;
-                        }                        
+                        }
                         return (<div key={`lobby-user-column-${key}`} className={`table-cell`}>
                           <div className='table-cell-label'>{key}</div>
                           <div className='table-cell-value'>{printedValue}</div>
@@ -83,12 +108,13 @@ export default function AdminScreen() {
             <h2>Active Games{gameSessions.length > 0 ? ` (${gameSessions.length})` : ''}</h2>
             {gameSessions.length ?
               gameSessions.map(gameObj => {
-                console.log('mapping gameObj', gameObj);
                 const instigatorName = getDisplayNameById(gameObj.instigator);
                 const respondentName = getDisplayNameById(gameObj.respondent);
+                const sessionMatrix = [...letterMatrices].filter(m => m.sessionId === gameObj.sessionId)[0] ? [...letterMatrices].filter(m => m.sessionId === gameObj.sessionId)[0].rows.flat() : [];
+                console.warn('sessionMatrix', sessionMatrix)
                 return (
-                  <div className='sublist games'>
-                    <div key={`game-session-${gameObj.sessionId}`} className='table-row-listing'>
+                  <div key={`game-session-${gameObj.sessionId}`} className='sublist games'>
+                    <div className='table-row-listing'>
                       <div className='display-name-area'>
                         <div>{instigatorName} vs. {respondentName}</div>
                         <div>{gameObj.sessionId}</div>
@@ -108,13 +134,16 @@ export default function AdminScreen() {
                             printedValue = getDisplayNameById(printedValue);
                           }
                         }
-
                         return (<div key={key} className={`table-cell`}>
                           <div className='table-cell-label'>{key}</div>
                           <div className='table-cell-value'>{printedValue}</div>
                         </div>);
-                      }
-                      )}
+                      })}
+                    </div>
+                    <div className='matrix-display'>
+                      {sessionMatrix.map((filledSpace, f) => {
+                        return (<div key={`matrix-${gameObj.sessionId}-${f}`}>{filledSpace.contents ? filledSpace.contents.letter : ''}</div>)
+                      })}
                     </div>
                   </div>
                 );
@@ -213,8 +242,23 @@ export default function AdminScreen() {
               gap: 1.5rem;
               padding: 0.5rem;
 
-              &.users {                
+              & > .matrix-display {
+                width: 100%;
+                display: grid;
+                font-size: 1.25rem;
+                grid-template-columns: repeat(15, 1.25rem);
+                grid-template-rows: repeat(15, 1.25rem);
+                justify-content: center;
 
+                & > div {
+                  display: flex;
+                  align-items: center;
+                  justify-content: center;
+                  outline: 1px solid #000033;
+                }
+              }
+
+              &.users {
                 &.title {                                    
                   & > .table-row-listing {
                     background-color: #f1bbaa22;

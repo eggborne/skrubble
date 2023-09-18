@@ -5,7 +5,7 @@ const Rack = (props) => {
   return (
     <div className={`rack ${props.owner}`} id={`${props.owner}-rack`}>
       <div className='tile-container'>
-        {props.tiles.map((tile, t, arr) => {
+        {props.tiles.map((tile, t) => {
           return (
             <Space
               key={`${props.owner}-rack-space-${t}`}
