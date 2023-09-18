@@ -1,15 +1,15 @@
 import { isMobile } from 'is-mobile';
 import { useEffect, useMemo, useState } from 'react';
-import { addVisitorToList, auth, createGameSession, drawFromBag, getBagContents, provider, removeGameSession, removeVisitorFromList, subscribeToList, unsubscribeFromList, updateUserAttribute } from '../scripts/firebase';
+import { addVisitorToList, auth, createGameSession, drawFromBag, getBagContents, getVisitor, provider, removeGameSession, removeVisitorFromList, subscribeToList, unsubscribeFromList, updateGameSessionAttributes, updatePlayerAttributes, updateUserAttribute } from '../scripts/firebase';
 import { getAuth, signInWithPopup, GoogleAuthProvider, signInWithRedirect, signOut, signInAnonymously } from "firebase/auth";
-import { registerVisitor, getAllRulesets, sendNewRules } from '../scripts/db';
+import { getAllRulesets, sendNewRules } from '../scripts/rulesdb';
 import Head from 'next/head';
 import Header from '../components/Header';
 import Button from '../components/Button';
 import GameBoard from '../components/GameBoard';
 import Rack from '../components/Rack';
 import { emptyLetterMatrix, fullBoard, specialSpaceData, tileData } from '../scripts/scrabbledata';
-import { loadFromLocalStorage, pause, randomInt, saveToLocalStorage, shuffleArray } from '../scripts/util';
+import { pause, randomInt, saveToLocalStorage, shuffleArray } from '../scripts/util';
 import LoginModal from '../components/LoginModal';
 import UserIcon from '../components/UserIcon';
 import VersusScreen from '../components/VersusScreen';
@@ -37,6 +37,7 @@ const defaultOpponent = {
 };
 const guestUser = {
   displayName: 'Guest',
+  currentLocation: 'title',
   photoUrl: '../guestavatar.png',
 };
 
@@ -44,12 +45,10 @@ export default function Home() {
   const [loaded, setLoaded] = useState(false);
   const [visitors, setVisitors] = useState([]);
   const [gameSessions, setGameSessions] = useState([]);
-  const [user, setUser] = useState(null);
-  const [currentLocation, setCurrentLocation] = useState('title screen');
-  const [phase, setPhase] = useState('title screen');
+  const [user, setUser] = useState(guestUser);
+  const [opponent, setOpponent] = useState(defaultOpponent);
   const [userScore, setUserScore] = useState(0);
   const [opponentScore, setOpponentScore] = useState(0);
-  const [opponent, setOpponent] = useState(defaultOpponent);
   const [currentTurn, setCurrentTurn] = useState();
   const [pendingTurnScore, setPendingTurnScore] = useState(0);
   const [wordScoreTileId, setWordScoreTileId] = useState(undefined);
@@ -74,9 +73,7 @@ export default function Home() {
 
   const [subscribedToLobby, setSubscribedToLobby] = useState(false);
   const [subscribedToGame, setSubscribedToGame] = useState(false);
-  const [currentGameId, setCurrentGameId] = useState();
   const [currentGameSession, setCurrentGameSession] = useState();
-  const [pendingOutgoingChallenges, setPendingOutgoingChallenges] = useState([]);
   const [contemplatingChallengeWithId, setContemplatingChallengeWithId] = useState(undefined);
   const [ongoingGames, setOngoingGames] = useState([]);
 
@@ -84,9 +81,51 @@ export default function Home() {
 
   const [debugMode, setDebugMode] = useState(false);
 
+  async function updatePlayer(player, newAttributeObj) {
+    const updateObj = {};
+    const newPlayer = { ...player };
+    for (let key in newAttributeObj) {
+      const newValue = newAttributeObj[key];
+      newPlayer[key] = newValue;
+      updateObj[`/users/${newPlayer.uid}/${key}`] = newValue;
+    }
+    console.warn('updatePlayer sending', updateObj);
+    await updatePlayerAttributes(updateObj);
+    return newPlayer;
+  }
+
+  async function updateGameSession(sessionId, newAttributeObj) {
+    const updateObj = {};
+    for (let key in newAttributeObj) {
+      const newValue = newAttributeObj[key];
+      updateObj[`/game-sessions/${sessionId}/${key}`] = newValue;
+    }
+    console.warn('updateGameSession sending', updateObj);
+    await updateGameSessionAttributes(updateObj);
+  }
+
+  const playerRackTiles = useMemo(() => {
+    let rackSet = { userRackTiles: [], opponentRackTiles: [] };    
+    console.warn('000 user', user);
+    if (currentGameSession) {
+      const session = { ...currentGameSession };
+      console.warn('000 session', session);
+      const userIsRespondent = session.respondent === user.uid;
+      const userRackTiles = userIsRespondent ? session.respondentRack : session.instigatorRack;
+      const opponentRackTiles = userIsRespondent ? session.instigatorRack : session.respondentRack;
+      rackSet = {
+        userRackTiles: userRackTiles || [],
+        opponentRackTiles: opponentRackTiles || [],
+      };
+      console.log('000 rackSet', rackSet);
+    }
+    return rackSet;
+
+  }, [currentGameSession, newWords, selectedTileId, user]);
 
   const userRackSpaces = useMemo(() => {
-    return playerRack.map((tile, t) =>
+    console.log('000 mapping playerRackTiles.userRackTiles', playerRackTiles.userRackTiles)
+    return playerRackTiles.userRackTiles.map((tile, t) =>
       <Tile
         owner={'user'}
         draggable={true}
@@ -108,10 +147,11 @@ export default function Home() {
         bgPosition={tile.bgPosition}
       />
     );
-  }, [playerRack, newWords, selectedTileId]);
+  }, [playerRack, newWords, selectedTileId, playerRackTiles]);
 
   const opponentRackSpaces = useMemo(() => {
-    return opponentRack.map((tile, t) =>
+    console.log('000 mapping playerRackTiles.opponentRackTiles', playerRackTiles.opponentRackTiles)
+    return playerRackTiles.opponentRackTiles.map((tile, t) =>
       <Tile
         owner={'opponent'}
         draggable={false}
@@ -133,7 +173,7 @@ export default function Home() {
         bgPosition={tile.bgPosition}
       />
     );
-  }, [opponentRack]);
+  }, [opponentRack, newWords, selectedTileId, playerRackTiles]);
 
   const filledBoard = useMemo(() => {
     console.log('>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> creating filled board!!!');
@@ -182,50 +222,52 @@ export default function Home() {
   }, [letterMatrix, newWords]);
 
   async function handleClickGuestLogin(guestName) {
-
     signInAsGuest(guestName);
   }
 
   async function signInAsGuest(guestName) {
+    console.log('getAuth', getAuth());
     const existingUid = getAuth().currentUser && getAuth().currentUser.uid;
     console.log('---------------- existingUid is', existingUid);
     const anonUserData = await signInAnonymously(getAuth());
-    guestUser.displayName = guestName;
+    console.error('00000000000000000000000000000000000');
+    console.log('anonUserData', anonUserData);
+    console.error('00000000000000000000000000000000000');
     let newUser = {
       ...anonUserData.user,
       ...guestUser,
+      ...user,
     };
+    newUser.displayName = guestName;
+    newUser.currentLocation = 'lobby';
+    newUser.phase = 'browsing';
     console.log('guest user!', newUser);
     const queryStart = Date.now();
-    let registerMessage = 'Register message';
+    let registerMessage;
+
     if (!existingUid) {
-      registerMessage = `Registered new anonymous user "${newUser.displayName} - ${newUser.uid}"`;
+      console.error('no existing ID in firebase!');
     } else {
-      console.error('ANON USER STILL IN VISITOR LIST! ------------------------------------------>>');
-      const localData = loadFromLocalStorage('anonUserData');
-      console.warn('got local data', localData);
-      const outgoingList = localData ? localData.pendingOutgoingChallenges : [];
-      setPendingOutgoingChallenges(outgoingList);
-      newUser.pendingOutgoingChallenges = outgoingList;
-      registerMessage = `Recognized anonymous user "${newUser.displayName} - ${newUser.uid}"`;
+      const selfUser = await getVisitor(existingUid);
+      newUser = { ...selfUser, ...newUser };
+      console.error('ANON USER STILL IN VISITOR LIST! ------------->>');
     }
-    saveToLocalStorage('anonUserData', newUser);
-    await addVisitorToList({
-      visitorId: newUser.uid,
-      displayName: guestName,
-      currentLocation: 'lobby',
-      phase: 'browsing',
-      currentOpponentId: '',
+    const visitorUpdateObj = {
+      uid: newUser.uid,
+      displayName: newUser.displayName,
+      currentLocation: newUser.currentLocation,
+      phase: newUser.phase,
       currentGameId: '',
       pendingOutgoingChallenges: newUser.pendingOutgoingChallenges || 0,
-      ongoingGames: 0,
+      ongoingGames: newUser.ongoingGames || 0,
       photoUrl: newUser.photoUrl,
-    });
+    };
+    await addVisitorToList(visitorUpdateObj);
+    registerMessage = `${existingUid ? 'Recognized' : 'Registered new'} anonymous user "${newUser.displayName} - ${newUser.uid}"`;
+    saveToLocalStorage('anonUserData', newUser);
     flashSaveMessage(`${registerMessage} in ${Date.now() - queryStart}ms`, 2000);
-    console.warn('RTDB ADDED in', (Date.now() - queryStart));
     setUser(newUser);
-    setCurrentLocation('lobby');
-    setPhase('browsing');
+    //setPhase('browsing');
   }
 
   function callGoogleRedirect() {
@@ -241,7 +283,6 @@ export default function Home() {
 
         setUser(newUser);
         // setPhase('lobby');
-        setCurrentLocation('lobby');
         console.log('new user!', newUser);
         // This gives you a Google Access Token. You can use it to access the Google API.
         // const credential = GoogleAuthProvider.credentialFromResult(result);
@@ -268,10 +309,10 @@ export default function Home() {
   }
 
   useEffect(() => {
-    if (currentLocation === 'lobby') {
+    if (user.currentLocation === 'lobby') {
       if (subscribedToGame) {
         console.error('UNSUBSCRIBING FROM GAME!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!');
-        unsubscribeFromList(`game-sessions/${currentGameId}`);
+        unsubscribeFromList(`game-sessions/${user.currentGameId}`);
         setSubscribedToGame(false);
       }
       if (!subscribedToLobby) {
@@ -280,9 +321,11 @@ export default function Home() {
           let userData;
           newUserList = await subscribeToList('users', async (snapshot) => {
             userData = await snapshot.val();
-            setPendingOutgoingChallenges(userData[user.uid].pendingOutgoingChallenges);
             userData = Object.values(userData);
             setVisitors(userData);
+            const selfUser = [...userData].filter(u => u.uid === user.uid)[0];
+            console.log('setting self to', selfUser);
+            setUser(selfUser);
             return userData;
           });
         }
@@ -290,7 +333,7 @@ export default function Home() {
           let sessionData;
           const newGamesData = await subscribeToList(`game-sessions`, async (snapshot) => {
             sessionData = await snapshot.val();
-            console.warn('initially got', sessionData);
+            console.warn('game sub initially got', sessionData);
             sessionData = sessionData ? Object.values(sessionData) : [];
             console.warn('game sub got new sessiondata', sessionData);
             setGameSessions(sessionData);
@@ -298,8 +341,8 @@ export default function Home() {
           });
           return newGamesData;
         }
-        startLobbySubscription().then(() => {
-          startGameListSubscription().then(() => {
+        startGameListSubscription().then(() => {
+          startLobbySubscription().then(() => {
             console.error('SUBSCRIBED TO LOBBY!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!');
             setSubscribedToLobby(true);
           });
@@ -307,40 +350,40 @@ export default function Home() {
       }
     } else {
       if (subscribedToLobby) {
-        console.error('UNSUBSCRIBING FROM LOBBY!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!');
+        console.error('UNSUBSCRIBING FROM LOBBY!!!!!!!!!!!!!!!!!!!!!!!');
         unsubscribeFromList('users');
         unsubscribeFromList('game-sessions');
         setSubscribedToLobby(false);
       }
-      if (currentLocation === 'game') {
-        console.warn('location is game')
+      if (user.currentLocation === 'game') {
+        console.warn('location is game');
         if (!subscribedToGame) {
-          console.warn('NOT subbed to game')
+          console.warn('NOT subbed to game');
           let newGameData;
           async function startGameSubscription() {
             let sessionData;
-            newGameData = await subscribeToList(`game-sessions/${currentGameId}`, async (snapshot) => {            
+            newGameData = await subscribeToList(`game-sessions/${user.currentGameId}`, async (snapshot) => {
               sessionData = await snapshot.val();
               if (sessionData) {
                 console.warn('game subscription got new sessionData', sessionData);
                 setCurrentGameSession(sessionData);
-                setBag(sessionData.bag);
-                setCurrentTurn(sessionData.currentTurn);              
+                //setBag(sessionData.bag);
+                //setCurrentTurn(sessionData.currentTurn);
               } else {
-                console.warn('game subscription DID NOT GET sessionData', user);              
+                console.warn('game subscription DID NOT GET sessionData', user);
               }
             });
             return newGameData;
           }
           startGameSubscription().then((subscriptionResponse) => {
-            console.error('SUBSCRIBED TO GAME!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!');
+            console.error('SUBSCRIBED TO GAME!!!!!!!!!!!!!!!!!!!!!!!');
             console.warn('subscriptionResponse', subscriptionResponse);
             setSubscribedToGame(true);
           });
         }
       }
     }
-  }, [currentLocation, currentGameId, subscribedToLobby, subscribedToGame, user]);
+  }, [subscribedToLobby, subscribedToGame, user]);
 
 
 
@@ -358,83 +401,82 @@ export default function Home() {
   }
 
   async function createAndStartGameWithFirstTurn() {
-    const newGame = await createGameSession(user.uid, opponent.visitorId);
+    const newGame = await createGameSession(user.uid, opponent.uid);
     const newGameId = newGame.newGameId;
-    console.warn('createAndStartGameWithFirstTurn!', user.uid, opponent.visitorId, newGameId);
-    setCurrentGameId(newGameId);
-    
-    const newOngoingGames = ongoingGames ? [...ongoingGames, newGameId] : [newGameId];
-    console.warn('--------------------------------------------------------------|');
-    console.log('newOngoingGames', newOngoingGames);
-    setOngoingGames(newOngoingGames);
+
+    const newOngoingGames = user.ongoingGames ? [...user.ongoingGames, newGameId] : [newGameId];
     const newOpponentOngoingGames = opponent.ongoingGames ? [...opponent.ongoingGames, newGameId] : [newGameId];
-    console.log('newOpponentOngoingGames', newOpponentOngoingGames);
     let diminishedOpponentPendingOutgoingChallenges = [...opponent.pendingOutgoingChallenges].filter(c => c !== user.uid);
     if (!diminishedOpponentPendingOutgoingChallenges.length) {
       diminishedOpponentPendingOutgoingChallenges = 0;
     }
-    console.log('diminishedOpponentPendingOutgoingChallenges', diminishedOpponentPendingOutgoingChallenges);
-    console.warn('--------------------------------------------------------------|');
-    await updateUserAttribute(opponent.visitorId, 'ongoingGames', newOpponentOngoingGames);
-    await updateUserAttribute(opponent.visitorId, 'pendingOutgoingChallenges', diminishedOpponentPendingOutgoingChallenges);
-    await updateUserAttribute(user.uid, 'ongoingGames', newOngoingGames);
-    
-    const newUser = { ...user };
-    newUser.currentLocation = 'game';
-    newUser.phase = `playing: ${newGameId}`;
-    setCurrentLocation(newUser.currentLocation);
-    setPhase(newUser.phase);
-    setUser(newUser);
-    await updateUserAttribute(newUser.uid, 'currentLocation', newUser.currentLocation);
-    await updateUserAttribute(newUser.uid, 'phase', newUser.phase);
-    setModalShowing();
-    setCurrentTurn('user');
-    
+    setOngoingGames(newOngoingGames);
 
+    const newOpponent = await updatePlayer(opponent, {
+      ongoingGames: newOpponentOngoingGames,
+      pendingOutgoingChallenges: diminishedOpponentPendingOutgoingChallenges,
+    });
+    const newUser = await updatePlayer(user, {
+      currentLocation: 'game',
+      phase: 'playing',
+      ongoingGames: newOngoingGames,
+      currentGameId: newGameId,
+    });
+    setUser(newUser);
+    setOpponent(newOpponent);
+    setModalShowing();
     setGameStarted(true);
     const nextBag = createBag();
+
     await pause(1000);
 
-    const initialTileQuery = await drawFromBag(newGameId, [...nextBag], 7, 'user');
-    setPlayerRack(initialTileQuery.drawnLetters);
+    const userTileQuery = await drawFromBag(newGameId, [...nextBag], 7, 'user');
+    const opponentTileQuery = await drawFromBag(newGameId, userTileQuery.remainingBag, 7, 'user');
+    const newCurrentGameSession = await updateGameSession(newGameId, {
+      bag: opponentTileQuery.remainingBag,
+      instigatorRack: opponentTileQuery.drawnTiles,
+      respondentRack: userTileQuery.drawnTiles,
+    });
+    //setPlayerRack(userTileQuery.drawnTiles);
+    setCurrentGameSession(newCurrentGameSession);
   }
 
   async function handleClickForfeitGame() {
+    let diminishedOngoingGames = [...user.ongoingGames].filter(sessionId => sessionId !== user.currentGameId);
+    if (!diminishedOngoingGames.length) {
+      diminishedOngoingGames = 0;
+    }
+    let diminishedOpponentOngoingGames = [...opponent.ongoingGames].filter(sessionId => sessionId !== user.currentGameId);
+    if (!diminishedOpponentOngoingGames.length) {
+      diminishedOpponentOngoingGames = 0;
+    }
+    const newUser = await updatePlayer(user, {
+      ongoingGames: diminishedOngoingGames,
+    });
+    const newOpponent = await updatePlayer(opponent, {
+      ongoingGames: diminishedOpponentOngoingGames,
+    });
+
+    setUser(newUser);
+    setOpponent(newOpponent);
+    await removeGameSession(user.currentGameId);
     await handleClickBackToLobby();
-    removeGameSession(currentGameId);
-    const newOngoingGames = [...ongoingGames].filter(g => g.sessionId !== currentGameId);
-    console.log('dminished newOngoingGames', newOngoingGames);
-    setOngoingGames(newOngoingGames);
-    setCurrentGameId();  
-    await updateUserAttribute(user.uid, 'ongoingGames', newOngoingGames);
   }
 
-  async function handleClickJoinGame(newGameId) {
-    console.error('JOINING GAME WITH SESSION ID', newGameId);
-    const newUser = { ...user };
-    newUser.currentGameId = newGameId;
-    newUser.currentLocation = 'game';
-    newUser.phase = 'playing';
-    setCurrentGameId(newUser.currentGameId);
-    setCurrentLocation(newUser.currentLocation);
-    setPhase(newUser.phase);
+  async function handleClickJoinGame(newGameObj) {
+    const isInstigator = newGameObj.instigator === user.uid;
+    const newOpponent = [...visitors].filter(v => isInstigator ? (v.uid === newGameObj.respondent) : (v.uid === newGameObj.instigator))[0];
+    console.error('JOINING GAME SESSION', newGameObj);
+    const newUser = await updatePlayer(user, {
+      currentLocation: 'game',
+      phase: 'playing',
+      currentGameId: newGameObj.sessionId,
+    });
     setUser(newUser);
-    await updateUserAttribute(newUser.uid, 'currentLocation', newUser.currentLocation);
-    await updateUserAttribute(newUser.uid, 'phase', newUser.phase);
-    await updateUserAttribute(newUser.uid, 'currentGameId', newUser.currentGameId);
-    console.error('finished updates!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!');
+    setOpponent(newOpponent);
+
     setModalShowing();
     setGameStarted(true);
-
-    const newOngoingGames = ongoingGames ? [...ongoingGames, newGameId] : [newGameId];
-    console.log('newOngoingGames', newOngoingGames);
-    setOngoingGames(newOngoingGames);
-    await updateUserAttribute(newUser.uid, 'pendingOutgoingChallenges', newOngoingGames);
-    const currentBag = await getBagContents(newGameId);
-    await pause(1000);
-    
-    // const initialTileQuery = await drawFromBag(newGameId, currentBag, 7, 'user');
-    // setPlayerRack(initialTileQuery.drawnLetters);
   }
 
   function callBlankModal() {
@@ -462,7 +504,6 @@ export default function Home() {
         });
       }
     }
-    setBag(newBag);
     return newBag;
   }
 
@@ -478,7 +519,7 @@ export default function Home() {
       }
       letterArray.push(drawnTile);
     }
-    setBag(nextBag);
+    //setBag(nextBag);
     return letterArray;
   }
 
@@ -510,7 +551,7 @@ export default function Home() {
       window.addEventListener('beforeunload', async e => {
         // e.preventDefault();
         // removeVisitorFromList(user.uid);
-        if (user && currentLocation !== 'title') {
+        if (user && (user.currentLocation === 'lobby')) {
           await updateUserAttribute(user.uid, 'currentLocation', 'away');
         }
       }, { capture: true });
@@ -650,32 +691,32 @@ export default function Home() {
   }
 
   async function handleClickRequestGame(selectedOpponentId) {
-    console.warn('clicked request game!', selectedOpponentId);    
-    const newOutgoingChallenges = pendingOutgoingChallenges ? [...pendingOutgoingChallenges, selectedOpponentId] : [selectedOpponentId];
-    console.log('new outgoing', newOutgoingChallenges)
-    setPendingOutgoingChallenges(newOutgoingChallenges);
-    const newUser = { ...user };
-    newUser.pendingOutgoingChallenges = newOutgoingChallenges;
+    console.warn('clicked request game!', selectedOpponentId);
+    const newOutgoingChallenges = user.pendingOutgoingChallenges ? [...user.pendingOutgoingChallenges, selectedOpponentId] : [selectedOpponentId];
+    console.log('new outgoing', newOutgoingChallenges);
+    // setPendingOutgoingChallenges(newOutgoingChallenges);
+    const newUser = await updatePlayer(user, {
+      pendingOutgoingChallenges: newOutgoingChallenges,
+    });
     setUser(newUser);
-    await updateUserAttribute(newUser.uid, 'pendingOutgoingChallenges', newOutgoingChallenges);
   }
-  
+
   async function handleClickCancelRequest(selectedOpponentId) {
     console.warn('clicked cancel request!', selectedOpponentId);
-    let newOutgoingChallenges = [...pendingOutgoingChallenges].filter(c => c !== selectedOpponentId);
+    let newOutgoingChallenges = [...user.pendingOutgoingChallenges].filter(c => c !== selectedOpponentId);
     if (newOutgoingChallenges.length === 0) {
       newOutgoingChallenges = 0;
     }
-    setPendingOutgoingChallenges(newOutgoingChallenges);
-    const newUser = { ...user };
-    newUser.pendingOutgoingChallenges = newOutgoingChallenges;
+    // setPendingOutgoingChallenges(newOutgoingChallenges);
+    const newUser = await updatePlayer(user, {
+      pendingOutgoingChallenges: newOutgoingChallenges,
+    });
     setUser(newUser);
-    await updateUserAttribute(user.uid, 'pendingOutgoingChallenges', newOutgoingChallenges);
   }
 
-  async function handleClickContemplateChallenge(visitorId) {
-    console.error('accepted with id', visitorId);
-    setContemplatingChallengeWithId(visitorId);    
+  async function handleClickContemplateChallenge(uid) {
+    console.error('accepted with id', uid);
+    setContemplatingChallengeWithId(uid);
   }
 
   async function cancelContemplate() {
@@ -685,13 +726,10 @@ export default function Home() {
 
   async function handleClickBackToTitle() {
     console.warn('clicked back to title!');
-    await updateUserAttribute(user.uid, 'currentLocation', 'title screen');
-    await updateUserAttribute(user.uid, 'phase', '');
-    await updateUserAttribute(user.uid, 'currentOpponentId', '');
-    setCurrentLocation('title screen');
-    setPhase('');
-    const newUser = { ...user };
-    newUser.currentOpponentId = '';
+    const newUser = await updatePlayer(user, {
+      currentLocation: 'title',
+      phase: '',
+    });
     setUser(newUser);
     setVisitors([]);
     setContemplatingChallengeWithId(undefined);
@@ -700,15 +738,13 @@ export default function Home() {
 
   async function handleClickBackToLobby() {
     console.warn('clicked back to lobby!');
-    setCurrentLocation('lobby');
-    setPhase('browsing');
     setContemplatingChallengeWithId(undefined);
-    await updateUserAttribute(user.uid, 'currentLocation', 'lobby');
-    await updateUserAttribute(user.uid, 'phase', 'browsing');
-    await updateUserAttribute(user.uid, 'currentOpponentId', '');
-    await updateUserAttribute(user.uid, 'currentGameId', '');
-    const newUser = { ...user };
-    newUser.currentOpponentId = '';
+
+    const newUser = await updatePlayer(user, {
+      currentLocation: 'lobby',
+      phase: 'browsing',
+      currentGameId: '',
+    });
     setUser(newUser);
     setGameStarted(false);
   }
@@ -718,40 +754,19 @@ export default function Home() {
       console.warn('when visitors.length > 0, contId', contemplatingChallengeWithId, 'modal', modalShowing, 'opponent', opponent);
       if (contemplatingChallengeWithId) {
         if (modalShowing !== 'accepted-challenge') {
-          const prospectiveOpponentObj = [...visitors].filter(v => v.visitorId === contemplatingChallengeWithId)[0];
+          const prospectiveOpponentObj = [...visitors].filter(v => v.uid === contemplatingChallengeWithId)[0];
           setOpponent(prospectiveOpponentObj);
           setModalShowing('accepted-challenge');
         }
-      } else {        
-        setOpponent(defaultOpponent);
-        setModalShowing();        
+      } else {
+        setModalShowing();
       }
     }
-    if (user) {
+    if (user && user.currentLocation !== 'title') {
       console.log('saving to local', user);
       saveToLocalStorage('anonUserData', user);
     }
-  }, [visitors, user, contemplatingChallengeWithId]);
-  // useEffect(() => {
-  //   if (visitors.length) {
-  //     const confirmedOpponent = [...visitors].filter(v => {
-  //       const isSelf = v.visitorId === user.uid;
-  //       const opponentTargetingUser = v.currentOpponentId === user.uid;
-  //       const userTargetingOpponent = v.visitorId === user.currentOpponentId;
-  //       return !isSelf && opponentTargetingUser && userTargetingOpponent;
-  //     })[0];
-  //     if (confirmedOpponent) {
-  //       if ((modalShowing !== 'opponent-accepted') && (modalShowing !== 'accepted-challenge')) {
-  //         setOpponent(confirmedOpponent);
-  //         setModalShowing(phase.length > 15 ? 'opponent-accepted' : 'accepted-challenge');
-  //       }
-  //     } else {
-  //       if (modalShowing === 'opponent-accepted' || modalShowing === 'accepted-challenge') {
-  //         setModalShowing();
-  //       }
-  //     }
-  //   }
-  // }, [visitors, user]);
+  }, [visitors, user, opponent, contemplatingChallengeWithId]);
 
   useEffect(() => {
     let totalNewPoints = newWords.reduce((acc, curr) => scoreWord(curr) + acc, 0);
@@ -1358,6 +1373,8 @@ export default function Home() {
   // const newWordList = newWords.map(wordObj => `${wordObj.word} (${scoreWord(wordObj)})`);
   let totalViolations = unpronouncableWords.length;
 
+  console.log('user!', user);
+
   return (
     <div>
       {<div className={'debug'}>
@@ -1419,8 +1436,8 @@ export default function Home() {
           <div>{pendingTurnScore}</div>
         </div>
         <hr /> */}
-        <div style={{ fontWeight: 'bold' }}>Phase: {phase}</div>
-        <div style={{ fontWeight: 'bold' }}>location: {currentLocation}</div>
+        <div style={{ fontWeight: 'bold' }}>Phase: {user.phase}</div>
+        <div style={{ fontWeight: 'bold' }}>location: {user.currentLocation}</div>
       </div>}
 
       <Head>
@@ -1435,8 +1452,7 @@ export default function Home() {
         <Header
           landscape={LANDSCAPE}
           revealed={loaded}
-          phase={phase}
-          currentLocation={currentLocation}
+          user={user}
           gameStarted={gameStarted}
         />
         <div
@@ -1450,15 +1466,15 @@ export default function Home() {
           onTouchEnd={(gameStarted && IS_MOBILE) ? handleScreenPointerUp : () => null}
           onTouchCancel={(gameStarted && IS_MOBILE) ? handleScreenPointerUp : () => null}
         >
-          {gameStarted &&
+          {gameStarted && subscribedToGame &&
             <>
               <div className='turn-display-area'>
                 <div className={`player-turn-area user${currentTurn === user.uid ? ' current-turn' : ''}`}>
-                  <UserIcon user={user} size='large' />
+                  <UserIcon owner={user} size='large' />
                   <div className='player-score'>{userScore}</div>
                 </div>
-                <div className={`player-turn-area opponent${currentTurn === opponent.visitorId ? ' current-turn' : ''}`}>
-                  <UserIcon user={opponent} size='large' />
+                <div className={`player-turn-area opponent${currentTurn === opponent.uid ? ' current-turn' : ''}`}>
+                  <UserIcon owner={opponent} size='large' />
                   <div className='player-score'>{opponentScore}</div>
                 </div>
               </div>
@@ -1476,7 +1492,7 @@ export default function Home() {
                 filledBoard={filledBoard}
                 newWords={newWords}
               />
-              <div className='game-id-label'>game id: {currentGameId}</div>
+              <div className='game-id-label'>Game ID: {user.currentGameId}</div>
               <WordScoreDisplay
                 pendingTurnScore={pendingTurnScore}
                 wordScoreTileId={wordScoreTileId}
@@ -1510,14 +1526,18 @@ export default function Home() {
                 handleClickBackToLobby={handleClickBackToLobby}
                 handleClickForfeitGame={handleClickForfeitGame}
                 dismissModal={() => toggleModal()}
-              />
-              <BagModal bag={bag} showing={modalShowing === 'bag'} dismissModal={() => toggleModal()} />
-              <BlankModal bag={bag} showing={modalShowing === 'blank'} dismissModal={handleSelectBlankLetter} />
+            />
+            {currentGameSession &&
+              <>
+                <BagModal bag={currentGameSession.bag} showing={modalShowing === 'bag'} dismissModal={() => toggleModal()} />
+                <BlankModal bag={currentGameSession.bag} showing={modalShowing === 'blank'} dismissModal={handleSelectBlankLetter} />
+              </>
+            }
               <ViolationsModal wordRules={wordRules} unpronouncableWords={unpronouncableWords} showing={modalShowing === 'violations'} dismissModal={() => toggleModal()} />
             </>
           }
 
-          {currentLocation === 'versus' &&
+          {user.currentLocation === 'versus' &&
             <VersusScreen
               user={user}
               opponent={opponent}
@@ -1525,14 +1545,12 @@ export default function Home() {
             />
           }
 
-          {(currentLocation === 'lobby') &&
+          {(user.currentLocation === 'lobby') &&
             <>
               <LobbyScreen
                 user={user}
-                phase={phase}
                 visitors={visitors}
                 gameSessions={gameSessions}
-                pendingOutgoingChallenges={pendingOutgoingChallenges}
                 ongoingGames={ongoingGames}
                 handleClickRequestGame={handleClickRequestGame}
                 handleClickCancelRequest={handleClickCancelRequest}
@@ -1549,7 +1567,7 @@ export default function Home() {
             </>
           }
 
-          {currentLocation === 'title screen' &&
+          {user.currentLocation === 'title' &&
             <LoginModal handleClickGoogleLogin={callGooglePopup} handleClickGuestLogin={handleClickGuestLogin}
             />
           }
@@ -1581,7 +1599,8 @@ export default function Home() {
           flex-direction: column;
           justify-content: space-between;
           align-items: center;
-          //overflow: hidden;
+          overflow-x: hidden;
+          overflow-y: hidden;
           opacity: ${loaded ? 1 : 0};
           transition: opacity 500ms ease;                    
         }        
@@ -1592,9 +1611,8 @@ export default function Home() {
           display: grid;
           grid-template-columns: 1fr;
           grid-template-rows: min-content calc(var(--rack-height) * 1.75) min-content 1fr;
-          overflow-y: auto;
-          min-width: 100dvw;
-          
+          overflow-y: ${user.currentLocation === 'lobby' ? 'auto' : 'hidden'};
+          min-width: 90dvw;          
 
           & .game-id-label {
             position: fixed;
@@ -1739,7 +1757,7 @@ export default function Home() {
         :root {
           --actual-height: 100dvh;
           --board-size: 100vw;
-          --header-height: ${currentLocation === 'title screen' ? '18vw' : '2.75rem'};
+          --header-height: ${user.currentLocation === 'title' ? '18vw' : '2.75rem'};
           --main-padding: 0px;
           --large-icon-size: calc(var(--racked-tile-size) * 1.5);
           --rack-height: calc(var(--board-size) / 10);
@@ -1933,7 +1951,7 @@ export default function Home() {
 
         @media screen and (orientation: landscape) {
           :root {
-            --header-height: ${currentLocation === 'title screen' ? '5rem' : '4.5rem'};
+            --header-height: ${user.currentLocation === 'title' ? '5rem' : '4.5rem'};
             --main-padding: 1rem;
             --board-size: calc((var(--actual-height) - var(--header-height)) - var(--main-padding));
             --title-tile-size: calc(var(--header-height) * 0.85);

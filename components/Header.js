@@ -15,7 +15,7 @@ export default function Header(props) {
         <div className='title-tile-container'><Tile bgPosition={90} letter='L' value={tileData['l'].value} title /></div>
         <div className='title-tile-container'><Tile bgPosition={100} letter='E' value={tileData['e'].value} title even /></div>
       </div>
-      <div className={`title-legend${props.revealed && props.currentLocation === 'title screen' ? ' revealed' : ''}${props.currentLocation === 'title screen' ? ' expanded' : ''}`}>
+      <div className={`title-legend${props.revealed && props.user.currentLocation === 'title' ? ' revealed' : ''}${props.user.currentLocation === 'title' ? ' expanded' : ''}`}>
         the <span style={{ color: '#ddffcc' }} >phonetic</span> crossword game
       </div>
       <style jsx>{`
@@ -23,7 +23,7 @@ export default function Header(props) {
           position: relative;
           min-width: 100vw;
           height: var(--header-height);
-          margin-top: ${props.currentLocation === 'title screen' ? '12vh' : '0'};
+          margin-top: ${props.user.currentLocation === 'title' ? '12vh' : '0'};
           display: flex;
           flex-direction: column;
           align-items: center;
@@ -31,7 +31,7 @@ export default function Header(props) {
           padding: 0 calc(var(--racked-tile-size) * 0.1);
           transition: all 500ms ease;
           font-family: 'Aladin', cursive;
-          padding-top: ${props.currentLocation === 'lobby' && 'calc(var(--header-height) * 0.25)'};
+          padding-top: ${props.user.currentLocation === 'lobby' && 'calc(var(--header-height) * 0.25)'};
 
           & > .title-tile-area {
             display: flex;

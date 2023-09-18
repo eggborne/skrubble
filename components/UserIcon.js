@@ -1,8 +1,9 @@
 export default function UserIcon(props) {
+  console.log('icon got name', props.owner)
   return (
     <div className='user-icon'>
-      <img src={props.user.photoUrl}></img>
-      <span className='user-name'>{props.user.displayName}</span>
+      <img src={props.owner.photoUrl}></img>
+      <span className='user-name'>{props.owner.displayName}</span>
       <style jsx>{`
         .user-icon {
           --icon-size: ${props.size === 'large' ? 'var(--large-icon-size)' : 'var(--header-height)'};

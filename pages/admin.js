@@ -9,9 +9,7 @@ export default function AdminScreen() {
   const [gameSessionListUpdated, setGameSessionListUpdated] = useState(false);
 
   function getDisplayNameById(id) {
-    console.log('getting from vis', [...visitors]);
-    let visitorWithIdArr = [...visitors].filter(v => v.visitorId === id);
-    console.log('visitorArr?', visitorWithIdArr);
+    let visitorWithIdArr = [...visitors].filter(v => v.uid === id);
     return visitorWithIdArr.length > 0 ? visitorWithIdArr[0].displayName : '';
   }
 
@@ -40,154 +38,93 @@ export default function AdminScreen() {
   }
 
   useEffect(() => {
-    console.warn('initial useEffect ran -------------------------------------------------------------------------');
+    console.error('initial useEffect ran -------------------------------------------------------------------------');
     startLobbySubscription();
     startGamesSubscription();
   }, []);
 
-  const titleUserArray = useMemo(() => visitors.filter(v => v.currentLocation === 'title screen' || v.currentLocation === 'away'), [visitors]);
-  const lobbyUserArray = useMemo(() => visitors.filter(v => v.currentLocation === 'lobby'), [visitors]);
-  const gameUserArray = useMemo(() => visitors.filter(v => v.currentLocation === 'game'), [visitors]);
-
-  const totalUsers = titleUserArray.length + lobbyUserArray.length + gameUserArray.length;
-
-  console.warn('lobbyUserArray', lobbyUserArray);
-  console.warn('gameUserArray', gameUserArray);
+  const sortedUserArray = useMemo(() => [...visitors].sort((a, b) => a.displayName.localeCompare(b.displayName)), [visitors]);
 
   return (
     <div className='admin-screen'>
-      <div className={`table-row-list${userListUpdated ? ' updated' : ''}`}>
-        <h2>Users {totalUsers > 0 ? `(${totalUsers})` : ''}</h2>
-        {(lobbyUserArray.length > 0 || gameUserArray.length > 0 || titleUserArray.length > 0) ?
-          <>
-            {titleUserArray.length > 0 && <div className='sublist users title'>
-              {titleUserArray.map(visitorObj => {
-                return (
-                  <div style={{ opacity: visitorObj.currentLocation === 'away' ? 0.5 : 1 }} key={`visitor-${visitorObj.visitorId}`} className='table-row-listing'>
-                    <div className='display-name-area'>
-                      <div>{visitorObj.displayName}</div>
-                      <div>{visitorObj.visitorId}</div>
+      {visitors.length > 0 ?
+        <>
+          <div className={`table-row-list${userListUpdated ? ' updated' : ''}`}>
+            <h2>Users {visitors.length ? `(${visitors.length})` : ''}</h2>
+            {visitors.length &&
+              <div className='sublist users'>
+                {sortedUserArray.map(visitorObj => {
+                  return (
+                    <div style={{ opacity: visitorObj.currentLocation === 'away' ? 0.5 : 1 }} key={`visitor-${visitorObj.uid}`} className='table-row-listing'>
+                      <div className='display-name-area'>
+                        <div>{visitorObj.displayName}</div>
+                        <div>{visitorObj.uid}</div>
+                      </div>
+                      <div className='user-photo-area'>
+                        <img alt={visitorObj.photoUrl} className='user-photo' src={`https://skrubble.live/${visitorObj.photoUrl}`} />
+                      </div>
+                      {Object.keys(visitorObj).map(key => {
+                        let printedValue = visitorObj[key];
+                        if (key.includes('Challenges')) {
+                          printedValue = printedValue.length;
+                        }                        
+                        return (<div key={`lobby-user-column-${key}`} className={`table-cell`}>
+                          <div className='table-cell-label'>{key}</div>
+                          <div className='table-cell-value'>{printedValue}</div>
+                        </div>);
+                      })}
                     </div>
-                    <div className='user-photo-area'>
-                      <img alt={visitorObj.photoUrl} className='user-photo' src={`https://skrubble.live/${visitorObj.photoUrl}`} />
-                    </div>
-                    {Object.keys(visitorObj).map(key => {
-                      let printedValue = visitorObj[key];
-                      if (!key.includes('Id') && visitorObj[key].length > 15) {
-                        printedValue = getDisplayNameById(printedValue);
-                      } else if (key.includes('Challenges')) {
-                        printedValue = printedValue.length
-                      }
-                      return (<div key={`lobby-user-column-${key}`} className={`table-cell`}>
-                        <div className='table-cell-label'>{key}</div>
-                        <div className='table-cell-value'>{printedValue}</div>
-                      </div>);
-                    })}
-                  </div>
-                );
-              })}
-            </div>}
-            {lobbyUserArray.length > 0 && <div className='sublist users lobby'>
-              {lobbyUserArray.map(visitorObj => {
-                return (
-                  <div key={`visitor-${visitorObj.visitorId}`} className='table-row-listing'>
-                    <div className='display-name-area'>
-                      <div>{visitorObj.displayName}</div>
-                      <div>{visitorObj.visitorId}</div>
-                    </div>
-                    <div className='user-photo-area'>
-                      <img alt={visitorObj.photoUrl} className='user-photo' src={`https://skrubble.live/${visitorObj.photoUrl}`} />
-                    </div>
-                    {Object.keys(visitorObj).map(key => {
-                      let printedValue = visitorObj[key];
-                      if (!key.includes('Id') && visitorObj[key].length > 20) {
-                        printedValue = getDisplayNameById(printedValue);
-                      } else if (key.includes('Challenges')) {
-                        printedValue = printedValue.length
-                      }
-                      return (<div key={`lobby-user-column-${key}`} className={`table-cell`}>
-                        <div className='table-cell-label'>{key}</div>
-                        <div className='table-cell-value'>{printedValue}</div>
-                      </div>);
-                    })}
-                  </div>
-                );
-              })}
-            </div>}
-            {gameUserArray.length > 0 && <div className='sublist users in-game'>
-              {gameUserArray.map(visitorObj => {
-                return (
-                  <div key={`visitor-${visitorObj.visitorId}`} className='table-row-listing'>
-                    <div className='display-name-area'>
-                      <div>{visitorObj.displayName}</div>
-                      <div>{visitorObj.visitorId}</div>
-                    </div>
-                    <div className='user-photo-area'>
-                      <img alt={visitorObj.photoUrl} className='user-photo' src={`https://skrubble.live/${visitorObj.photoUrl}`} />
-                    </div>
-                    {Object.keys(visitorObj).map(key => {
-                      let printedValue = visitorObj[key];
-                      if (!key.includes('Id') && visitorObj[key].length > 20) {
-                        printedValue = getDisplayNameById(printedValue);
-                      } else if (key.includes('Challenges')) {
-                        printedValue = printedValue.length
-                      }
-                      return (<div key={`game-user-column-${key}`} className={`table-cell`}>
-                        <div className='table-cell-label'>{key}</div>
-                        <div className='table-cell-value'>{printedValue}</div>
-                      </div>);
-                    })}
-                  </div>
-                );
-              })}
-            </div>}
-          </>
-          :
-          <div className='empty-message'>{'no users'}</div>
-        }
-      </div>
-      <div className={`table-row-list${gameSessionListUpdated ? ' updated' : ''}`}>
-        <h2>Games{gameSessions.length > 0 ? ` (${gameSessions.length})` : ''}</h2>
-        {gameSessions.length ?
-          gameSessions.map(gameObj => {
-            console.log('mapping gameObj', gameObj);
-            const instigatorName = getDisplayNameById(gameObj.instigator);
-            const respondentName = getDisplayNameById(gameObj.respondent);
-            return (
-              <div className='sublist games'>
-                <div key={`game-session-${gameObj.sessionId}`} className='table-row-listing'>
-                  <div className='display-name-area'>
-                    <div>{instigatorName} vs. {respondentName}</div>
-                    <div>{gameObj.sessionId}</div>
-                  </div>
-                  <div className={`table-cell`}>
-                    <div className='table-cell-label'>{'players'}</div>
-                    <div className='table-cell-value'>{instigatorName}{<br />} vs. {<br />}{respondentName}</div>
-                  </div>
-                  {Object.keys(gameObj).map(key => {
-                    let printedValue = gameObj[key];
-                    if (key === 'bag') {
-                      printedValue = gameObj[key].length;
-                    } else {
-                      if (!key.includes('Id') && gameObj[key].length > 15) {
-                        printedValue = getDisplayNameById(printedValue);
-                      }
-                    }
-
-                    return (<div key={key} className={`table-cell`}>
-                      <div className='table-cell-label'>{key}</div>
-                      <div className='table-cell-value'>{printedValue}</div>
-                    </div>);
-                  }
-                  )}
-                </div>
+                  );
+                })}
               </div>
-            );
-          })
-          :
-          <div className='empty-message'>{'no games'}</div>
-        }
-      </div>
+            }
+          </div>
+          <div className={`table-row-list${gameSessionListUpdated ? ' updated' : ''}`}>
+            <h2>Active Games{gameSessions.length > 0 ? ` (${gameSessions.length})` : ''}</h2>
+            {gameSessions.length ?
+              gameSessions.map(gameObj => {
+                console.log('mapping gameObj', gameObj);
+                const instigatorName = getDisplayNameById(gameObj.instigator);
+                const respondentName = getDisplayNameById(gameObj.respondent);
+                return (
+                  <div className='sublist games'>
+                    <div key={`game-session-${gameObj.sessionId}`} className='table-row-listing'>
+                      <div className='display-name-area'>
+                        <div>{instigatorName} vs. {respondentName}</div>
+                        <div>{gameObj.sessionId}</div>
+                      </div>
+                      <div className={`table-cell`}>
+                        <div className='table-cell-label'>{'players'}</div>
+                        <div className='table-cell-value'>{instigatorName}{<br />} vs. {<br />}{respondentName}</div>
+                      </div>
+                      {Object.keys(gameObj).map(key => {
+                        let printedValue = gameObj[key];
+                        if (key === 'bag') {
+                          printedValue = gameObj[key].length;
+                        } else if (key.includes('Rack')) {
+                          printedValue = printedValue.length;
+                        } else {
+                          if (!key.includes('uid') && gameObj[key].length > 15) {
+                            printedValue = getDisplayNameById(printedValue);
+                          }
+                        }
+
+                        return (<div key={key} className={`table-cell`}>
+                          <div className='table-cell-label'>{key}</div>
+                          <div className='table-cell-value'>{printedValue}</div>
+                        </div>);
+                      }
+                      )}
+                    </div>
+                  </div>
+                );
+              }) :
+              <div className='empty-message'>{'no active games'}</div>
+            }
+          </div>
+        </> :
+        <div className='loading-message'>{'loading...'}</div>
+      }
 
       <style jsx global>{`
         html,
@@ -211,8 +148,9 @@ export default function AdminScreen() {
       `}</style>
       <style jsx>{`
         .admin-screen {
+          box-sizing: border-box;
           font-size: 14px;
-          padding: 1rem;          
+          padding: 3rem 1rem;          
           min-height: 100vh;
           display: flex;
           flex-direction: column;
@@ -220,10 +158,14 @@ export default function AdminScreen() {
           background-color: #223;
           color: #aaa;
 
-          & .empty-message {
+          & .empty-message, & .loading-message {
             text-align: center;
             font-size: 1.5rem;
             opacity: 0.5;
+          }
+          & .loading-message {
+            margin-top: 6rem;
+            font-weight: bold;
           }
 
           & .display-name-area {

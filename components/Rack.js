@@ -1,7 +1,7 @@
 import Space from "./Space";
 
 const Rack = (props) => {
-  // console.warn('rendering Rack --------------------', props.owner);
+  console.warn('rendering Rack --------------------', props);
   return (
     <div className={`rack ${props.owner}`} id={`${props.owner}-rack`}>
       <div className='tile-container'>

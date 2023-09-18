@@ -7,7 +7,7 @@ export default function SignInButton(props) {
 
   useEffect(() => {
     if (expanded) {
-      const storedName = loadFromLocalStorage('anonUserData') ? loadFromLocalStorage('anonUserData').displayName : '';
+      const storedName = loadFromLocalStorage('anonUserData') ? loadFromLocalStorage('anonUserData').displayName : 'Guest';
       console.log('storedName', storedName);
       setGuestName(storedName);
     }
