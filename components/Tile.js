@@ -154,9 +154,9 @@ const Tile = React.memo((props) => {
           translate: none;
         }
 
-        // .tile.opponent > .letter, .tile.opponent:after {
-        //   opacity: 0;
-        // }
+        .tile.opponent > .letter, .tile.opponent:after {
+          opacity: 0;
+        }
       `}</style>
     </>
   );

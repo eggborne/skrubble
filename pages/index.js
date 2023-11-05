@@ -637,7 +637,6 @@ export default function Home() {
       });
       setLoaded(true);
       console.warn('ENV ------>', process.env);
-      // getDefinition('blargh');
     }
 
   }, [loaded, user]);

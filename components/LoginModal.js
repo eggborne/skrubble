@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import GoogleButton from "./GoogleButton";
 import SignInButton from "./SignInButton";
+// import { getDefinition } from "../scripts/ai";
 
 export default function LoginModal(props) {
   const [revealed, setRevealed] = useState(false);
@@ -13,6 +14,7 @@ export default function LoginModal(props) {
     <div className='login-modal'>
       <GoogleButton label="Sign in with Google" clickAction={props.handleClickGoogleLogin} />
       <SignInButton label="Play as Guest" clickAction={props.handleClickGuestLogin} />
+      {/* <button style={{ padding: '1rem', color: 'white' }} onClick={() => getDefinition('snargle')}>Test API</button> */}
       <style jsx>{`
         .login-modal {
           position: fixed;

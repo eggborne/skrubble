@@ -1,30 +1,21 @@
-import OpenAI from 'openai';
-
-// const openai = new OpenAI({
-//   apiKey: process.env.OPENAI_API_KEY,
-// });
-
 const getDefinition = async (word) => {
-  // const response = await openai.createChatCompletion({
-  //   model: 'gpt-3.5-turbo',
-  //   messages: [
-  //     {
-  //       role: 'user',
-  //       content: 'Give me some goofy names for a horse.'
-  //     },
-  //   ],
-  //   temperature: 0,
-  //   max_tokens: 500,
-  //   top_p: 1.0,
-  //   frequency_penalty: 0.0,
-  //   presence_penalty: 0.0,
-  // });
+  try {
+    const response = await fetch('https://skrubble.live/php/api_proxy.php', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ word }),
+    });
 
-  // console.warn('resp!', response.data.choices[0].message);
+    const data = await response.json();
+    const responseMessage = data.choices[0].message.content;
+
+    console.log(responseMessage);
+    return responseMessage;
+  } catch (error) {
+    console.error('Error:', error);
+  }
 };
 
 export { getDefinition };
-
-
-
-
